@@ -27,6 +27,7 @@ import AIInsightsPage from "./pages/originator/AIInsights";
 import BorrowerReports from "./pages/borrower/Reports";
 import BorrowerOnboarding from "./pages/borrower/Onboarding";
 import FunderReports from "./pages/funder/Reports";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +68,10 @@ const App = () => (
 
               {/* Funder */}
               <Route path="/funder/reports" element={<ProtectedRoute requiredRoles={["funder"]}><FunderReports /></ProtectedRoute>} />
+
+              {/* Settings */}
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/settings/security" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>
