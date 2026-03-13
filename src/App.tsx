@@ -21,11 +21,18 @@ import DataProcessingAgreement from "./pages/legal/DataProcessingAgreement";
 // Protected pages
 import Dashboard from "./pages/Dashboard";
 import AdminReports from "./pages/admin/Reports";
+import AdminOrganizations from "./pages/admin/Organizations";
+import AdminUsers from "./pages/admin/Users";
 import OriginatorReports from "./pages/originator/Reports";
 import OriginatorBranding from "./pages/originator/Branding";
+import OriginatorBorrowers from "./pages/originator/Borrowers";
+import OriginatorContracts from "./pages/originator/Contracts";
+import OriginatorInvoices from "./pages/originator/Invoices";
 import AIInsightsPage from "./pages/originator/AIInsights";
 import BorrowerReports from "./pages/borrower/Reports";
 import BorrowerOnboarding from "./pages/borrower/Onboarding";
+import BorrowerDocuments from "./pages/borrower/Documents";
+import BorrowerInvoices from "./pages/borrower/Invoices";
 import FunderReports from "./pages/funder/Reports";
 import Settings from "./pages/Settings";
 
