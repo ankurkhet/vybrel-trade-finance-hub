@@ -27,6 +27,7 @@ import AIInsightsPage from "./pages/originator/AIInsights";
 import BorrowerReports from "./pages/borrower/Reports";
 import BorrowerOnboarding from "./pages/borrower/Onboarding";
 import FunderReports from "./pages/funder/Reports";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
