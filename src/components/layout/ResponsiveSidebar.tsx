@@ -45,7 +45,7 @@ function SidebarNav({ sections, header }: { sections: NavSection[]; header?: Rea
       {header && <SidebarHeader>{header}</SidebarHeader>}
       <SidebarContent>
         {sections.map((section) => (
-          <SidebarGroup key={section.label} defaultOpen>
+          <SidebarGroup key={section.label}>
             <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
