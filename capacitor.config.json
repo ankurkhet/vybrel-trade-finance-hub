@@ -1,0 +1,9 @@
+{
+  "appId": "app.lovable.51b22ae877394b9283ec021376e240b1",
+  "appName": "Vybrel",
+  "webDir": "dist",
+  "server": {
+    "url": "https://51b22ae8-7739-4b92-83ec-021376e240b1.lovableproject.com?forceHideBadge=true",
+    "cleartext": true
+  }
+}
