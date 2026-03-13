@@ -4,36 +4,30 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Plus, Users, Settings, Send, Loader2, Palette, CreditCard } from "lucide-react";
+import { Building2, Plus, Loader2, UserPlus, Trash2, Upload, CheckCircle2, XCircle, Clock, FileText, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { OrgDetailPanel } from "@/components/admin/OrgDetailPanel";
 
 type LabellingMode = Database["public"]["Enums"]["labelling_mode"];
 
-interface OrgWithSettings {
-  id: string;
-  name: string;
-  slug: string;
-  labelling_mode: LabellingMode;
-  is_active: boolean;
-  branding: any;
-  created_at: string;
-  custom_domain: string | null;
+interface ContactInput {
+  full_name: string;
+  email: string;
+  designation: string;
+  is_primary: boolean;
 }
 
 export default function Organizations() {
-  const [orgs, setOrgs] = useState<OrgWithSettings[]>([]);
+  const [orgs, setOrgs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
-  const [selectedOrg, setSelectedOrg] = useState<OrgWithSettings | null>(null);
-  const [inviteOpen, setInviteOpen] = useState(false);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
   // Create form
   const [newName, setNewName] = useState("");
@@ -41,18 +35,12 @@ export default function Organizations() {
   const [newMode, setNewMode] = useState<LabellingMode>("platform_label");
   const [newPrimaryColor, setNewPrimaryColor] = useState("#1a1a2e");
   const [newLogoUrl, setNewLogoUrl] = useState("");
-  const [newDefaultLimit, setNewDefaultLimit] = useState("");
-  const [newMaxLimit, setNewMaxLimit] = useState("");
-  const [newNotes, setNewNotes] = useState("");
+  const [contacts, setContacts] = useState<ContactInput[]>([
+    { full_name: "", email: "", designation: "", is_primary: true },
+  ]);
   const [creating, setCreating] = useState(false);
 
-  // Invite form
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviting, setInviting] = useState(false);
-
-  useEffect(() => {
-    fetchOrgs();
-  }, []);
+  useEffect(() => { fetchOrgs(); }, []);
 
   const fetchOrgs = async () => {
     const { data, error } = await supabase
@@ -64,112 +52,111 @@ export default function Organizations() {
     setLoading(false);
   };
 
-  const generateSlug = (name: string) => {
-    return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const generateSlug = (name: string) =>
+    name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  const addContact = () => {
+    setContacts([...contacts, { full_name: "", email: "", designation: "", is_primary: false }]);
+  };
+
+  const removeContact = (idx: number) => {
+    if (contacts.length <= 1) return;
+    const updated = contacts.filter((_, i) => i !== idx);
+    if (!updated.some((c) => c.is_primary)) updated[0].is_primary = true;
+    setContacts(updated);
+  };
+
+  const updateContact = (idx: number, field: keyof ContactInput, value: string | boolean) => {
+    const updated = [...contacts];
+    if (field === "is_primary" && value === true) {
+      updated.forEach((c) => (c.is_primary = false));
+    }
+    (updated[idx] as any)[field] = value;
+    setContacts(updated);
   };
 
   const handleCreate = async () => {
-    if (!newName || !newSlug) {
-      toast.error("Name and slug are required");
-      return;
-    }
+    if (!newName || !newSlug) { toast.error("Name and slug are required"); return; }
+    const validContacts = contacts.filter((c) => c.full_name && c.email && c.designation);
+    if (validContacts.length === 0) { toast.error("At least one contact person is required"); return; }
+
     setCreating(true);
 
-    const branding = {
-      primary_color: newPrimaryColor,
-      logo_url: newLogoUrl || null,
-    };
-
+    // 1. Create organization
     const { data: org, error: orgErr } = await supabase
       .from("organizations")
       .insert({
         name: newName,
         slug: newSlug,
         labelling_mode: newMode,
-        branding,
+        branding: { primary_color: newPrimaryColor, logo_url: newLogoUrl || null },
+        is_active: false, // inactive until approved
       })
       .select()
       .single();
 
-    if (orgErr) {
-      toast.error(orgErr.message);
-      setCreating(false);
-      return;
-    }
+    if (orgErr || !org) { toast.error(orgErr?.message || "Failed to create org"); setCreating(false); return; }
 
-    // Create org settings
-    if (org) {
-      await supabase.from("organization_settings" as any).insert({
+    // 2. Insert contacts
+    const contactRows = validContacts.map((c) => ({
+      organization_id: org.id,
+      full_name: c.full_name,
+      email: c.email,
+      designation: c.designation,
+      is_primary: c.is_primary,
+    }));
+    await supabase.from("org_contacts" as any).insert(contactRows);
+
+    // 3. Auto-invite each contact as originator_admin
+    const { data: session } = await supabase.auth.getSession();
+    for (const contact of validContacts) {
+      const { data: inv } = await supabase.from("invitations").insert({
+        email: contact.email,
         organization_id: org.id,
-        default_credit_limit: parseFloat(newDefaultLimit) || 0,
-        max_credit_limit: parseFloat(newMaxLimit) || 0,
-        notes: newNotes || null,
-      });
+        role: "originator_admin" as any,
+        invited_by: session.session?.user?.id || null,
+      }).select("token").single();
+
+      // Update contact invited_at
+      await supabase.from("org_contacts" as any)
+        .update({ invited_at: new Date().toISOString() })
+        .eq("organization_id", org.id)
+        .eq("email", contact.email);
+
+      if (inv) {
+        const inviteUrl = `${window.location.origin}/invite/accept?token=${inv.token}`;
+        console.log(`Invitation for ${contact.email}: ${inviteUrl}`);
+      }
     }
 
-    toast.success(`Organization "${newName}" created`);
+    toast.success(
+      <div className="space-y-1">
+        <p><strong>{newName}</strong> created successfully</p>
+        <p className="text-xs text-muted-foreground">{validContacts.length} invitation(s) generated. Share the invite links from the organization detail view.</p>
+      </div>,
+      { duration: 8000 }
+    );
+
     setCreateOpen(false);
-    resetCreateForm();
+    resetForm();
     fetchOrgs();
     setCreating(false);
   };
 
-  const resetCreateForm = () => {
-    setNewName("");
-    setNewSlug("");
-    setNewMode("platform_label");
-    setNewPrimaryColor("#1a1a2e");
-    setNewLogoUrl("");
-    setNewDefaultLimit("");
-    setNewMaxLimit("");
-    setNewNotes("");
+  const resetForm = () => {
+    setNewName(""); setNewSlug(""); setNewMode("platform_label");
+    setNewPrimaryColor("#1a1a2e"); setNewLogoUrl("");
+    setContacts([{ full_name: "", email: "", designation: "", is_primary: true }]);
   };
 
-  const handleInvite = async () => {
-    if (!inviteEmail || !selectedOrg) {
-      toast.error("Email is required");
-      return;
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case "approved": return <Badge className="bg-green-600">Approved</Badge>;
+      case "rejected": return <Badge variant="destructive">Rejected</Badge>;
+      case "under_review": return <Badge className="bg-yellow-600">Under Review</Badge>;
+      case "documents_submitted": return <Badge className="bg-blue-600">Docs Submitted</Badge>;
+      default: return <Badge variant="secondary">Pending Documents</Badge>;
     }
-    setInviting(true);
-
-    const { data: session } = await supabase.auth.getSession();
-
-    const { error } = await supabase.from("invitations").insert({
-      email: inviteEmail,
-      organization_id: selectedOrg.id,
-      role: "originator_admin" as any,
-      invited_by: session.session?.user?.id || null,
-    });
-
-    if (error) {
-      toast.error(error.message);
-    } else {
-      // Get the invitation token to build the link
-      const { data: inv } = await supabase
-        .from("invitations")
-        .select("token")
-        .eq("email", inviteEmail)
-        .eq("organization_id", selectedOrg.id)
-        .is("accepted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      const inviteUrl = `${window.location.origin}/invite/accept?token=${inv?.token}`;
-
-      toast.success(
-        <div className="space-y-1">
-          <p>Invitation created for {inviteEmail}</p>
-          <p className="text-xs text-muted-foreground">Share this link:</p>
-          <code className="block text-xs bg-muted p-1 rounded break-all">{inviteUrl}</code>
-        </div>,
-        { duration: 15000 }
-      );
-    }
-
-    setInviteEmail("");
-    setInviting(false);
-    setInviteOpen(false);
   };
 
   const labelModeDisplay = (mode: LabellingMode) => {
@@ -180,59 +167,56 @@ export default function Organizations() {
     }
   };
 
+  if (selectedOrgId) {
+    return (
+      <DashboardLayout>
+        <OrgDetailPanel
+          orgId={selectedOrgId}
+          onBack={() => { setSelectedOrgId(null); fetchOrgs(); }}
+        />
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Organizations</h1>
-            <p className="text-sm text-muted-foreground">Manage originator organizations on the platform</p>
+            <h1 className="text-2xl font-bold text-foreground">Originator Organizations</h1>
+            <p className="text-sm text-muted-foreground">Onboard and manage originator organizations</p>
           </div>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                New Organization
-              </Button>
+              <Button><Plus className="mr-2 h-4 w-4" />Onboard New Originator</Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Create New Organization</DialogTitle>
-                <DialogDescription>Set up a new originator with branding and credit policies</DialogDescription>
+                <DialogTitle>Onboard New Originator</DialogTitle>
+                <DialogDescription>Set up the organization, contact persons, and branding. Invitations will be sent automatically.</DialogDescription>
               </DialogHeader>
               <Tabs defaultValue="general" className="mt-4">
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="general">General</TabsTrigger>
+                  <TabsTrigger value="contacts">Contact Persons</TabsTrigger>
                   <TabsTrigger value="branding">Branding</TabsTrigger>
-                  <TabsTrigger value="policies">Credit Policies</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="general" className="space-y-4 mt-4">
                   <div className="space-y-2">
                     <Label>Organization Name</Label>
-                    <Input
-                      placeholder="Acme Trade Finance"
-                      value={newName}
-                      onChange={(e) => {
-                        setNewName(e.target.value);
-                        setNewSlug(generateSlug(e.target.value));
-                      }}
-                    />
+                    <Input placeholder="Acme Trade Finance" value={newName}
+                      onChange={(e) => { setNewName(e.target.value); setNewSlug(generateSlug(e.target.value)); }} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Slug (URL-friendly identifier)</Label>
-                    <Input
-                      placeholder="acme-trade-finance"
-                      value={newSlug}
-                      onChange={(e) => setNewSlug(e.target.value)}
-                    />
+                    <Label>Slug</Label>
+                    <Input placeholder="acme-trade-finance" value={newSlug}
+                      onChange={(e) => setNewSlug(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Labelling Mode</Label>
                     <Select value={newMode} onValueChange={(v) => setNewMode(v as LabellingMode)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="white_label">White Label — Originator's brand only</SelectItem>
                         <SelectItem value="joint_label">Joint Label — Co-branded with Vybrel</SelectItem>
@@ -242,30 +226,59 @@ export default function Organizations() {
                   </div>
                 </TabsContent>
 
+                <TabsContent value="contacts" className="space-y-4 mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Add contact persons. Each will receive an invitation to join as an Originator Admin.
+                  </p>
+                  {contacts.map((contact, idx) => (
+                    <Card key={idx} className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-foreground">Contact {idx + 1}</span>
+                        <div className="flex items-center gap-2">
+                          {contact.is_primary ? (
+                            <Badge variant="secondary" className="text-xs">Primary</Badge>
+                          ) : (
+                            <Button variant="ghost" size="sm" className="text-xs h-6"
+                              onClick={() => updateContact(idx, "is_primary", true)}>
+                              Set Primary
+                            </Button>
+                          )}
+                          {contacts.length > 1 && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeContact(idx)}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <Input placeholder="Full Name" value={contact.full_name}
+                          onChange={(e) => updateContact(idx, "full_name", e.target.value)} />
+                        <Input placeholder="Email" type="email" value={contact.email}
+                          onChange={(e) => updateContact(idx, "email", e.target.value)} />
+                        <Input placeholder="Designation (e.g. CEO, CFO)" value={contact.designation}
+                          onChange={(e) => updateContact(idx, "designation", e.target.value)} />
+                      </div>
+                    </Card>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={addContact}>
+                    <UserPlus className="mr-2 h-3 w-3" /> Add Another Contact
+                  </Button>
+                </TabsContent>
+
                 <TabsContent value="branding" className="space-y-4 mt-4">
                   <div className="space-y-2">
                     <Label>Primary Color</Label>
                     <div className="flex gap-2 items-center">
-                      <input
-                        type="color"
-                        value={newPrimaryColor}
+                      <input type="color" value={newPrimaryColor}
                         onChange={(e) => setNewPrimaryColor(e.target.value)}
-                        className="h-10 w-14 rounded border cursor-pointer"
-                      />
-                      <Input
-                        value={newPrimaryColor}
-                        onChange={(e) => setNewPrimaryColor(e.target.value)}
-                        className="flex-1"
-                      />
+                        className="h-10 w-14 rounded border cursor-pointer" />
+                      <Input value={newPrimaryColor} onChange={(e) => setNewPrimaryColor(e.target.value)} className="flex-1" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label>Logo URL</Label>
-                    <Input
-                      placeholder="https://example.com/logo.png"
-                      value={newLogoUrl}
-                      onChange={(e) => setNewLogoUrl(e.target.value)}
-                    />
+                    <Input placeholder="https://example.com/logo.png" value={newLogoUrl}
+                      onChange={(e) => setNewLogoUrl(e.target.value)} />
                   </div>
                   {newLogoUrl && (
                     <div className="rounded-lg border p-4 bg-muted/30">
@@ -274,47 +287,13 @@ export default function Organizations() {
                     </div>
                   )}
                 </TabsContent>
-
-                <TabsContent value="policies" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Default Credit Limit (USD)</Label>
-                      <Input
-                        type="number"
-                        placeholder="100000"
-                        value={newDefaultLimit}
-                        onChange={(e) => setNewDefaultLimit(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Max Credit Limit (USD)</Label>
-                      <Input
-                        type="number"
-                        placeholder="5000000"
-                        value={newMaxLimit}
-                        onChange={(e) => setNewMaxLimit(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Policy Notes</Label>
-                    <Textarea
-                      placeholder="Any specific credit policies, document requirements, or notes for this originator..."
-                      value={newNotes}
-                      onChange={(e) => setNewNotes(e.target.value)}
-                      rows={4}
-                    />
-                  </div>
-                </TabsContent>
               </Tabs>
 
               <DialogFooter className="mt-4">
-                <Button variant="outline" onClick={() => setCreateOpen(false)}>
-                  Cancel
-                </Button>
+                <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
                 <Button onClick={handleCreate} disabled={creating}>
                   {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create Organization
+                  Create & Send Invitations
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -322,30 +301,25 @@ export default function Organizations() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : orgs.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
               <p className="text-lg font-medium text-foreground">No organizations yet</p>
-              <p className="text-sm text-muted-foreground mb-4">Create your first originator organization to get started</p>
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Create Organization
-              </Button>
+              <p className="text-sm text-muted-foreground mb-4">Onboard your first originator to get started</p>
+              <Button onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Onboard Originator</Button>
             </CardContent>
           </Card>
         ) : (
           <div className="grid gap-4">
             {orgs.map((org) => (
-              <Card key={org.id}>
+              <Card key={org.id} className="cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => setSelectedOrgId(org.id)}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div className="flex items-center gap-3">
-                    <div
-                      className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-bold text-white"
-                      style={{ backgroundColor: (org.branding as any)?.primary_color || "hsl(var(--primary))" }}
-                    >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-bold text-white"
+                      style={{ backgroundColor: (org.branding as any)?.primary_color || "hsl(var(--primary))" }}>
                       {org.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
@@ -354,64 +328,17 @@ export default function Organizations() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={org.is_active ? "default" : "secondary"}>
-                      {org.is_active ? "Active" : "Inactive"}
-                    </Badge>
+                    {statusBadge(org.onboarding_status)}
                     <Badge variant="outline">{labelModeDisplay(org.labelling_mode)}</Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-2 pt-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setSelectedOrg(org);
-                        setInviteOpen(true);
-                      }}
-                    >
-                      <Send className="mr-2 h-3 w-3" />
-                      Invite Admin
-                    </Button>
-                  </div>
+                  <p className="text-xs text-muted-foreground">Click to view details, upload documents, and manage approval</p>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
-
-        {/* Invite Dialog */}
-        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Invite Originator Admin</DialogTitle>
-              <DialogDescription>
-                Send an invitation to manage <span className="font-medium">{selectedOrg?.name}</span>
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-2">
-              <div className="space-y-2">
-                <Label>Email Address</Label>
-                <Input
-                  type="email"
-                  placeholder="admin@originator.com"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                The invitee will receive a link to create their account with the <strong>originator_admin</strong> role, assigned to this organization.
-              </p>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
-              <Button onClick={handleInvite} disabled={inviting}>
-                {inviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Send Invitation
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   );
