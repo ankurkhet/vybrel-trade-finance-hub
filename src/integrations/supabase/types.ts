@@ -532,6 +532,53 @@ export type Database = {
           },
         ]
       }
+      organization_settings: {
+        Row: {
+          auto_approve_below: number | null
+          created_at: string
+          default_credit_limit: number | null
+          id: string
+          max_credit_limit: number | null
+          notes: string | null
+          organization_id: string
+          required_document_types: string[] | null
+          review_threshold: number | null
+          updated_at: string
+        }
+        Insert: {
+          auto_approve_below?: number | null
+          created_at?: string
+          default_credit_limit?: number | null
+          id?: string
+          max_credit_limit?: number | null
+          notes?: string | null
+          organization_id: string
+          required_document_types?: string[] | null
+          review_threshold?: number | null
+          updated_at?: string
+        }
+        Update: {
+          auto_approve_below?: number | null
+          created_at?: string
+          default_credit_limit?: number | null
+          id?: string
+          max_credit_limit?: number | null
+          notes?: string | null
+          organization_id?: string
+          required_document_types?: string[] | null
+          review_threshold?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           branding: Json | null
