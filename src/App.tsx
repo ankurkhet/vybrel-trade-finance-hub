@@ -35,6 +35,7 @@ import BorrowerOnboarding from "./pages/borrower/Onboarding";
 import BorrowerDocuments from "./pages/borrower/Documents";
 import BorrowerInvoices from "./pages/borrower/Invoices";
 import FunderReports from "./pages/funder/Reports";
+import OriginatorDocuments from "./pages/originator/Documents";
 import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
@@ -75,6 +76,7 @@ const App = () => (
               <Route path="/originator/reports" element={<ProtectedRoute requiredRoles={["originator_admin", "originator_user"]}><OriginatorReports /></ProtectedRoute>} />
               <Route path="/originator/branding" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorBranding /></ProtectedRoute>} />
               <Route path="/originator/ai-insights" element={<ProtectedRoute requiredRoles={["originator_admin", "originator_user"]}><AIInsightsPage /></ProtectedRoute>} />
+              <Route path="/originator/documents" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorDocuments /></ProtectedRoute>} />
 
               {/* Borrower */}
               <Route path="/borrower/documents" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerDocuments /></ProtectedRoute>} />

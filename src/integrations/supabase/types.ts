@@ -532,6 +532,112 @@ export type Database = {
           },
         ]
       }
+      org_contacts: {
+        Row: {
+          created_at: string
+          designation: string
+          email: string
+          full_name: string
+          id: string
+          invited_at: string | null
+          is_primary: boolean
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          designation: string
+          email: string
+          full_name: string
+          id?: string
+          invited_at?: string | null
+          is_primary?: boolean
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          designation?: string
+          email?: string
+          full_name?: string
+          id?: string
+          invited_at?: string | null
+          is_primary?: boolean
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_documents: {
+        Row: {
+          created_at: string
+          document_label: string
+          document_type: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          organization_id: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_label: string
+          document_type: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          organization_id: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_label?: string
+          document_type?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          organization_id?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_settings: {
         Row: {
           auto_approve_below: number | null
@@ -588,6 +694,7 @@ export type Database = {
           is_active: boolean
           labelling_mode: Database["public"]["Enums"]["labelling_mode"]
           name: string
+          onboarding_status: Database["public"]["Enums"]["org_onboarding_status"]
           slug: string
           updated_at: string
         }
@@ -599,6 +706,7 @@ export type Database = {
           is_active?: boolean
           labelling_mode?: Database["public"]["Enums"]["labelling_mode"]
           name: string
+          onboarding_status?: Database["public"]["Enums"]["org_onboarding_status"]
           slug: string
           updated_at?: string
         }
@@ -610,6 +718,7 @@ export type Database = {
           is_active?: boolean
           labelling_mode?: Database["public"]["Enums"]["labelling_mode"]
           name?: string
+          onboarding_status?: Database["public"]["Enums"]["org_onboarding_status"]
           slug?: string
           updated_at?: string
         }
@@ -731,6 +840,12 @@ export type Database = {
         | "invited"
         | "registered"
         | "documents_pending"
+        | "documents_submitted"
+        | "under_review"
+        | "approved"
+        | "rejected"
+      org_onboarding_status:
+        | "pending_documents"
         | "documents_submitted"
         | "under_review"
         | "approved"
@@ -898,6 +1013,13 @@ export const Constants = {
         "invited",
         "registered",
         "documents_pending",
+        "documents_submitted",
+        "under_review",
+        "approved",
+        "rejected",
+      ],
+      org_onboarding_status: [
+        "pending_documents",
         "documents_submitted",
         "under_review",
         "approved",

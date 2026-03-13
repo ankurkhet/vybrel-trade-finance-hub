@@ -58,6 +58,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: FileText, label: "Contracts", path: "/originator/contracts", show: isOriginatorAdmin },
     { icon: CreditCard, label: "Invoices", path: "/originator/invoices", show: isOriginatorAdmin },
     { icon: Brain, label: "AI Insights", path: "/originator/ai-insights", show: isOriginatorAdmin },
+    { icon: Upload, label: "KYC/KYB Docs", path: "/originator/documents", show: isOriginatorAdmin },
     { icon: BarChart3, label: "Reports", path: "/originator/reports", show: isOriginatorAdmin },
     { icon: Palette, label: "Branding", path: "/originator/branding", show: isOriginatorAdmin },
     // Borrower
