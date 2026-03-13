@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Shield } from "lucide-react";
 import { toast } from "sonner";
+import { isPasswordStrong } from "@/lib/password-policy";
+import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
 
 export default function Auth() {
   const navigate = useNavigate();
