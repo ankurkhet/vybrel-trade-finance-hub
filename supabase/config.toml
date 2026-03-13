@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.ai-credit-memo]
 verify_jwt = false
+
+[functions.accept-invitation]
+verify_jwt = false
