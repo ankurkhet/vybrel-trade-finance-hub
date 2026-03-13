@@ -35,6 +35,7 @@ import BorrowerOnboarding from "./pages/borrower/Onboarding";
 import BorrowerDocuments from "./pages/borrower/Documents";
 import BorrowerInvoices from "./pages/borrower/Invoices";
 import FunderReports from "./pages/funder/Reports";
+import OriginatorDocuments from "./pages/originator/Documents";
 import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
