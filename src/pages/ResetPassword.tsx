@@ -62,11 +62,12 @@ export default function ResetPassword() {
               <Input
                 id="new-password"
                 type="password"
-                placeholder="Min 8 characters"
+                placeholder="Min 12 characters, mixed case, number & symbol"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+              <PasswordStrengthMeter password={password} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm-password">Confirm Password</Label>

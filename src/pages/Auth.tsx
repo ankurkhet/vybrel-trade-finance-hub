@@ -152,11 +152,12 @@ export default function Auth() {
                     <Input
                       id="signup-password"
                       type="password"
-                      placeholder="Min 8 characters"
+                      placeholder="Min 12 characters, mixed case, number & symbol"
                       value={signupPassword}
                       onChange={(e) => setSignupPassword(e.target.value)}
                       required
                     />
+                    <PasswordStrengthMeter password={signupPassword} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-confirm">Confirm Password</Label>
