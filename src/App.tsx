@@ -21,11 +21,18 @@ import DataProcessingAgreement from "./pages/legal/DataProcessingAgreement";
 // Protected pages
 import Dashboard from "./pages/Dashboard";
 import AdminReports from "./pages/admin/Reports";
+import AdminOrganizations from "./pages/admin/Organizations";
+import AdminUsers from "./pages/admin/Users";
 import OriginatorReports from "./pages/originator/Reports";
 import OriginatorBranding from "./pages/originator/Branding";
+import OriginatorBorrowers from "./pages/originator/Borrowers";
+import OriginatorContracts from "./pages/originator/Contracts";
+import OriginatorInvoices from "./pages/originator/Invoices";
 import AIInsightsPage from "./pages/originator/AIInsights";
 import BorrowerReports from "./pages/borrower/Reports";
 import BorrowerOnboarding from "./pages/borrower/Onboarding";
+import BorrowerDocuments from "./pages/borrower/Documents";
+import BorrowerInvoices from "./pages/borrower/Invoices";
 import FunderReports from "./pages/funder/Reports";
 import Settings from "./pages/Settings";
 
@@ -55,14 +62,21 @@ const App = () => (
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
 
               {/* Admin */}
+              <Route path="/admin/organizations" element={<ProtectedRoute requiredRoles={["admin"]}><AdminOrganizations /></ProtectedRoute>} />
+              <Route path="/admin/users" element={<ProtectedRoute requiredRoles={["admin"]}><AdminUsers /></ProtectedRoute>} />
               <Route path="/admin/reports" element={<ProtectedRoute requiredRoles={["admin"]}><AdminReports /></ProtectedRoute>} />
 
               {/* Originator */}
+              <Route path="/originator/borrowers" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorBorrowers /></ProtectedRoute>} />
+              <Route path="/originator/contracts" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorContracts /></ProtectedRoute>} />
+              <Route path="/originator/invoices" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorInvoices /></ProtectedRoute>} />
               <Route path="/originator/reports" element={<ProtectedRoute requiredRoles={["originator_admin", "originator_user"]}><OriginatorReports /></ProtectedRoute>} />
               <Route path="/originator/branding" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorBranding /></ProtectedRoute>} />
               <Route path="/originator/ai-insights" element={<ProtectedRoute requiredRoles={["originator_admin", "originator_user"]}><AIInsightsPage /></ProtectedRoute>} />
 
               {/* Borrower */}
+              <Route path="/borrower/documents" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerDocuments /></ProtectedRoute>} />
+              <Route path="/borrower/invoices" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerInvoices /></ProtectedRoute>} />
               <Route path="/borrower/reports" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerReports /></ProtectedRoute>} />
               <Route path="/borrower/onboarding" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerOnboarding /></ProtectedRoute>} />
 
