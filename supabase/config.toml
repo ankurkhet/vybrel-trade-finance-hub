@@ -1,0 +1,13 @@
+project_id = "dgkhnxoafvgdpqckuvei"
+
+[functions.ai-analyze-document]
+verify_jwt = false
+
+[functions.ai-review-contract]
+verify_jwt = false
+
+[functions.ai-match-invoice]
+verify_jwt = false
+
+[functions.ai-credit-memo]
+verify_jwt = false

@@ -1,0 +1,860 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.4"
+  }
+  public: {
+    Tables: {
+      ai_analyses: {
+        Row: {
+          analysis_type: Database["public"]["Enums"]["ai_analysis_type"]
+          annotations: Json | null
+          borrower_id: string | null
+          completed_at: string | null
+          created_at: string
+          findings: Json | null
+          id: string
+          organization_id: string
+          requested_by: string | null
+          risk_score: number | null
+          source_contract_id: string | null
+          source_document_id: string | null
+          source_invoice_id: string | null
+          status: Database["public"]["Enums"]["ai_analysis_status"]
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          analysis_type: Database["public"]["Enums"]["ai_analysis_type"]
+          annotations?: Json | null
+          borrower_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          findings?: Json | null
+          id?: string
+          organization_id: string
+          requested_by?: string | null
+          risk_score?: number | null
+          source_contract_id?: string | null
+          source_document_id?: string | null
+          source_invoice_id?: string | null
+          status?: Database["public"]["Enums"]["ai_analysis_status"]
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          analysis_type?: Database["public"]["Enums"]["ai_analysis_type"]
+          annotations?: Json | null
+          borrower_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          findings?: Json | null
+          id?: string
+          organization_id?: string
+          requested_by?: string | null
+          risk_score?: number | null
+          source_contract_id?: string | null
+          source_document_id?: string | null
+          source_invoice_id?: string | null
+          status?: Database["public"]["Enums"]["ai_analysis_status"]
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_analyses_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_analyses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_analyses_source_contract_id_fkey"
+            columns: ["source_contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_analyses_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_analyses_source_invoice_id_fkey"
+            columns: ["source_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      borrowers: {
+        Row: {
+          aml_cleared: boolean
+          company_name: string
+          contact_email: string
+          contact_name: string | null
+          contact_phone: string | null
+          country: string | null
+          created_at: string
+          credit_limit: number | null
+          id: string
+          industry: string | null
+          kyc_completed: boolean
+          metadata: Json | null
+          onboarding_status: Database["public"]["Enums"]["onboarding_status"]
+          organization_id: string
+          registration_number: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          aml_cleared?: boolean
+          company_name: string
+          contact_email: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          country?: string | null
+          created_at?: string
+          credit_limit?: number | null
+          id?: string
+          industry?: string | null
+          kyc_completed?: boolean
+          metadata?: Json | null
+          onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
+          organization_id: string
+          registration_number?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          aml_cleared?: boolean
+          company_name?: string
+          contact_email?: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          country?: string | null
+          created_at?: string
+          credit_limit?: number | null
+          id?: string
+          industry?: string | null
+          kyc_completed?: boolean
+          metadata?: Json | null
+          onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
+          organization_id?: string
+          registration_number?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "borrowers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          borrower_id: string
+          contract_number: string | null
+          contract_value: number | null
+          counterparty: string | null
+          created_at: string
+          currency: string | null
+          document_id: string | null
+          end_date: string | null
+          id: string
+          organization_id: string
+          risk_flags: Json | null
+          start_date: string | null
+          status: string
+          terms_summary: Json | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          borrower_id: string
+          contract_number?: string | null
+          contract_value?: number | null
+          counterparty?: string | null
+          created_at?: string
+          currency?: string | null
+          document_id?: string | null
+          end_date?: string | null
+          id?: string
+          organization_id: string
+          risk_flags?: Json | null
+          start_date?: string | null
+          status?: string
+          terms_summary?: Json | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          borrower_id?: string
+          contract_number?: string | null
+          contract_value?: number | null
+          counterparty?: string | null
+          created_at?: string
+          currency?: string | null
+          document_id?: string | null
+          end_date?: string | null
+          id?: string
+          organization_id?: string
+          risk_flags?: Json | null
+          start_date?: string | null
+          status?: string
+          terms_summary?: Json | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_memos: {
+        Row: {
+          ai_analysis_id: string | null
+          ai_draft: string | null
+          analyst_edits: string | null
+          approved_at: string | null
+          approved_by: string | null
+          borrower_id: string
+          borrower_profile: Json | null
+          created_at: string
+          final_memo: string | null
+          id: string
+          memo_number: string | null
+          organization_id: string
+          recommended_limit: number | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          risk_rating: string | null
+          status: Database["public"]["Enums"]["credit_memo_status"]
+          transaction_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_analysis_id?: string | null
+          ai_draft?: string | null
+          analyst_edits?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          borrower_id: string
+          borrower_profile?: Json | null
+          created_at?: string
+          final_memo?: string | null
+          id?: string
+          memo_number?: string | null
+          organization_id: string
+          recommended_limit?: number | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_rating?: string | null
+          status?: Database["public"]["Enums"]["credit_memo_status"]
+          transaction_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_analysis_id?: string | null
+          ai_draft?: string | null
+          analyst_edits?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          borrower_id?: string
+          borrower_profile?: Json | null
+          created_at?: string
+          final_memo?: string | null
+          id?: string
+          memo_number?: string | null
+          organization_id?: string
+          recommended_limit?: number | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_rating?: string | null
+          status?: Database["public"]["Enums"]["credit_memo_status"]
+          transaction_type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_memos_ai_analysis_id_fkey"
+            columns: ["ai_analysis_id"]
+            isOneToOne: false
+            referencedRelation: "ai_analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_memos_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_memos_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          borrower_id: string | null
+          created_at: string
+          document_type: Database["public"]["Enums"]["document_type"]
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          metadata: Json | null
+          mime_type: string | null
+          organization_id: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          borrower_id?: string | null
+          created_at?: string
+          document_type: Database["public"]["Enums"]["document_type"]
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          metadata?: Json | null
+          mime_type?: string | null
+          organization_id: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          borrower_id?: string | null
+          created_at?: string
+          document_type?: Database["public"]["Enums"]["document_type"]
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          metadata?: Json | null
+          mime_type?: string | null
+          organization_id?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          organization_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          organization_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          organization_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          amount: number
+          borrower_id: string
+          contract_id: string | null
+          created_at: string
+          currency: string | null
+          debtor_name: string
+          document_id: string | null
+          due_date: string
+          id: string
+          invoice_number: string
+          issue_date: string
+          match_details: Json | null
+          match_score: number | null
+          organization_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          borrower_id: string
+          contract_id?: string | null
+          created_at?: string
+          currency?: string | null
+          debtor_name: string
+          document_id?: string | null
+          due_date: string
+          id?: string
+          invoice_number: string
+          issue_date: string
+          match_details?: Json | null
+          match_score?: number | null
+          organization_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          borrower_id?: string
+          contract_id?: string | null
+          created_at?: string
+          currency?: string | null
+          debtor_name?: string
+          document_id?: string | null
+          due_date?: string
+          id?: string
+          invoice_number?: string
+          issue_date?: string
+          match_details?: Json | null
+          match_score?: number | null
+          organization_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          branding: Json | null
+          created_at: string
+          custom_domain: string | null
+          id: string
+          is_active: boolean
+          labelling_mode: Database["public"]["Enums"]["labelling_mode"]
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          branding?: Json | null
+          created_at?: string
+          custom_domain?: string | null
+          id?: string
+          is_active?: boolean
+          labelling_mode?: Database["public"]["Enums"]["labelling_mode"]
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          branding?: Json | null
+          created_at?: string
+          custom_domain?: string | null
+          id?: string
+          is_active?: boolean
+          labelling_mode?: Database["public"]["Enums"]["labelling_mode"]
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          is_active: boolean
+          organization_id: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          is_active?: boolean
+          organization_id?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          is_active?: boolean
+          organization_id?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      get_user_roles: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"][]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+    }
+    Enums: {
+      ai_analysis_status: "pending" | "processing" | "completed" | "failed"
+      ai_analysis_type:
+        | "document_analysis"
+        | "contract_review"
+        | "invoice_contract_match"
+        | "credit_memo"
+      app_role:
+        | "admin"
+        | "originator_admin"
+        | "originator_user"
+        | "borrower"
+        | "funder"
+      credit_memo_status:
+        | "draft"
+        | "ai_generated"
+        | "under_review"
+        | "approved"
+        | "rejected"
+      document_type:
+        | "kyc"
+        | "financial_statement"
+        | "incorporation"
+        | "contract"
+        | "invoice"
+        | "credit_memo"
+        | "nda"
+        | "other"
+      labelling_mode: "white_label" | "joint_label" | "platform_label"
+      onboarding_status:
+        | "invited"
+        | "registered"
+        | "documents_pending"
+        | "documents_submitted"
+        | "under_review"
+        | "approved"
+        | "rejected"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      ai_analysis_status: ["pending", "processing", "completed", "failed"],
+      ai_analysis_type: [
+        "document_analysis",
+        "contract_review",
+        "invoice_contract_match",
+        "credit_memo",
+      ],
+      app_role: [
+        "admin",
+        "originator_admin",
+        "originator_user",
+        "borrower",
+        "funder",
+      ],
+      credit_memo_status: [
+        "draft",
+        "ai_generated",
+        "under_review",
+        "approved",
+        "rejected",
+      ],
+      document_type: [
+        "kyc",
+        "financial_statement",
+        "incorporation",
+        "contract",
+        "invoice",
+        "credit_memo",
+        "nda",
+        "other",
+      ],
+      labelling_mode: ["white_label", "joint_label", "platform_label"],
+      onboarding_status: [
+        "invited",
+        "registered",
+        "documents_pending",
+        "documents_submitted",
+        "under_review",
+        "approved",
+        "rejected",
+      ],
+    },
+  },
+} as const
