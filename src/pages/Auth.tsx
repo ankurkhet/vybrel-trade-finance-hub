@@ -44,8 +44,8 @@ export default function Auth() {
       toast.error("Passwords do not match");
       return;
     }
-    if (signupPassword.length < 8) {
-      toast.error("Password must be at least 8 characters");
+    if (!isPasswordStrong(signupPassword)) {
+      toast.error("Password does not meet security requirements");
       return;
     }
     setLoading(true);
