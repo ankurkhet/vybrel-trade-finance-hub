@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Shield } from "lucide-react";
 import { toast } from "sonner";
+import { isPasswordStrong } from "@/lib/password-policy";
+import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -42,8 +44,8 @@ export default function Auth() {
       toast.error("Passwords do not match");
       return;
     }
-    if (signupPassword.length < 8) {
-      toast.error("Password must be at least 8 characters");
+    if (!isPasswordStrong(signupPassword)) {
+      toast.error("Password does not meet security requirements");
       return;
     }
     setLoading(true);
@@ -150,11 +152,12 @@ export default function Auth() {
                     <Input
                       id="signup-password"
                       type="password"
-                      placeholder="Min 8 characters"
+                      placeholder="Min 12 characters, mixed case, number & symbol"
                       value={signupPassword}
                       onChange={(e) => setSignupPassword(e.target.value)}
                       required
                     />
+                    <PasswordStrengthMeter password={signupPassword} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-confirm">Confirm Password</Label>
