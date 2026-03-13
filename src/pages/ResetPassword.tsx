@@ -30,8 +30,8 @@ export default function ResetPassword() {
       toast.error("Passwords do not match");
       return;
     }
-    if (password.length < 8) {
-      toast.error("Password must be at least 8 characters");
+    if (!isPasswordStrong(password)) {
+      toast.error("Password does not meet security requirements");
       return;
     }
     setLoading(true);
