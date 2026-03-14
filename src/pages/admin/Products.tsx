@@ -64,7 +64,7 @@ export default function AdminProducts() {
         max_borrowers: plan.max_borrowers,
         max_funders: plan.max_funders,
         max_monthly_volume_gbp: plan.max_monthly_volume_gbp,
-        features: plan.features as unknown as Record<string, unknown>[],
+        features: plan.features as unknown as string,
         is_active: plan.is_active,
         is_popular: plan.is_popular,
         sort_order: plan.sort_order,
