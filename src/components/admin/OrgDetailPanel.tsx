@@ -47,6 +47,7 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
   const [reviewDoc, setReviewDoc] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [activeTab, setActiveTab] = useState("contacts");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadDocType, setUploadDocType] = useState("certificate_of_incorporation");
