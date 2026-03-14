@@ -139,7 +139,7 @@ export default function Index() {
               </Button>
             </Link>
             <Link to="/auth">
-              <Button size="lg" variant="outline" className="border-[hsl(210,40%,96%)]/20 text-[hsl(210,40%,96%)] hover:bg-[hsl(222,47%,14%)] min-w-[200px]">
+              <Button size="lg" className="border border-[hsl(42,78%,50%)]/40 bg-transparent text-[hsl(210,40%,96%)] hover:border-[hsl(42,78%,50%)] hover:bg-[hsl(222,47%,14%)] min-w-[200px]">
                 Sign In to Portal
               </Button>
             </Link>
