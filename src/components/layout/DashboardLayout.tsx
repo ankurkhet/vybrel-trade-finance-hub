@@ -25,7 +25,7 @@ import {
   Upload,
   Brain,
   Palette,
-  Zap,
+  Hexagon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
