@@ -1,0 +1,147 @@
+import { useState, useEffect } from "react";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, Wallet, TrendingUp, CheckCircle2, Clock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+
+export default function FunderPortfolio() {
+  const { user } = useAuth();
+  const [offers, setOffers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) fetchOffers();
+  }, [user]);
+
+  const fetchOffers = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("funding_offers" as any)
+      .select("*, invoices(invoice_number, debtor_name, amount, currency, due_date, status)")
+      .eq("funder_user_id", user!.id)
+      .order("created_at", { ascending: false });
+
+    setOffers((data as any[]) || []);
+    setLoading(false);
+  };
+
+  const stats = {
+    totalOffers: offers.length,
+    totalFunded: offers.filter((o: any) => o.status === "accepted").reduce((s: number, o: any) => s + Number(o.offer_amount), 0),
+    pending: offers.filter((o: any) => o.status === "pending").length,
+    accepted: offers.filter((o: any) => o.status === "accepted").length,
+  };
+
+  const statusIcon = (s: string) => {
+    switch (s) {
+      case "accepted": return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      case "pending": return <Clock className="h-4 w-4 text-yellow-600" />;
+      default: return <Clock className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">My Portfolio</h1>
+          <p className="text-sm text-muted-foreground">Track your funding offers and active investments</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-primary/10 p-2"><Wallet className="h-5 w-5 text-primary" /></div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Total Funded</p>
+                  <p className="text-xl font-bold text-foreground">${stats.totalFunded.toLocaleString()}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-primary/10 p-2"><TrendingUp className="h-5 w-5 text-primary" /></div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Total Offers</p>
+                  <p className="text-xl font-bold text-foreground">{stats.totalOffers}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Accepted</p>
+              <p className="text-xl font-bold text-foreground">{stats.accepted}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Pending</p>
+              <p className="text-xl font-bold text-foreground">{stats.pending}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Funding Offers</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            ) : offers.length === 0 ? (
+              <div className="flex flex-col items-center py-12">
+                <Wallet className="h-10 w-10 text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">No funding offers yet. Browse the marketplace to get started.</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice</TableHead>
+                    <TableHead>Debtor</TableHead>
+                    <TableHead>Invoice Amount</TableHead>
+                    <TableHead>Your Offer</TableHead>
+                    <TableHead>Discount</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {offers.map((o: any) => (
+                    <TableRow key={o.id}>
+                      <TableCell className="font-medium">{(o.invoices as any)?.invoice_number || "—"}</TableCell>
+                      <TableCell>{(o.invoices as any)?.debtor_name || "—"}</TableCell>
+                      <TableCell>
+                        {(o.invoices as any)?.currency} {Number((o.invoices as any)?.amount || 0).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="font-medium">${Number(o.offer_amount).toLocaleString()}</TableCell>
+                      <TableCell>{o.discount_rate ? `${o.discount_rate}%` : "—"}</TableCell>
+                      <TableCell>
+                        {(o.invoices as any)?.due_date ? new Date((o.invoices as any).due_date).toLocaleDateString() : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          {statusIcon(o.status)}
+                          <Badge variant={o.status === "accepted" ? "default" : "secondary"} className="capitalize text-xs">
+                            {o.status}
+                          </Badge>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </DashboardLayout>
+  );
+}

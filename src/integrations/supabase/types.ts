@@ -402,6 +402,66 @@ export type Database = {
           },
         ]
       }
+      funding_offers: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          discount_rate: number | null
+          funder_user_id: string
+          id: string
+          invoice_id: string
+          notes: string | null
+          offer_amount: number
+          offered_at: string
+          organization_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          discount_rate?: number | null
+          funder_user_id: string
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          offer_amount: number
+          offered_at?: string
+          organization_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          discount_rate?: number | null
+          funder_user_id?: string
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          offer_amount?: number
+          offered_at?: string
+          organization_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funding_offers_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funding_offers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitations: {
         Row: {
           accepted_at: string | null

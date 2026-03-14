@@ -27,6 +27,8 @@ import {
   Palette,
   Hexagon,
   Package,
+  Banknote,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -69,7 +71,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: CreditCard, label: "My Invoices", path: "/borrower/invoices", show: isBorrower },
     { icon: BarChart3, label: "My Reports", path: "/borrower/reports", show: isBorrower },
     // Funder
-    { icon: BarChart3, label: "Portfolio", path: "/funder/reports", show: isFunder },
+    { icon: Banknote, label: "Marketplace", path: "/funder/marketplace", show: isFunder },
+    { icon: Wallet, label: "Portfolio", path: "/funder/portfolio", show: isFunder },
+    { icon: BarChart3, label: "Reports", path: "/funder/reports", show: isFunder },
     // Common
     { icon: Settings, label: "Settings", path: "/settings", show: true },
   ].filter((item) => item.show);
