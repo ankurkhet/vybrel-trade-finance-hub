@@ -50,17 +50,16 @@ export default function Auth() {
     setOauthLoading(false);
   };
 
-  // Step 1: Role selection
   if (!selectedRole) {
     return (
-      <div className="flex min-h-screen flex-col bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+      <div className="flex min-h-screen flex-col bg-background text-foreground" style={{ fontFamily: "'Outfit', sans-serif" }}>
         <header className="flex items-center justify-between px-6 py-6">
           <Link to="/" className="flex items-center gap-2.5">
             <Hexagon className="h-7 w-7 text-primary" strokeWidth={1.5} />
             <span className="text-xl font-semibold tracking-tight">Vybrel</span>
           </Link>
           <Link to="/signup">
-            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/85 font-medium">
+            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium">
               Register as Originator
             </Button>
           </Link>
@@ -72,9 +71,7 @@ export default function Auth() {
               <h1 className="text-3xl font-light tracking-tight" style={{ fontFamily: "'Source Serif 4', serif" }}>
                 Welcome to <span className="text-primary">Vybrel</span>
               </h1>
-              <p className="mt-2 text-sm opacity-55">
-                Select your role to continue to sign in
-              </p>
+              <p className="mt-2 text-sm text-muted-foreground">Select your role to continue to sign in</p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -82,18 +79,18 @@ export default function Auth() {
                 <button
                   key={r.key}
                   onClick={() => setSelectedRole(r.key)}
-                  className="group flex items-start gap-4 rounded-xl border border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark-secondary))] p-5 text-left transition-all duration-200 hover:border-primary/30"
+                  className="group flex items-start gap-4 rounded-xl border border-border bg-card p-5 text-left transition-colors hover:border-primary/35 hover:bg-secondary/40"
                 >
                   <r.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" strokeWidth={1.5} />
                   <div>
-                    <p className="font-medium text-sm">{r.label}</p>
-                    <p className="mt-0.5 text-xs opacity-50">{r.desc}</p>
+                    <p className="text-sm font-medium">{r.label}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{r.desc}</p>
                   </div>
                 </button>
               ))}
             </div>
 
-            <p className="mt-8 text-center text-xs opacity-30">
+            <p className="mt-8 text-center text-xs text-muted-foreground">
               Access is by invitation only. Your role determines what you see.
             </p>
           </div>
@@ -102,11 +99,10 @@ export default function Auth() {
     );
   }
 
-  // Step 2: Login form
   const activeRole = roles.find((r) => r.key === selectedRole)!;
 
   return (
-    <div className="flex min-h-screen flex-col bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+    <div className="flex min-h-screen flex-col bg-background text-foreground" style={{ fontFamily: "'Outfit', sans-serif" }}>
       <header className="flex items-center justify-between px-6 py-6">
         <Link to="/" className="flex items-center gap-2.5">
           <Hexagon className="h-7 w-7 text-primary" strokeWidth={1.5} />
@@ -119,19 +115,21 @@ export default function Auth() {
           <div className="mb-6 text-center">
             <button
               onClick={() => setSelectedRole(null)}
-              className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+              className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
             >
               <activeRole.icon className="h-3.5 w-3.5" />
               {activeRole.label}
-              <span className="opacity-50">· Change</span>
+              <span className="text-muted-foreground">· Change</span>
             </button>
-            <h1 className="text-2xl font-light tracking-tight" style={{ fontFamily: "'Source Serif 4', serif" }}>Sign In</h1>
+            <h1 className="text-2xl font-light tracking-tight" style={{ fontFamily: "'Source Serif 4', serif" }}>
+              Sign In
+            </h1>
           </div>
 
-          <Card className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark-secondary))] text-[hsl(var(--surface-dark-foreground))]">
+          <Card className="border-border bg-card text-card-foreground">
             <form onSubmit={handleLogin}>
               <CardHeader className="pb-4">
-                <CardDescription className="opacity-55">
+                <CardDescription className="text-muted-foreground">
                   Sign in with your credentials or Google account.
                 </CardDescription>
               </CardHeader>
@@ -139,7 +137,7 @@ export default function Auth() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] hover:bg-[hsl(var(--surface-dark))]/80"
+                  className="w-full border-border bg-background text-foreground hover:bg-secondary"
                   disabled={oauthLoading || loading}
                   onClick={handleGoogleSignIn}
                 >
@@ -157,14 +155,14 @@ export default function Auth() {
                 </Button>
 
                 <div className="relative">
-                  <Separator className="bg-[hsl(var(--surface-dark-tertiary))]" />
-                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[hsl(var(--surface-dark-secondary))] px-3 text-xs opacity-40">
+                  <Separator className="bg-border" />
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 text-xs text-muted-foreground">
                     or
                   </span>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="login-email" className="opacity-70">Email</Label>
+                  <Label htmlFor="login-email" className="text-foreground/85">Email</Label>
                   <Input
                     id="login-email"
                     type="email"
@@ -172,38 +170,38 @@ export default function Auth() {
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     required
-                    className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] placeholder:opacity-30"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="login-password" className="opacity-70">Password</Label>
+                  <Label htmlFor="login-password" className="text-foreground/85">Password</Label>
                   <Input
                     id="login-password"
                     type="password"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     required
-                    className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] placeholder:opacity-30"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col gap-3">
                 <Button
                   type="submit"
-                  className="w-full bg-primary text-primary-foreground hover:bg-primary/85 font-medium"
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
                   disabled={loading || oauthLoading}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Sign In
                 </Button>
-                <Link to="/forgot-password" className="text-sm opacity-45 hover:text-primary hover:opacity-100 transition-all">
+                <Link to="/forgot-password" className="text-sm text-muted-foreground transition-colors hover:text-primary">
                   Forgot password?
                 </Link>
               </CardFooter>
             </form>
           </Card>
 
-          <p className="mt-6 text-center text-xs opacity-35">
+          <p className="mt-6 text-center text-xs text-muted-foreground">
             Don't have an account?{" "}
             <Link to="/signup" className="text-primary hover:underline">
               Register as an Originator
