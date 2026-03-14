@@ -81,17 +81,16 @@ export default function Signup() {
     }
   };
 
-  // Step 1: Plan selection
   if (step === "plan") {
     return (
-      <div className="min-h-screen bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+      <div className="min-h-screen bg-background text-foreground" style={{ fontFamily: "'Outfit', sans-serif" }}>
         <header className="flex items-center justify-between px-6 py-6">
           <Link to="/" className="flex items-center gap-2.5">
             <Hexagon className="h-7 w-7 text-primary" strokeWidth={1.5} />
             <span className="text-xl font-semibold tracking-tight">Vybrel</span>
           </Link>
           <Link to="/auth">
-            <Button variant="ghost" size="sm" className="opacity-70 hover:opacity-100 hover:text-primary hover:bg-transparent">
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground hover:bg-secondary">
               Already have an account? Sign In
             </Button>
           </Link>
@@ -99,13 +98,11 @@ export default function Signup() {
 
         <div className="mx-auto max-w-5xl px-6 py-12 lg:px-8">
           <div className="text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">
-              Originator Registration
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Originator Registration</p>
             <h1 className="mt-4 text-3xl font-light tracking-tight sm:text-4xl" style={{ fontFamily: "'Source Serif 4', serif" }}>
               Choose your plan
             </h1>
-            <p className="mt-3 opacity-55">
+            <p className="mt-3 text-muted-foreground">
               Select a subscription that matches your portfolio size and transaction volume.
             </p>
           </div>
@@ -115,10 +112,10 @@ export default function Signup() {
               {plans.map((plan) => (
                 <div
                   key={plan.id}
-                  className={`relative flex flex-col rounded-xl border p-8 transition-all ${
+                  className={`relative flex flex-col rounded-xl border p-8 transition-colors ${
                     selectedPlan === plan.id
-                      ? "border-primary/40 bg-[hsl(var(--surface-dark-secondary))]"
-                      : "border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark-secondary))] hover:border-[hsl(var(--surface-dark-tertiary))]/80"
+                      ? "border-primary/45 bg-card"
+                      : "border-border bg-card hover:border-primary/30"
                   }`}
                 >
                   {plan.is_popular && (
@@ -128,31 +125,28 @@ export default function Signup() {
                   )}
                   <h3 className="text-lg font-medium">{plan.name}</h3>
                   <div className="mt-4 flex items-baseline gap-1">
-                    <span className="text-4xl font-light text-primary">
-                      £{plan.price_gbp.toLocaleString()}
-                    </span>
-                    <span className="text-sm opacity-50">/month</span>
+                    <span className="text-4xl font-light text-primary">£{plan.price_gbp.toLocaleString()}</span>
+                    <span className="text-sm text-muted-foreground">/month</span>
                   </div>
                   <div className="mt-4 space-y-1.5 text-sm">
                     <p className="font-medium">
                       {plan.max_borrowers === -1 ? "Unlimited" : `Up to ${plan.max_borrowers}`} borrowers
                     </p>
-                    <p className="opacity-55">
+                    <p className="text-muted-foreground">
                       {plan.max_funders === -1 ? "Unlimited" : `Up to ${plan.max_funders}`} funders
                     </p>
-                    <p className="opacity-55">
+                    <p className="text-muted-foreground">
                       {plan.max_monthly_volume_gbp === -1
                         ? "Unlimited"
-                        : `£${(plan.max_monthly_volume_gbp / 1000).toLocaleString()}K`}{" "}
-                      monthly volume
+                        : `£${(plan.max_monthly_volume_gbp / 1000).toLocaleString()}K`} monthly volume
                     </p>
                   </div>
 
-                  <Separator className="my-6 bg-[hsl(var(--surface-dark-tertiary))]" />
+                  <Separator className="my-6 bg-border" />
 
                   <ul className="flex-1 space-y-3">
                     {plan.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2.5 text-sm opacity-75">
+                      <li key={f} className="flex items-start gap-2.5 text-sm text-foreground/85">
                         <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                         {f}
                       </li>
@@ -162,8 +156,8 @@ export default function Signup() {
                   <Button
                     className={`mt-8 w-full font-medium ${
                       selectedPlan === plan.id
-                        ? "bg-primary text-primary-foreground hover:bg-primary/85"
-                        : "border border-[hsl(var(--surface-dark-tertiary))] bg-transparent hover:bg-[hsl(var(--surface-dark))]"
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "border border-border bg-transparent text-foreground hover:bg-secondary"
                     }`}
                     onClick={() => {
                       setSelectedPlan(plan.id);
@@ -176,7 +170,7 @@ export default function Signup() {
               ))}
             </div>
           ) : (
-            <div className="mt-14 text-center py-12 opacity-50">
+            <div className="mt-14 py-12 text-center text-muted-foreground">
               <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
               <p className="mt-3">Loading plans...</p>
             </div>
@@ -186,11 +180,10 @@ export default function Signup() {
     );
   }
 
-  // Step 2: Registration form
   const activePlan = plans.find((p) => p.id === selectedPlan);
 
   return (
-    <div className="flex min-h-screen flex-col bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+    <div className="flex min-h-screen flex-col bg-background text-foreground" style={{ fontFamily: "'Outfit', sans-serif" }}>
       <header className="flex items-center justify-between px-6 py-6">
         <Link to="/" className="flex items-center gap-2.5">
           <Hexagon className="h-7 w-7 text-primary" strokeWidth={1.5} />
@@ -203,25 +196,25 @@ export default function Signup() {
           <div className="mb-6 text-center">
             <button
               onClick={() => setStep("plan")}
-              className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+              className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
             >
               {activePlan?.name} · £{activePlan?.price_gbp}/mo
-              <span className="opacity-50">· Change</span>
+              <span className="text-muted-foreground">· Change</span>
             </button>
             <h1 className="text-2xl font-light tracking-tight" style={{ fontFamily: "'Source Serif 4', serif" }}>
               Create Your Account
             </h1>
-            <p className="mt-1 text-sm opacity-55">Register as an Originator</p>
+            <p className="mt-1 text-sm text-muted-foreground">Register as an Originator</p>
           </div>
 
-          <Card className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark-secondary))] text-[hsl(var(--surface-dark-foreground))]">
+          <Card className="border-border bg-card text-card-foreground">
             <form onSubmit={handleRegister}>
               <CardHeader className="pb-2" />
               <CardContent className="space-y-4">
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] hover:bg-[hsl(var(--surface-dark))]/80"
+                  className="w-full border-border bg-background text-foreground hover:bg-secondary"
                   disabled={oauthLoading || loading}
                   onClick={handleGoogleSignIn}
                 >
@@ -239,85 +232,83 @@ export default function Signup() {
                 </Button>
 
                 <div className="relative">
-                  <Separator className="bg-[hsl(var(--surface-dark-tertiary))]" />
-                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[hsl(var(--surface-dark-secondary))] px-3 text-xs opacity-40">
+                  <Separator className="bg-border" />
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 text-xs text-muted-foreground">
                     or register with email
                   </span>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="opacity-70">Full Name</Label>
+                  <Label className="text-foreground/85">Full Name</Label>
                   <Input
                     value={formData.fullName}
                     onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                     required
-                    className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] placeholder:opacity-30"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground"
                     placeholder="John Smith"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="opacity-70">Company Name</Label>
+                  <Label className="text-foreground/85">Company Name</Label>
                   <Input
                     value={formData.companyName}
                     onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                     required
-                    className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] placeholder:opacity-30"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground"
                     placeholder="Acme Finance Ltd"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="opacity-70">Email</Label>
+                  <Label className="text-foreground/85">Email</Label>
                   <Input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
-                    className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] placeholder:opacity-30"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground"
                     placeholder="name@company.com"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="opacity-70">Password (min 12 characters)</Label>
+                  <Label className="text-foreground/85">Password (min 12 characters)</Label>
                   <Input
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     required
                     minLength={12}
-                    className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] placeholder:opacity-30"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="opacity-70">Confirm Password</Label>
+                  <Label className="text-foreground/85">Confirm Password</Label>
                   <Input
                     type="password"
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                     required
-                    className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] placeholder:opacity-30"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col gap-3">
                 <Button
                   type="submit"
-                  className="w-full bg-primary text-primary-foreground hover:bg-primary/85 font-medium"
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
                   disabled={loading || oauthLoading}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Create Account
                 </Button>
-                <p className="text-center text-xs opacity-40">
-                  By registering, you agree to our{" "}
-                  <Link to="/terms" className="text-primary hover:underline">Terms</Link>{" "}
-                  and{" "}
+                <p className="text-center text-xs text-muted-foreground">
+                  By registering, you agree to our <Link to="/terms" className="text-primary hover:underline">Terms</Link> and{" "}
                   <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
                 </p>
               </CardFooter>
             </form>
           </Card>
 
-          <p className="mt-6 text-center text-xs opacity-40">
+          <p className="mt-6 text-center text-xs text-muted-foreground">
             Already have an account?{" "}
             <Link to="/auth" className="text-primary hover:underline">
               Sign In
