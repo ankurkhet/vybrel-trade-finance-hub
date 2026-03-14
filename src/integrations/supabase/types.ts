@@ -771,6 +771,51 @@ export type Database = {
           },
         ]
       }
+      subscription_plans: {
+        Row: {
+          created_at: string
+          features: Json
+          id: string
+          is_active: boolean
+          is_popular: boolean
+          max_borrowers: number
+          max_funders: number
+          max_monthly_volume_gbp: number
+          name: string
+          price_gbp: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          features?: Json
+          id?: string
+          is_active?: boolean
+          is_popular?: boolean
+          max_borrowers?: number
+          max_funders?: number
+          max_monthly_volume_gbp?: number
+          name: string
+          price_gbp?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          features?: Json
+          id?: string
+          is_active?: boolean
+          is_popular?: boolean
+          max_borrowers?: number
+          max_funders?: number
+          max_monthly_volume_gbp?: number
+          name?: string
+          price_gbp?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
