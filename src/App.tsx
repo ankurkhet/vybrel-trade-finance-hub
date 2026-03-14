@@ -38,6 +38,8 @@ import BorrowerOnboarding from "./pages/borrower/Onboarding";
 import BorrowerDocuments from "./pages/borrower/Documents";
 import BorrowerInvoices from "./pages/borrower/Invoices";
 import FunderReports from "./pages/funder/Reports";
+import FunderMarketplace from "./pages/funder/Marketplace";
+import FunderPortfolio from "./pages/funder/Portfolio";
 import OriginatorDocuments from "./pages/originator/Documents";
 import Settings from "./pages/Settings";
 
