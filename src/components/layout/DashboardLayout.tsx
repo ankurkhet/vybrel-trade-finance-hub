@@ -25,6 +25,7 @@ import {
   Upload,
   Brain,
   Palette,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
