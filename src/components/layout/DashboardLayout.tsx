@@ -27,6 +27,8 @@ import {
   Palette,
   Hexagon,
   Package,
+  Banknote,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
