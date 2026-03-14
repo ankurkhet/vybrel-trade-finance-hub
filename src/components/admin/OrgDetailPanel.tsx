@@ -173,7 +173,7 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
         </div>
       </div>
 
-      <Tabs defaultValue="contacts">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="contacts"><Users className="mr-1.5 h-3.5 w-3.5" />Contacts & Invites</TabsTrigger>
           <TabsTrigger value="documents"><FileText className="mr-1.5 h-3.5 w-3.5" />KYC/KYB Documents</TabsTrigger>
