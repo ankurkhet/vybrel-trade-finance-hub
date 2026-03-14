@@ -24,6 +24,10 @@ const DOC_TYPES = [
   { value: "aml_policy", label: "AML/CFT Policy" },
   { value: "financial_statements", label: "Audited Financial Statements" },
   { value: "business_license", label: "Business License" },
+  { value: "individual_passport", label: "Individual - Passport" },
+  { value: "individual_driving_license", label: "Individual - Driving License" },
+  { value: "individual_bank_statement", label: "Individual - Bank Statement" },
+  { value: "individual_utility_statement", label: "Individual - Utility Statement" },
   { value: "other", label: "Other" },
 ];
 
