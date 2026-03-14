@@ -24,6 +24,10 @@ const DOC_TYPES = [
   { value: "aml_policy", label: "AML/CFT Policy" },
   { value: "financial_statements", label: "Audited Financial Statements" },
   { value: "business_license", label: "Business License" },
+  { value: "individual_passport", label: "Individual - Passport" },
+  { value: "individual_driving_license", label: "Individual - Driving License" },
+  { value: "individual_bank_statement", label: "Individual - Bank Statement" },
+  { value: "individual_utility_statement", label: "Individual - Utility Statement" },
   { value: "other", label: "Other" },
 ];
 
@@ -43,6 +47,7 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
   const [reviewDoc, setReviewDoc] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [activeTab, setActiveTab] = useState("contacts");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadDocType, setUploadDocType] = useState("certificate_of_incorporation");
@@ -168,7 +173,7 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
         </div>
       </div>
 
-      <Tabs defaultValue="contacts">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="contacts"><Users className="mr-1.5 h-3.5 w-3.5" />Contacts & Invites</TabsTrigger>
           <TabsTrigger value="documents"><FileText className="mr-1.5 h-3.5 w-3.5" />KYC/KYB Documents</TabsTrigger>

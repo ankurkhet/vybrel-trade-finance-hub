@@ -71,7 +71,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     // Funder
     { icon: BarChart3, label: "Portfolio", path: "/funder/reports", show: isFunder },
     // Common
-    { icon: Shield, label: "Security", path: "/settings/security", show: true },
     { icon: Settings, label: "Settings", path: "/settings", show: true },
   ].filter((item) => item.show);
 
