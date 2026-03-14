@@ -87,7 +87,7 @@ export default function AdminProducts() {
         max_borrowers: 10,
         max_funders: 5,
         max_monthly_volume_gbp: 100000,
-        features: [] as unknown as Record<string, unknown>[],
+        features: [] as unknown as string,
         sort_order: plans.length + 1,
       })
       .select()
