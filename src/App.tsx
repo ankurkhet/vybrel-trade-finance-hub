@@ -26,6 +26,7 @@ import Dashboard from "./pages/Dashboard";
 import AdminReports from "./pages/admin/Reports";
 import AdminOrganizations from "./pages/admin/Organizations";
 import AdminUsers from "./pages/admin/Users";
+import AdminProducts from "./pages/admin/Products";
 import OriginatorReports from "./pages/originator/Reports";
 import OriginatorBranding from "./pages/originator/Branding";
 import OriginatorBorrowers from "./pages/originator/Borrowers";
