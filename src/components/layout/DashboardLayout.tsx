@@ -25,6 +25,7 @@ import {
   Upload,
   Brain,
   Palette,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -82,10 +83,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         )}
       >
         <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full border border-sidebar-primary text-sidebar-primary">
-            <Shield className="h-3.5 w-3.5" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-sidebar-primary/10 text-sidebar-primary">
+            <Zap className="h-3.5 w-3.5" />
           </div>
-          <span className="text-lg font-semibold tracking-wide">VYBREL</span>
+          <span className="text-lg font-bold tracking-tight">Vybrel</span>
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
