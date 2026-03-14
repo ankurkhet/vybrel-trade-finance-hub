@@ -26,6 +26,7 @@ import Dashboard from "./pages/Dashboard";
 import AdminReports from "./pages/admin/Reports";
 import AdminOrganizations from "./pages/admin/Organizations";
 import AdminUsers from "./pages/admin/Users";
+import AdminProducts from "./pages/admin/Products";
 import OriginatorReports from "./pages/originator/Reports";
 import OriginatorBranding from "./pages/originator/Branding";
 import OriginatorBorrowers from "./pages/originator/Borrowers";
@@ -71,6 +72,7 @@ const App = () => (
               <Route path="/admin/organizations" element={<ProtectedRoute requiredRoles={["admin"]}><AdminOrganizations /></ProtectedRoute>} />
               <Route path="/admin/users" element={<ProtectedRoute requiredRoles={["admin"]}><AdminUsers /></ProtectedRoute>} />
               <Route path="/admin/reports" element={<ProtectedRoute requiredRoles={["admin"]}><AdminReports /></ProtectedRoute>} />
+              <Route path="/admin/products" element={<ProtectedRoute requiredRoles={["admin"]}><AdminProducts /></ProtectedRoute>} />
 
               {/* Originator */}
               <Route path="/originator/borrowers" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorBorrowers /></ProtectedRoute>} />

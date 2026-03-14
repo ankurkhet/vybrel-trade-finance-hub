@@ -1,66 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Shield, Check, ArrowRight, Loader2 } from "lucide-react";
+import { Hexagon, Check, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-const plans = [
-  {
-    id: "starter",
-    name: "Starter",
-    price: 500,
-    borrowers: "Up to 10 borrowers",
-    txn: "Up to $500K transactions / month",
-    features: [
-      "AI credit memos",
-      "KYC/KYB workflows",
-      "Basic reporting",
-      "Email support",
-    ],
-  },
-  {
-    id: "growth",
-    name: "Growth",
-    price: 1000,
-    borrowers: "Up to 50 borrowers",
-    txn: "Up to $2M transactions / month",
-    popular: true,
-    features: [
-      "Everything in Starter",
-      "White-label branding",
-      "Advanced AI insights",
-      "Priority support",
-      "Custom domain",
-    ],
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    price: 3000,
-    borrowers: "Unlimited borrowers",
-    txn: "Unlimited transactions",
-    features: [
-      "Everything in Growth",
-      "Dedicated account manager",
-      "SLA guarantees",
-      "SSO & advanced security",
-      "API access",
-      "Custom integrations",
-    ],
-  },
-];
+interface Plan {
+  id: string;
+  name: string;
+  price_gbp: number;
+  max_borrowers: number;
+  max_funders: number;
+  max_monthly_volume_gbp: number;
+  features: string[];
+  is_popular: boolean;
+}
 
 export default function Signup() {
   const navigate = useNavigate();
   const { signUp } = useAuth();
   const [step, setStep] = useState<"plan" | "register">("plan");
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -70,6 +37,17 @@ export default function Signup() {
     password: "",
     confirmPassword: "",
   });
+
+  useEffect(() => {
+    supabase
+      .from("subscription_plans")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order")
+      .then(({ data }) => {
+        if (data) setPlans(data as unknown as Plan[]);
+      });
+  }, []);
 
   const handleGoogleSignIn = async () => {
     setOauthLoading(true);
@@ -106,17 +84,14 @@ export default function Signup() {
   // Step 1: Plan selection
   if (step === "plan") {
     return (
-      <div className="min-h-screen bg-[hsl(222,47%,8%)] text-[hsl(210,40%,96%)]">
-        {/* Nav */}
+      <div className="min-h-screen bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))]" style={{ fontFamily: "'Outfit', sans-serif" }}>
         <header className="flex items-center justify-between px-6 py-6">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[hsl(42,78%,50%)] text-[hsl(42,78%,50%)]">
-              <Shield className="h-4 w-4" />
-            </div>
-            <span className="text-lg font-semibold tracking-wide">VYBREL</span>
+            <Hexagon className="h-7 w-7 text-primary" strokeWidth={1.5} />
+            <span className="text-xl font-semibold tracking-tight">Vybrel</span>
           </Link>
           <Link to="/auth">
-            <Button variant="ghost" size="sm" className="text-[hsl(210,40%,96%)]/80 hover:text-[hsl(42,78%,50%)] hover:bg-transparent">
+            <Button variant="ghost" size="sm" className="opacity-70 hover:opacity-100 hover:text-primary hover:bg-transparent">
               Already have an account? Sign In
             </Button>
           </Link>
@@ -124,114 +99,129 @@ export default function Signup() {
 
         <div className="mx-auto max-w-5xl px-6 py-12 lg:px-8">
           <div className="text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[hsl(42,78%,50%)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">
               Originator Registration
             </p>
-            <h1 className="mt-4 text-3xl font-light tracking-tight sm:text-4xl">
+            <h1 className="mt-4 text-3xl font-light tracking-tight sm:text-4xl" style={{ fontFamily: "'Source Serif 4', serif" }}>
               Choose your plan
             </h1>
-            <p className="mt-3 text-[hsl(210,40%,96%)]/50">
+            <p className="mt-3 opacity-55">
               Select a subscription that matches your portfolio size and transaction volume.
             </p>
           </div>
 
-          <div className="mt-14 grid gap-6 lg:grid-cols-3">
-            {plans.map((plan) => (
-              <div
-                key={plan.id}
-                className={`relative flex flex-col rounded-xl border p-8 transition-all ${
-                  selectedPlan === plan.id
-                    ? "border-[hsl(42,78%,50%)] bg-[hsl(222,47%,12%)]"
-                    : "border-[hsl(222,35%,18%)] bg-[hsl(222,47%,10%)] hover:border-[hsl(222,35%,24%)]"
-                }`}
-              >
-                {plan.popular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[hsl(42,78%,50%)] px-4 py-1 text-xs font-semibold text-[hsl(222,47%,8%)]">
-                    Most Popular
-                  </span>
-                )}
-                <h3 className="text-lg font-medium">{plan.name}</h3>
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-4xl font-light text-[hsl(42,78%,50%)]">
-                    ${plan.price.toLocaleString()}
-                  </span>
-                  <span className="text-sm text-[hsl(210,40%,96%)]/50">/month</span>
-                </div>
-                <div className="mt-4 space-y-1.5">
-                  <p className="text-sm font-medium">{plan.borrowers}</p>
-                  <p className="text-sm text-[hsl(210,40%,96%)]/50">{plan.txn}</p>
-                </div>
-
-                <Separator className="my-6 bg-[hsl(222,35%,18%)]" />
-
-                <ul className="flex-1 space-y-3">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2.5 text-sm text-[hsl(210,40%,96%)]/70">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(42,78%,50%)]" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-
-                <Button
-                  className={`mt-8 w-full font-semibold ${
+          {plans.length > 0 ? (
+            <div className="mt-14 grid gap-6 lg:grid-cols-3">
+              {plans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className={`relative flex flex-col rounded-xl border p-8 transition-all ${
                     selectedPlan === plan.id
-                      ? "bg-[hsl(42,78%,50%)] text-[hsl(222,47%,8%)] hover:bg-[hsl(42,78%,60%)]"
-                      : "border border-[hsl(222,35%,18%)] bg-transparent text-[hsl(210,40%,96%)] hover:bg-[hsl(222,47%,14%)]"
+                      ? "border-primary/40 bg-[hsl(var(--surface-dark-secondary))]"
+                      : "border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark-secondary))] hover:border-[hsl(var(--surface-dark-tertiary))]/80"
                   }`}
-                  onClick={() => {
-                    setSelectedPlan(plan.id);
-                    setStep("register");
-                  }}
                 >
-                  Select {plan.name} <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
+                  {plan.is_popular && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground">
+                      Most Popular
+                    </span>
+                  )}
+                  <h3 className="text-lg font-medium">{plan.name}</h3>
+                  <div className="mt-4 flex items-baseline gap-1">
+                    <span className="text-4xl font-light text-primary">
+                      £{plan.price_gbp.toLocaleString()}
+                    </span>
+                    <span className="text-sm opacity-50">/month</span>
+                  </div>
+                  <div className="mt-4 space-y-1.5 text-sm">
+                    <p className="font-medium">
+                      {plan.max_borrowers === -1 ? "Unlimited" : `Up to ${plan.max_borrowers}`} borrowers
+                    </p>
+                    <p className="opacity-55">
+                      {plan.max_funders === -1 ? "Unlimited" : `Up to ${plan.max_funders}`} funders
+                    </p>
+                    <p className="opacity-55">
+                      {plan.max_monthly_volume_gbp === -1
+                        ? "Unlimited"
+                        : `£${(plan.max_monthly_volume_gbp / 1000).toLocaleString()}K`}{" "}
+                      monthly volume
+                    </p>
+                  </div>
+
+                  <Separator className="my-6 bg-[hsl(var(--surface-dark-tertiary))]" />
+
+                  <ul className="flex-1 space-y-3">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2.5 text-sm opacity-75">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Button
+                    className={`mt-8 w-full font-medium ${
+                      selectedPlan === plan.id
+                        ? "bg-primary text-primary-foreground hover:bg-primary/85"
+                        : "border border-[hsl(var(--surface-dark-tertiary))] bg-transparent hover:bg-[hsl(var(--surface-dark))]"
+                    }`}
+                    onClick={() => {
+                      setSelectedPlan(plan.id);
+                      setStep("register");
+                    }}
+                  >
+                    Select {plan.name} <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-14 text-center py-12 opacity-50">
+              <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
+              <p className="mt-3">Loading plans...</p>
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
   // Step 2: Registration form
-  const activePlan = plans.find((p) => p.id === selectedPlan)!;
+  const activePlan = plans.find((p) => p.id === selectedPlan);
 
   return (
-    <div className="flex min-h-screen flex-col bg-[hsl(222,47%,8%)] text-[hsl(210,40%,96%)]">
+    <div className="flex min-h-screen flex-col bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))]" style={{ fontFamily: "'Outfit', sans-serif" }}>
       <header className="flex items-center justify-between px-6 py-6">
         <Link to="/" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[hsl(42,78%,50%)] text-[hsl(42,78%,50%)]">
-            <Shield className="h-4 w-4" />
-          </div>
-          <span className="text-lg font-semibold tracking-wide">VYBREL</span>
+          <Hexagon className="h-7 w-7 text-primary" strokeWidth={1.5} />
+          <span className="text-xl font-semibold tracking-tight">Vybrel</span>
         </Link>
       </header>
 
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-md">
-          {/* Plan indicator */}
           <div className="mb-6 text-center">
             <button
               onClick={() => setStep("plan")}
-              className="mb-4 inline-flex items-center gap-2 rounded-full border border-[hsl(42,78%,50%)]/30 bg-[hsl(222,47%,10%)] px-4 py-1.5 text-xs font-medium text-[hsl(42,78%,50%)] transition-colors hover:bg-[hsl(222,47%,14%)]"
+              className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
             >
-              {activePlan.name} · ${activePlan.price}/mo
-              <span className="text-[hsl(210,40%,96%)]/40">· Change</span>
+              {activePlan?.name} · £{activePlan?.price_gbp}/mo
+              <span className="opacity-50">· Change</span>
             </button>
-            <h1 className="text-2xl font-light tracking-tight">Create Your Account</h1>
-            <p className="mt-1 text-sm text-[hsl(210,40%,96%)]/50">Register as an Originator</p>
+            <h1 className="text-2xl font-light tracking-tight" style={{ fontFamily: "'Source Serif 4', serif" }}>
+              Create Your Account
+            </h1>
+            <p className="mt-1 text-sm opacity-55">Register as an Originator</p>
           </div>
 
-          <Card className="border-[hsl(222,35%,18%)] bg-[hsl(222,47%,10%)] text-[hsl(210,40%,96%)]">
+          <Card className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark-secondary))] text-[hsl(var(--surface-dark-foreground))]">
             <form onSubmit={handleRegister}>
               <CardHeader className="pb-2" />
               <CardContent className="space-y-4">
-                {/* Google OAuth */}
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full border-[hsl(222,35%,18%)] bg-[hsl(222,47%,14%)] text-[hsl(210,40%,96%)] hover:bg-[hsl(222,47%,18%)] hover:text-[hsl(210,40%,96%)]"
+                  className="w-full border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] hover:bg-[hsl(var(--surface-dark))]/80"
                   disabled={oauthLoading || loading}
                   onClick={handleGoogleSignIn}
                 >
@@ -249,87 +239,87 @@ export default function Signup() {
                 </Button>
 
                 <div className="relative">
-                  <Separator className="bg-[hsl(222,35%,18%)]" />
-                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[hsl(222,47%,10%)] px-3 text-xs text-[hsl(210,40%,96%)]/40">
+                  <Separator className="bg-[hsl(var(--surface-dark-tertiary))]" />
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[hsl(var(--surface-dark-secondary))] px-3 text-xs opacity-40">
                     or register with email
                   </span>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[hsl(210,40%,96%)]/70">Full Name</Label>
+                  <Label className="opacity-70">Full Name</Label>
                   <Input
                     value={formData.fullName}
                     onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                     required
-                    className="border-[hsl(222,35%,18%)] bg-[hsl(222,47%,14%)] text-[hsl(210,40%,96%)] placeholder:text-[hsl(210,40%,96%)]/30"
+                    className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] placeholder:opacity-30"
                     placeholder="John Smith"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[hsl(210,40%,96%)]/70">Company Name</Label>
+                  <Label className="opacity-70">Company Name</Label>
                   <Input
                     value={formData.companyName}
                     onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                     required
-                    className="border-[hsl(222,35%,18%)] bg-[hsl(222,47%,14%)] text-[hsl(210,40%,96%)] placeholder:text-[hsl(210,40%,96%)]/30"
+                    className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] placeholder:opacity-30"
                     placeholder="Acme Finance Ltd"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[hsl(210,40%,96%)]/70">Email</Label>
+                  <Label className="opacity-70">Email</Label>
                   <Input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
-                    className="border-[hsl(222,35%,18%)] bg-[hsl(222,47%,14%)] text-[hsl(210,40%,96%)] placeholder:text-[hsl(210,40%,96%)]/30"
+                    className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] placeholder:opacity-30"
                     placeholder="name@company.com"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[hsl(210,40%,96%)]/70">Password (min 12 characters)</Label>
+                  <Label className="opacity-70">Password (min 12 characters)</Label>
                   <Input
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     required
                     minLength={12}
-                    className="border-[hsl(222,35%,18%)] bg-[hsl(222,47%,14%)] text-[hsl(210,40%,96%)] placeholder:text-[hsl(210,40%,96%)]/30"
+                    className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] placeholder:opacity-30"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[hsl(210,40%,96%)]/70">Confirm Password</Label>
+                  <Label className="opacity-70">Confirm Password</Label>
                   <Input
                     type="password"
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                     required
-                    className="border-[hsl(222,35%,18%)] bg-[hsl(222,47%,14%)] text-[hsl(210,40%,96%)] placeholder:text-[hsl(210,40%,96%)]/30"
+                    className="border-[hsl(var(--surface-dark-tertiary))] bg-[hsl(var(--surface-dark))] text-[hsl(var(--surface-dark-foreground))] placeholder:opacity-30"
                   />
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col gap-3">
                 <Button
                   type="submit"
-                  className="w-full bg-[hsl(42,78%,50%)] text-[hsl(222,47%,8%)] hover:bg-[hsl(42,78%,60%)] font-semibold"
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/85 font-medium"
                   disabled={loading || oauthLoading}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Create Account
                 </Button>
-                <p className="text-center text-xs text-[hsl(210,40%,96%)]/40">
+                <p className="text-center text-xs opacity-40">
                   By registering, you agree to our{" "}
-                  <Link to="/terms" className="text-[hsl(42,78%,50%)] hover:underline">Terms</Link>{" "}
+                  <Link to="/terms" className="text-primary hover:underline">Terms</Link>{" "}
                   and{" "}
-                  <Link to="/privacy" className="text-[hsl(42,78%,50%)] hover:underline">Privacy Policy</Link>.
+                  <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
                 </p>
               </CardFooter>
             </form>
           </Card>
 
-          <p className="mt-6 text-center text-xs text-[hsl(210,40%,96%)]/40">
+          <p className="mt-6 text-center text-xs opacity-40">
             Already have an account?{" "}
-            <Link to="/auth" className="text-[hsl(42,78%,50%)] hover:underline">
+            <Link to="/auth" className="text-primary hover:underline">
               Sign In
             </Link>
           </p>
