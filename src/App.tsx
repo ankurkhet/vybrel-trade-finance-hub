@@ -35,13 +35,16 @@ import OriginatorBorrowers from "./pages/originator/Borrowers";
 import OriginatorContracts from "./pages/originator/Contracts";
 import OriginatorInvoices from "./pages/originator/Invoices";
 import AIInsightsPage from "./pages/originator/AIInsights";
+import OriginatorCollections from "./pages/originator/Collections";
 import BorrowerReports from "./pages/borrower/Reports";
 import BorrowerOnboarding from "./pages/borrower/Onboarding";
 import BorrowerDocuments from "./pages/borrower/Documents";
 import BorrowerInvoices from "./pages/borrower/Invoices";
+import BorrowerSettlements from "./pages/borrower/Settlements";
 import FunderReports from "./pages/funder/Reports";
 import FunderMarketplace from "./pages/funder/Marketplace";
 import FunderPortfolio from "./pages/funder/Portfolio";
+import FunderSettlements from "./pages/funder/Settlements";
 import OriginatorDocuments from "./pages/originator/Documents";
 import Settings from "./pages/Settings";
 
