@@ -987,6 +987,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_invoice_by_token: {
+        Args: {
+          _email: string
+          _notes?: string
+          _status: Database["public"]["Enums"]["acceptance_status"]
+          _token: string
+        }
+        Returns: boolean
+      }
       get_user_organization_id: { Args: { _user_id: string }; Returns: string }
       get_user_roles: {
         Args: { _user_id: string }
