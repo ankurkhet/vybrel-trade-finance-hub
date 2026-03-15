@@ -506,11 +506,81 @@ export type Database = {
           },
         ]
       }
+      invoice_acceptances: {
+        Row: {
+          accepted_by_email: string | null
+          accepted_by_user_id: string | null
+          created_at: string
+          document_id: string | null
+          id: string
+          invoice_id: string
+          method: Database["public"]["Enums"]["acceptance_method"]
+          notes: string | null
+          organization_id: string
+          status: Database["public"]["Enums"]["acceptance_status"]
+          updated_at: string
+        }
+        Insert: {
+          accepted_by_email?: string | null
+          accepted_by_user_id?: string | null
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          invoice_id: string
+          method: Database["public"]["Enums"]["acceptance_method"]
+          notes?: string | null
+          organization_id: string
+          status?: Database["public"]["Enums"]["acceptance_status"]
+          updated_at?: string
+        }
+        Update: {
+          accepted_by_email?: string | null
+          accepted_by_user_id?: string | null
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          invoice_id?: string
+          method?: Database["public"]["Enums"]["acceptance_method"]
+          notes?: string | null
+          organization_id?: string
+          status?: Database["public"]["Enums"]["acceptance_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_acceptances_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_acceptances_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_acceptances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
+          acceptance_status:
+            | Database["public"]["Enums"]["acceptance_status"]
+            | null
+          acceptance_token: string | null
           amount: number
           borrower_id: string
           contract_id: string | null
+          counterparty_email: string | null
+          counterparty_name: string | null
           created_at: string
           currency: string | null
           debtor_name: string
@@ -522,13 +592,21 @@ export type Database = {
           match_details: Json | null
           match_score: number | null
           organization_id: string
+          product_type: Database["public"]["Enums"]["product_type"] | null
+          requires_counterparty_acceptance: boolean | null
           status: string
           updated_at: string
         }
         Insert: {
+          acceptance_status?:
+            | Database["public"]["Enums"]["acceptance_status"]
+            | null
+          acceptance_token?: string | null
           amount: number
           borrower_id: string
           contract_id?: string | null
+          counterparty_email?: string | null
+          counterparty_name?: string | null
           created_at?: string
           currency?: string | null
           debtor_name: string
@@ -540,13 +618,21 @@ export type Database = {
           match_details?: Json | null
           match_score?: number | null
           organization_id: string
+          product_type?: Database["public"]["Enums"]["product_type"] | null
+          requires_counterparty_acceptance?: boolean | null
           status?: string
           updated_at?: string
         }
         Update: {
+          acceptance_status?:
+            | Database["public"]["Enums"]["acceptance_status"]
+            | null
+          acceptance_token?: string | null
           amount?: number
           borrower_id?: string
           contract_id?: string | null
+          counterparty_email?: string | null
+          counterparty_name?: string | null
           created_at?: string
           currency?: string | null
           debtor_name?: string
@@ -558,6 +644,8 @@ export type Database = {
           match_details?: Json | null
           match_score?: number | null
           organization_id?: string
+          product_type?: Database["public"]["Enums"]["product_type"] | null
+          requires_counterparty_acceptance?: boolean | null
           status?: string
           updated_at?: string
         }
@@ -899,6 +987,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_invoice_by_token: {
+        Args: {
+          _email: string
+          _notes?: string
+          _status: Database["public"]["Enums"]["acceptance_status"]
+          _token: string
+        }
+        Returns: boolean
+      }
       get_user_organization_id: { Args: { _user_id: string }; Returns: string }
       get_user_roles: {
         Args: { _user_id: string }
@@ -913,6 +1010,12 @@ export type Database = {
       }
     }
     Enums: {
+      acceptance_method: "direct_counterparty" | "document_upload"
+      acceptance_status:
+        | "pending"
+        | "accepted"
+        | "rejected"
+        | "accepted_via_document"
       ai_analysis_status: "pending" | "processing" | "completed" | "failed"
       ai_analysis_type:
         | "document_analysis"
@@ -955,6 +1058,10 @@ export type Database = {
         | "under_review"
         | "approved"
         | "rejected"
+      product_type:
+        | "receivables_purchase"
+        | "reverse_factoring"
+        | "payables_finance"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1082,6 +1189,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      acceptance_method: ["direct_counterparty", "document_upload"],
+      acceptance_status: [
+        "pending",
+        "accepted",
+        "rejected",
+        "accepted_via_document",
+      ],
       ai_analysis_status: ["pending", "processing", "completed", "failed"],
       ai_analysis_type: [
         "document_analysis",
@@ -1129,6 +1243,11 @@ export const Constants = {
         "under_review",
         "approved",
         "rejected",
+      ],
+      product_type: [
+        "receivables_purchase",
+        "reverse_factoring",
+        "payables_finance",
       ],
     },
   },

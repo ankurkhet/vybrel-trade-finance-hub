@@ -6,13 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CreditCard, Loader2, Search, CheckCircle2, XCircle, Eye } from "lucide-react";
+import { CreditCard, Loader2, Search, CheckCircle2, XCircle, Eye, Clock, FileCheck, Send } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+
+const PRODUCT_LABELS: Record<string, string> = {
+  receivables_purchase: "Receivables Purchase",
+  reverse_factoring: "Reverse Factoring",
+  payables_finance: "Payables Finance",
+};
 
 export default function Invoices() {
   const { profile } = useAuth();
@@ -20,6 +26,7 @@ export default function Invoices() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [productFilter, setProductFilter] = useState("all");
   const [reviewInvoice, setReviewInvoice] = useState<any>(null);
   const [updating, setUpdating] = useState(false);
 
@@ -31,7 +38,7 @@ export default function Invoices() {
     setLoading(true);
     const { data } = await supabase
       .from("invoices")
-      .select("*, borrowers(company_name)")
+      .select("*, borrowers(company_name), invoice_acceptances(*)")
       .eq("organization_id", profile.organization_id)
       .order("created_at", { ascending: false });
 
@@ -55,20 +62,44 @@ export default function Invoices() {
     setUpdating(false);
   };
 
+  const canApprove = (inv: any) => {
+    if (inv.status !== "pending") return false;
+    if (inv.requires_counterparty_acceptance) {
+      return inv.acceptance_status === "accepted" || inv.acceptance_status === "accepted_via_document";
+    }
+    return true;
+  };
+
   const filtered = invoices.filter((inv) => {
     const matchSearch = inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
       inv.debtor_name.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || inv.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchProduct = productFilter === "all" || inv.product_type === productFilter;
+    return matchSearch && matchStatus && matchProduct;
   });
 
   const statusColor = (s: string): string => {
     switch (s) {
-      case "approved": return "default";
-      case "funded": return "default";
+      case "approved": case "funded": return "default";
       case "rejected": return "destructive";
       case "under_review": return "secondary";
       default: return "outline";
+    }
+  };
+
+  const acceptanceBadge = (inv: any) => {
+    if (!inv.requires_counterparty_acceptance) {
+      return <Badge variant="outline" className="text-xs">Not Required</Badge>;
+    }
+    switch (inv.acceptance_status) {
+      case "accepted":
+        return <Badge variant="default" className="text-xs"><CheckCircle2 className="mr-1 h-3 w-3" />CP Accepted</Badge>;
+      case "accepted_via_document":
+        return <Badge variant="default" className="text-xs"><FileCheck className="mr-1 h-3 w-3" />Doc Accepted</Badge>;
+      case "rejected":
+        return <Badge variant="destructive" className="text-xs"><XCircle className="mr-1 h-3 w-3" />CP Rejected</Badge>;
+      default:
+        return <Badge variant="secondary" className="text-xs"><Clock className="mr-1 h-3 w-3" />Awaiting CP</Badge>;
     }
   };
 
@@ -76,6 +107,7 @@ export default function Invoices() {
     total: invoices.length,
     pending: invoices.filter((i) => i.status === "pending").length,
     approved: invoices.filter((i) => i.status === "approved").length,
+    awaitingCP: invoices.filter((i) => i.requires_counterparty_acceptance && i.acceptance_status === "pending").length,
     totalValue: invoices.reduce((sum, i) => sum + Number(i.amount), 0),
   };
 
@@ -88,11 +120,12 @@ export default function Invoices() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
           {[
-            { label: "Total Invoices", value: stats.total },
+            { label: "Total", value: stats.total },
             { label: "Pending Review", value: stats.pending },
             { label: "Approved", value: stats.approved },
+            { label: "Awaiting Counterparty", value: stats.awaitingCP },
             { label: "Total Value", value: `$${stats.totalValue.toLocaleString()}` },
           ].map((s) => (
             <Card key={s.label}>
@@ -105,7 +138,7 @@ export default function Invoices() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search invoices..." value={search}
@@ -119,6 +152,15 @@ export default function Invoices() {
               <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="funded">Funded</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={productFilter} onValueChange={setProductFilter}>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Products</SelectItem>
+              <SelectItem value="receivables_purchase">Receivables Purchase</SelectItem>
+              <SelectItem value="reverse_factoring">Reverse Factoring</SelectItem>
+              <SelectItem value="payables_finance">Payables Finance</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -137,11 +179,13 @@ export default function Invoices() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Invoice #</TableHead>
+                    <TableHead>Product</TableHead>
                     <TableHead>Borrower</TableHead>
                     <TableHead>Debtor</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Due Date</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Acceptance</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -149,6 +193,11 @@ export default function Invoices() {
                   {filtered.map((inv) => (
                     <TableRow key={inv.id}>
                       <TableCell className="font-medium">{inv.invoice_number}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {PRODUCT_LABELS[inv.product_type] || "—"}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{(inv.borrowers as any)?.company_name || "—"}</TableCell>
                       <TableCell>{inv.debtor_name}</TableCell>
                       <TableCell>{inv.currency} {Number(inv.amount).toLocaleString()}</TableCell>
@@ -158,19 +207,25 @@ export default function Invoices() {
                           {inv.status}
                         </Badge>
                       </TableCell>
+                      <TableCell>{acceptanceBadge(inv)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          {inv.status === "pending" && (
+                          {canApprove(inv) && (
                             <>
                               <Button size="sm" variant="ghost" className="h-7 text-xs text-green-600"
-                                onClick={() => handleStatusUpdate(inv.id, "approved")}>
+                                onClick={() => handleStatusUpdate(inv.id, "approved")} disabled={updating}>
                                 <CheckCircle2 className="mr-1 h-3 w-3" /> Approve
                               </Button>
                               <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive"
-                                onClick={() => handleStatusUpdate(inv.id, "rejected")}>
+                                onClick={() => handleStatusUpdate(inv.id, "rejected")} disabled={updating}>
                                 <XCircle className="mr-1 h-3 w-3" /> Reject
                               </Button>
                             </>
+                          )}
+                          {inv.status === "pending" && inv.requires_counterparty_acceptance && inv.acceptance_status === "pending" && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Clock className="mr-1 h-3 w-3" /> Waiting
+                            </Badge>
                           )}
                           <Button size="sm" variant="ghost" className="h-7"
                             onClick={() => setReviewInvoice(inv)}>
@@ -189,24 +244,63 @@ export default function Invoices() {
 
       {/* Detail Dialog */}
       <Dialog open={!!reviewInvoice} onOpenChange={() => setReviewInvoice(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Invoice Details</DialogTitle>
             <DialogDescription>{reviewInvoice?.invoice_number}</DialogDescription>
           </DialogHeader>
           {reviewInvoice && (
-            <div className="space-y-3 py-2">
+            <div className="space-y-4 py-2">
               <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground">Product:</span> <span className="text-foreground font-medium">{PRODUCT_LABELS[reviewInvoice.product_type] || "—"}</span></div>
                 <div><span className="text-muted-foreground">Debtor:</span> <span className="text-foreground font-medium">{reviewInvoice.debtor_name}</span></div>
                 <div><span className="text-muted-foreground">Amount:</span> <span className="text-foreground font-medium">{reviewInvoice.currency} {Number(reviewInvoice.amount).toLocaleString()}</span></div>
-                <div><span className="text-muted-foreground">Issue Date:</span> <span className="text-foreground">{new Date(reviewInvoice.issue_date).toLocaleDateString()}</span></div>
                 <div><span className="text-muted-foreground">Due Date:</span> <span className="text-foreground">{new Date(reviewInvoice.due_date).toLocaleDateString()}</span></div>
                 <div><span className="text-muted-foreground">Status:</span> <Badge variant={statusColor(reviewInvoice.status) as any} className="capitalize text-xs ml-1">{reviewInvoice.status}</Badge></div>
                 {reviewInvoice.match_score && <div><span className="text-muted-foreground">Match Score:</span> <span className="text-foreground">{reviewInvoice.match_score}%</span></div>}
               </div>
+
+              {reviewInvoice.requires_counterparty_acceptance && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Counterparty Acceptance</Label>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div><span className="text-muted-foreground">Counterparty:</span> <span className="text-foreground">{reviewInvoice.counterparty_name || reviewInvoice.counterparty_email || "—"}</span></div>
+                      <div><span className="text-muted-foreground">Status:</span> {acceptanceBadge(reviewInvoice)}</div>
+                    </div>
+                    {reviewInvoice.invoice_acceptances?.length > 0 && (
+                      <div className="rounded-lg border p-3 space-y-2 text-sm">
+                        <p className="font-medium text-foreground">Acceptance Records</p>
+                        {reviewInvoice.invoice_acceptances.map((acc: any) => (
+                          <div key={acc.id} className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              {acc.method === "direct_counterparty" ? "Direct verification" : "Document upload"} by {acc.accepted_by_email}
+                            </span>
+                            <Badge variant={acc.status === "accepted" || acc.status === "accepted_via_document" ? "default" : "destructive"} className="text-xs capitalize">
+                              {acc.status.replace(/_/g, " ")}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
           <DialogFooter>
+            {reviewInvoice && canApprove(reviewInvoice) && (
+              <>
+                <Button variant="outline" className="text-destructive" onClick={() => handleStatusUpdate(reviewInvoice.id, "rejected")} disabled={updating}>
+                  <XCircle className="mr-1 h-4 w-4" /> Reject
+                </Button>
+                <Button onClick={() => handleStatusUpdate(reviewInvoice.id, "approved")} disabled={updating}>
+                  {updating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <CheckCircle2 className="mr-1 h-4 w-4" /> Approve
+                </Button>
+              </>
+            )}
             <Button variant="outline" onClick={() => setReviewInvoice(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
