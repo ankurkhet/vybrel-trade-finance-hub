@@ -175,6 +175,75 @@ export type Database = {
           },
         ]
       }
+      collections: {
+        Row: {
+          collected_amount: number
+          collection_date: string
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          currency: string
+          debtor_name: string | null
+          id: string
+          invoice_id: string
+          metadata: Json | null
+          notes: string | null
+          organization_id: string
+          payment_reference: string | null
+          status: Database["public"]["Enums"]["collection_status"]
+          updated_at: string
+        }
+        Insert: {
+          collected_amount: number
+          collection_date?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          currency?: string
+          debtor_name?: string | null
+          id?: string
+          invoice_id: string
+          metadata?: Json | null
+          notes?: string | null
+          organization_id: string
+          payment_reference?: string | null
+          status?: Database["public"]["Enums"]["collection_status"]
+          updated_at?: string
+        }
+        Update: {
+          collected_amount?: number
+          collection_date?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          currency?: string
+          debtor_name?: string | null
+          id?: string
+          invoice_id?: string
+          metadata?: Json | null
+          notes?: string | null
+          organization_id?: string
+          payment_reference?: string | null
+          status?: Database["public"]["Enums"]["collection_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collections_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collections_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           borrower_id: string
@@ -872,6 +941,56 @@ export type Database = {
         }
         Relationships: []
       }
+      product_fee_configs: {
+        Row: {
+          created_at: string
+          default_discount_rate: number
+          id: string
+          notes: string | null
+          organization_id: string
+          originator_fee_pct: number
+          payment_instructions: Json | null
+          platform_fee_pct: number
+          product_type: Database["public"]["Enums"]["product_type"]
+          settlement_days: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_discount_rate?: number
+          id?: string
+          notes?: string | null
+          organization_id: string
+          originator_fee_pct?: number
+          payment_instructions?: Json | null
+          platform_fee_pct?: number
+          product_type: Database["public"]["Enums"]["product_type"]
+          settlement_days?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_discount_rate?: number
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          originator_fee_pct?: number
+          payment_instructions?: Json | null
+          platform_fee_pct?: number
+          product_type?: Database["public"]["Enums"]["product_type"]
+          settlement_days?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_fee_configs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -915,6 +1034,134 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      settlement_advices: {
+        Row: {
+          acknowledged_at: string | null
+          advice_number: string
+          advice_type: Database["public"]["Enums"]["settlement_advice_type"]
+          collection_id: string
+          created_at: string
+          currency: string
+          discount_amount: number
+          fee_breakdown: Json | null
+          from_party_name: string
+          gross_amount: number
+          id: string
+          invoice_id: string | null
+          issued_at: string | null
+          metadata: Json | null
+          net_amount: number
+          notes: string | null
+          organization_id: string
+          originator_fee: number
+          other_deductions: number
+          paid_at: string | null
+          payment_instructions: Json | null
+          pdf_path: string | null
+          platform_fee: number
+          product_type: Database["public"]["Enums"]["product_type"] | null
+          status: Database["public"]["Enums"]["settlement_advice_status"]
+          to_borrower_id: string | null
+          to_funder_user_id: string | null
+          to_party_email: string | null
+          to_party_name: string
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          advice_number: string
+          advice_type: Database["public"]["Enums"]["settlement_advice_type"]
+          collection_id: string
+          created_at?: string
+          currency?: string
+          discount_amount?: number
+          fee_breakdown?: Json | null
+          from_party_name: string
+          gross_amount: number
+          id?: string
+          invoice_id?: string | null
+          issued_at?: string | null
+          metadata?: Json | null
+          net_amount: number
+          notes?: string | null
+          organization_id: string
+          originator_fee?: number
+          other_deductions?: number
+          paid_at?: string | null
+          payment_instructions?: Json | null
+          pdf_path?: string | null
+          platform_fee?: number
+          product_type?: Database["public"]["Enums"]["product_type"] | null
+          status?: Database["public"]["Enums"]["settlement_advice_status"]
+          to_borrower_id?: string | null
+          to_funder_user_id?: string | null
+          to_party_email?: string | null
+          to_party_name: string
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          advice_number?: string
+          advice_type?: Database["public"]["Enums"]["settlement_advice_type"]
+          collection_id?: string
+          created_at?: string
+          currency?: string
+          discount_amount?: number
+          fee_breakdown?: Json | null
+          from_party_name?: string
+          gross_amount?: number
+          id?: string
+          invoice_id?: string | null
+          issued_at?: string | null
+          metadata?: Json | null
+          net_amount?: number
+          notes?: string | null
+          organization_id?: string
+          originator_fee?: number
+          other_deductions?: number
+          paid_at?: string | null
+          payment_instructions?: Json | null
+          pdf_path?: string | null
+          platform_fee?: number
+          product_type?: Database["public"]["Enums"]["product_type"] | null
+          status?: Database["public"]["Enums"]["settlement_advice_status"]
+          to_borrower_id?: string | null
+          to_funder_user_id?: string | null
+          to_party_email?: string | null
+          to_party_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settlement_advices_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_advices_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_advices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_advices_to_borrower_id_fkey"
+            columns: ["to_borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
             referencedColumns: ["id"]
           },
         ]
@@ -1028,6 +1275,7 @@ export type Database = {
         | "originator_user"
         | "borrower"
         | "funder"
+      collection_status: "received" | "confirmed" | "disputed" | "reversed"
       credit_memo_status:
         | "draft"
         | "ai_generated"
@@ -1062,6 +1310,8 @@ export type Database = {
         | "receivables_purchase"
         | "reverse_factoring"
         | "payables_finance"
+      settlement_advice_status: "draft" | "issued" | "acknowledged" | "paid"
+      settlement_advice_type: "borrower_settlement" | "funder_settlement"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1210,6 +1460,7 @@ export const Constants = {
         "borrower",
         "funder",
       ],
+      collection_status: ["received", "confirmed", "disputed", "reversed"],
       credit_memo_status: [
         "draft",
         "ai_generated",
@@ -1249,6 +1500,8 @@ export const Constants = {
         "reverse_factoring",
         "payables_finance",
       ],
+      settlement_advice_status: ["draft", "issued", "acknowledged", "paid"],
+      settlement_advice_type: ["borrower_settlement", "funder_settlement"],
     },
   },
 } as const
