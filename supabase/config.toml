@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.accept-invitation]
 verify_jwt = false
+
+[functions.counterparty-verify]
+verify_jwt = false
+
+[functions.setup-test-users]
+verify_jwt = false
