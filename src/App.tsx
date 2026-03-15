@@ -17,6 +17,7 @@ import ResetPassword from "./pages/ResetPassword";
 import AcceptInvite from "./pages/AcceptInvite";
 import NotFound from "./pages/NotFound";
 import AcceptInvoice from "./pages/counterparty/AcceptInvoice";
+import CounterpartyDashboard from "./pages/counterparty/Dashboard";
 import Install from "./pages/Install";
 import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
 import TermsOfService from "./pages/legal/TermsOfService";
