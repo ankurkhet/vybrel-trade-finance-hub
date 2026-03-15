@@ -66,15 +66,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: CreditCard, label: "Invoices", path: "/originator/invoices", show: isOriginatorAdmin },
     { icon: Brain, label: "AI Insights", path: "/originator/ai-insights", show: isOriginatorAdmin },
     { icon: Upload, label: "KYC/KYB Docs", path: "/originator/documents", show: isOriginatorAdmin },
+    { icon: Receipt, label: "Collections", path: "/originator/collections", show: isOriginatorAdmin },
     { icon: BarChart3, label: "Reports", path: "/originator/reports", show: isOriginatorAdmin },
     { icon: Palette, label: "Branding", path: "/originator/branding", show: isOriginatorAdmin },
     // Borrower
     { icon: Upload, label: "My Documents", path: "/borrower/documents", show: isBorrower },
     { icon: CreditCard, label: "My Invoices", path: "/borrower/invoices", show: isBorrower },
+    { icon: Receipt, label: "Settlements", path: "/borrower/settlements", show: isBorrower },
     { icon: BarChart3, label: "My Reports", path: "/borrower/reports", show: isBorrower },
     // Funder
     { icon: Banknote, label: "Marketplace", path: "/funder/marketplace", show: isFunder },
     { icon: Wallet, label: "Portfolio", path: "/funder/portfolio", show: isFunder },
+    { icon: Receipt, label: "Settlements", path: "/funder/settlements", show: isFunder },
     { icon: BarChart3, label: "Reports", path: "/funder/reports", show: isFunder },
     // Counterparty — visible to non-admin, non-originator users
     { icon: FileCheck, label: "Verify Invoices", path: "/counterparty/dashboard", show: !isAdmin && !isOriginatorAdmin },
