@@ -74,6 +74,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Banknote, label: "Marketplace", path: "/funder/marketplace", show: isFunder },
     { icon: Wallet, label: "Portfolio", path: "/funder/portfolio", show: isFunder },
     { icon: BarChart3, label: "Reports", path: "/funder/reports", show: isFunder },
+    // Counterparty — visible to any logged-in user (counterparties verify via their email)
+    { icon: FileCheck, label: "Verify Invoices", path: "/counterparty/dashboard", show: true },
     // Common
     { icon: Settings, label: "Settings", path: "/settings", show: true },
   ].filter((item) => item.show);
