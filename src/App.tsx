@@ -103,6 +103,7 @@ const App = () => (
               <Route path="/funder/marketplace" element={<ProtectedRoute requiredRoles={["funder"]}><FunderMarketplace /></ProtectedRoute>} />
               <Route path="/funder/portfolio" element={<ProtectedRoute requiredRoles={["funder"]}><FunderPortfolio /></ProtectedRoute>} />
               <Route path="/funder/reports" element={<ProtectedRoute requiredRoles={["funder"]}><FunderReports /></ProtectedRoute>} />
+              <Route path="/funder/settlements" element={<ProtectedRoute requiredRoles={["funder"]}><FunderSettlements /></ProtectedRoute>} />
 
               {/* Counterparty */}
               <Route path="/counterparty/dashboard" element={<ProtectedRoute><CounterpartyDashboard /></ProtectedRoute>} />
