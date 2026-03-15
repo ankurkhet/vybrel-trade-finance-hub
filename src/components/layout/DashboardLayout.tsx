@@ -29,6 +29,7 @@ import {
   Package,
   Banknote,
   Wallet,
+  FileCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
