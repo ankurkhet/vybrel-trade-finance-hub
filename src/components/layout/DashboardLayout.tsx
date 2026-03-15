@@ -29,6 +29,7 @@ import {
   Package,
   Banknote,
   Wallet,
+  FileCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -74,6 +75,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Banknote, label: "Marketplace", path: "/funder/marketplace", show: isFunder },
     { icon: Wallet, label: "Portfolio", path: "/funder/portfolio", show: isFunder },
     { icon: BarChart3, label: "Reports", path: "/funder/reports", show: isFunder },
+    // Counterparty — visible to non-admin, non-originator users
+    { icon: FileCheck, label: "Verify Invoices", path: "/counterparty/dashboard", show: !isAdmin && !isOriginatorAdmin },
     // Common
     { icon: Settings, label: "Settings", path: "/settings", show: true },
   ].filter((item) => item.show);

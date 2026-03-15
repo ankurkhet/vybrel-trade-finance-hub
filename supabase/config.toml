@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.setup-test-users]
 verify_jwt = false
+
+[functions.notify-counterparty]
+verify_jwt = false

@@ -17,6 +17,7 @@ import ResetPassword from "./pages/ResetPassword";
 import AcceptInvite from "./pages/AcceptInvite";
 import NotFound from "./pages/NotFound";
 import AcceptInvoice from "./pages/counterparty/AcceptInvoice";
+import CounterpartyDashboard from "./pages/counterparty/Dashboard";
 import Install from "./pages/Install";
 import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
 import TermsOfService from "./pages/legal/TermsOfService";
@@ -97,6 +98,9 @@ const App = () => (
               <Route path="/funder/marketplace" element={<ProtectedRoute requiredRoles={["funder"]}><FunderMarketplace /></ProtectedRoute>} />
               <Route path="/funder/portfolio" element={<ProtectedRoute requiredRoles={["funder"]}><FunderPortfolio /></ProtectedRoute>} />
               <Route path="/funder/reports" element={<ProtectedRoute requiredRoles={["funder"]}><FunderReports /></ProtectedRoute>} />
+
+              {/* Counterparty */}
+              <Route path="/counterparty/dashboard" element={<ProtectedRoute><CounterpartyDashboard /></ProtectedRoute>} />
 
               {/* Settings */}
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

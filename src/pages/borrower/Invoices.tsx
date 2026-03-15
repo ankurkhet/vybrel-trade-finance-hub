@@ -102,6 +102,31 @@ export default function BorrowerInvoices() {
       setDialogOpen(false);
       resetForm();
       fetchData();
+
+      // Trigger counterparty notification if acceptance is required
+      if (requiresAcceptance && counterpartyEmail) {
+        // Fetch the newly created invoice to get its ID
+        const { data: newInv } = await supabase
+          .from("invoices")
+          .select("id")
+          .eq("borrower_id", borrower.id)
+          .eq("invoice_number", invoiceNumber || "")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (newInv) {
+          supabase.functions.invoke("notify-counterparty", {
+            body: { invoice_id: newInv.id },
+          }).then(({ error: notifyErr }) => {
+            if (notifyErr) {
+              console.error("Failed to send counterparty notification:", notifyErr);
+            } else {
+              toast.success("Verification link sent to counterparty");
+            }
+          });
+        }
+      }
     }
     setSubmitting(false);
   };
