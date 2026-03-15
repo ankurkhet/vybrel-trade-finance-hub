@@ -30,6 +30,7 @@ import {
   Banknote,
   Wallet,
   FileCheck,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
