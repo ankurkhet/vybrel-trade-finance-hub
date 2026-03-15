@@ -35,13 +35,16 @@ import OriginatorBorrowers from "./pages/originator/Borrowers";
 import OriginatorContracts from "./pages/originator/Contracts";
 import OriginatorInvoices from "./pages/originator/Invoices";
 import AIInsightsPage from "./pages/originator/AIInsights";
+import OriginatorCollections from "./pages/originator/Collections";
 import BorrowerReports from "./pages/borrower/Reports";
 import BorrowerOnboarding from "./pages/borrower/Onboarding";
 import BorrowerDocuments from "./pages/borrower/Documents";
 import BorrowerInvoices from "./pages/borrower/Invoices";
+import BorrowerSettlements from "./pages/borrower/Settlements";
 import FunderReports from "./pages/funder/Reports";
 import FunderMarketplace from "./pages/funder/Marketplace";
 import FunderPortfolio from "./pages/funder/Portfolio";
+import FunderSettlements from "./pages/funder/Settlements";
 import OriginatorDocuments from "./pages/originator/Documents";
 import Settings from "./pages/Settings";
 
@@ -87,17 +90,20 @@ const App = () => (
               <Route path="/originator/branding" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorBranding /></ProtectedRoute>} />
               <Route path="/originator/ai-insights" element={<ProtectedRoute requiredRoles={["originator_admin", "originator_user"]}><AIInsightsPage /></ProtectedRoute>} />
               <Route path="/originator/documents" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorDocuments /></ProtectedRoute>} />
+              <Route path="/originator/collections" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorCollections /></ProtectedRoute>} />
 
               {/* Borrower */}
               <Route path="/borrower/documents" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerDocuments /></ProtectedRoute>} />
               <Route path="/borrower/invoices" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerInvoices /></ProtectedRoute>} />
               <Route path="/borrower/reports" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerReports /></ProtectedRoute>} />
               <Route path="/borrower/onboarding" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerOnboarding /></ProtectedRoute>} />
+              <Route path="/borrower/settlements" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerSettlements /></ProtectedRoute>} />
 
               {/* Funder */}
               <Route path="/funder/marketplace" element={<ProtectedRoute requiredRoles={["funder"]}><FunderMarketplace /></ProtectedRoute>} />
               <Route path="/funder/portfolio" element={<ProtectedRoute requiredRoles={["funder"]}><FunderPortfolio /></ProtectedRoute>} />
               <Route path="/funder/reports" element={<ProtectedRoute requiredRoles={["funder"]}><FunderReports /></ProtectedRoute>} />
+              <Route path="/funder/settlements" element={<ProtectedRoute requiredRoles={["funder"]}><FunderSettlements /></ProtectedRoute>} />
 
               {/* Counterparty */}
               <Route path="/counterparty/dashboard" element={<ProtectedRoute><CounterpartyDashboard /></ProtectedRoute>} />
