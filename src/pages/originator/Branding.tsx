@@ -30,7 +30,7 @@ export default function OriginatorBranding() {
   };
 
   // Originators can't change their own labelling mode — Vybrel admin sets it
-  const isAdmin = true; // TODO: Check if user has Vybrel admin role
+  const isAdmin = false; // TODO: Check if user has Vybrel admin role
 
   return (
     <ResponsiveLayout sections={sections} portalTitle="Originator Portal">
