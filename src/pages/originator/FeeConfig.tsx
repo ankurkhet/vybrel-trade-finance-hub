@@ -156,16 +156,18 @@ export default function FeeConfigPage() {
     }
 
     setSaving(config.id);
+    const updateData: Record<string, unknown> = {
+      originator_fee_pct: config.originator_fee_pct,
+      platform_fee_pct: config.platform_fee_pct,
+      default_discount_rate: config.default_discount_rate,
+      settlement_days: config.settlement_days,
+      payment_instructions: config.payment_instructions as any,
+      notes: config.notes,
+    };
+
     const { error } = await supabase
       .from("product_fee_configs")
-      .update({
-        originator_fee_pct: config.originator_fee_pct,
-        platform_fee_pct: config.platform_fee_pct,
-        default_discount_rate: config.default_discount_rate,
-        settlement_days: config.settlement_days,
-        payment_instructions: config.payment_instructions as any,
-        notes: config.notes,
-      })
+      .update(updateData as any)
       .eq("id", config.id);
 
     setSaving(null);
