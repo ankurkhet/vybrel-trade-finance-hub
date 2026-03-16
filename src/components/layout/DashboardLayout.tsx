@@ -31,6 +31,7 @@ import {
   Wallet,
   FileCheck,
   Receipt,
+  ArrowDownUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

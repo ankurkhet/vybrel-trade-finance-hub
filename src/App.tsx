@@ -92,6 +92,7 @@ const App = () => (
               <Route path="/originator/ai-insights" element={<ProtectedRoute requiredRoles={["originator_admin", "originator_user"]}><AIInsightsPage /></ProtectedRoute>} />
               <Route path="/originator/documents" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorDocuments /></ProtectedRoute>} />
               <Route path="/originator/collections" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorCollections /></ProtectedRoute>} />
+              <Route path="/originator/fee-config" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorFeeConfig /></ProtectedRoute>} />
 
               {/* Borrower */}
               <Route path="/borrower/documents" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerDocuments /></ProtectedRoute>} />
