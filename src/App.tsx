@@ -36,6 +36,7 @@ import OriginatorContracts from "./pages/originator/Contracts";
 import OriginatorInvoices from "./pages/originator/Invoices";
 import AIInsightsPage from "./pages/originator/AIInsights";
 import OriginatorCollections from "./pages/originator/Collections";
+import OriginatorFeeConfig from "./pages/originator/FeeConfig";
 import BorrowerReports from "./pages/borrower/Reports";
 import BorrowerOnboarding from "./pages/borrower/Onboarding";
 import BorrowerDocuments from "./pages/borrower/Documents";
@@ -91,6 +92,7 @@ const App = () => (
               <Route path="/originator/ai-insights" element={<ProtectedRoute requiredRoles={["originator_admin", "originator_user"]}><AIInsightsPage /></ProtectedRoute>} />
               <Route path="/originator/documents" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorDocuments /></ProtectedRoute>} />
               <Route path="/originator/collections" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorCollections /></ProtectedRoute>} />
+              <Route path="/originator/fee-config" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorFeeConfig /></ProtectedRoute>} />
 
               {/* Borrower */}
               <Route path="/borrower/documents" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerDocuments /></ProtectedRoute>} />

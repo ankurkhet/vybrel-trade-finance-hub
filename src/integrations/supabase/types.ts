@@ -953,6 +953,7 @@ export type Database = {
           platform_fee_pct: number
           product_type: Database["public"]["Enums"]["product_type"]
           settlement_days: number
+          settlement_timing: Database["public"]["Enums"]["settlement_timing"]
           updated_at: string
         }
         Insert: {
@@ -966,6 +967,7 @@ export type Database = {
           platform_fee_pct?: number
           product_type: Database["public"]["Enums"]["product_type"]
           settlement_days?: number
+          settlement_timing?: Database["public"]["Enums"]["settlement_timing"]
           updated_at?: string
         }
         Update: {
@@ -979,6 +981,7 @@ export type Database = {
           platform_fee_pct?: number
           product_type?: Database["public"]["Enums"]["product_type"]
           settlement_days?: number
+          settlement_timing?: Database["public"]["Enums"]["settlement_timing"]
           updated_at?: string
         }
         Relationships: [
@@ -1312,6 +1315,7 @@ export type Database = {
         | "payables_finance"
       settlement_advice_status: "draft" | "issued" | "acknowledged" | "paid"
       settlement_advice_type: "borrower_settlement" | "funder_settlement"
+      settlement_timing: "advance" | "arrears"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1502,6 +1506,7 @@ export const Constants = {
       ],
       settlement_advice_status: ["draft", "issued", "acknowledged", "paid"],
       settlement_advice_type: ["borrower_settlement", "funder_settlement"],
+      settlement_timing: ["advance", "arrears"],
     },
   },
 } as const
