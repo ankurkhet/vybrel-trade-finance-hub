@@ -36,6 +36,7 @@ import OriginatorContracts from "./pages/originator/Contracts";
 import OriginatorInvoices from "./pages/originator/Invoices";
 import AIInsightsPage from "./pages/originator/AIInsights";
 import OriginatorCollections from "./pages/originator/Collections";
+import OriginatorFeeConfig from "./pages/originator/FeeConfig";
 import BorrowerReports from "./pages/borrower/Reports";
 import BorrowerOnboarding from "./pages/borrower/Onboarding";
 import BorrowerDocuments from "./pages/borrower/Documents";

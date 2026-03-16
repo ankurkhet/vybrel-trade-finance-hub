@@ -67,6 +67,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Brain, label: "AI Insights", path: "/originator/ai-insights", show: isOriginatorAdmin },
     { icon: Upload, label: "KYC/KYB Docs", path: "/originator/documents", show: isOriginatorAdmin },
     { icon: Receipt, label: "Collections", path: "/originator/collections", show: isOriginatorAdmin },
+    { icon: ArrowDownUp, label: "Fee Config", path: "/originator/fee-config", show: isOriginatorAdmin },
     { icon: BarChart3, label: "Reports", path: "/originator/reports", show: isOriginatorAdmin },
     { icon: Palette, label: "Branding", path: "/originator/branding", show: isOriginatorAdmin },
     // Borrower
