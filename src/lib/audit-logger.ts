@@ -1,7 +1,4 @@
-/**
- * Client-side audit logger for tracking user actions.
- * In production, these entries would be sent to the audit_log table via Supabase.
- */
+import { supabase } from "@/integrations/supabase/client";
 
 export interface AuditEntry {
   action: string;
@@ -29,7 +26,6 @@ class AuditLogger {
 
     this.queue.push(entry);
 
-    // Batch flush every 5 seconds or when queue reaches 10 entries
     if (this.queue.length >= 10) {
       this.flush();
     } else if (!this.flushTimeout) {
@@ -48,20 +44,40 @@ class AuditLogger {
     const entries = [...this.queue];
     this.queue = [];
 
-    // TODO: Send to Supabase audit_log table
-    // await supabase.from('audit_log').insert(entries.map(e => ({
-    //   ...e,
-    //   user_id: currentUserId,
-    // })));
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        if (import.meta.env.DEV) console.debug("[Audit] No user session, skipping persist", entries);
+        return;
+      }
 
-    if (import.meta.env.DEV) {
-      console.debug("[Audit]", entries);
+      const rows = entries.map((e) => ({
+        user_id: user.id,
+        user_email: user.email || null,
+        action: e.action,
+        resource_type: e.resource_type,
+        resource_id: e.resource_id || null,
+        details: (e.details || {}) as Record<string, unknown> as import("@/integrations/supabase/types").Json,
+        user_agent: e.user_agent || null,
+        created_at: e.timestamp,
+      }));
+
+      const { error } = await (supabase.from("audit_logs") as any).insert(rows);
+
+      if (error) {
+        if (import.meta.env.DEV) console.warn("[Audit] Failed to persist:", error.message);
+      }
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn("[Audit] Flush error:", err);
     }
   }
 
-  // Pre-defined audit actions for consistency
+  // Force flush (e.g. on logout)
+  async forceFlush() {
+    await this.flush();
+  }
+
   static Actions = {
-    // Auth
     LOGIN: "auth.login",
     LOGOUT: "auth.logout",
     MFA_ENROLL: "auth.mfa_enroll",
@@ -69,27 +85,23 @@ class AuditLogger {
     PASSWORD_CHANGE: "auth.password_change",
     SESSION_EXPIRED: "auth.session_expired",
 
-    // Data access
     VIEW: "data.view",
     CREATE: "data.create",
     UPDATE: "data.update",
     DELETE: "data.delete",
     EXPORT: "data.export",
 
-    // Financial
     TRANSACTION_INITIATE: "financial.transaction_initiate",
     TRANSACTION_APPROVE: "financial.transaction_approve",
     TRANSACTION_REJECT: "financial.transaction_reject",
     DISBURSEMENT_APPROVE: "financial.disbursement_approve",
     FACILITY_CHANGE: "financial.facility_change",
 
-    // Compliance
     KYC_CHECK: "compliance.kyc_check",
     AML_SCREENING: "compliance.aml_screening",
     DOCUMENT_UPLOAD: "compliance.document_upload",
     CREDIT_DECISION: "compliance.credit_decision",
 
-    // Admin
     USER_CREATE: "admin.user_create",
     USER_ROLE_CHANGE: "admin.user_role_change",
     SETTINGS_CHANGE: "admin.settings_change",

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { auditLogger, AuditLogger } from "@/lib/audit-logger";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -73,6 +74,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error) {
+      auditLogger.log(AuditLogger.Actions.LOGIN, "session", undefined, { email });
+    }
     return { error };
   };
 
@@ -89,6 +93,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    auditLogger.log(AuditLogger.Actions.LOGOUT, "session");
+    await auditLogger.forceFlush();
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

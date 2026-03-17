@@ -21,14 +21,34 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
+    const logAudit = async (action: string, resourceType: string, resourceId?: string, details?: Record<string, unknown>) => {
+      await supabaseAdmin.from('audit_logs').insert({
+        user_id: caller?.id,
+        user_email: caller?.email,
+        action,
+        resource_type: resourceType,
+        resource_id: resourceId,
+        details: details || {},
+      });
+    };
+
+    let caller: any = null;
+
+    const callerClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
     const callerClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user: caller } } = await callerClient.auth.getUser();
-    if (!caller) throw new Error('Unauthorized');
+    const { data: { user: callerUser } } = await callerClient.auth.getUser();
+    if (!callerUser) throw new Error('Unauthorized');
+    caller = callerUser;
 
     // Verify admin role
     const { data: isAdmin } = await supabaseAdmin.rpc('has_role', {
@@ -93,6 +113,8 @@ Deno.serve(async (req) => {
           await supabaseAdmin.from('profiles').update({ organization_id }).eq('user_id', userId);
         }
 
+        await logAudit('admin.user_create', 'user', userId, { email, role, organization_id });
+
         return new Response(JSON.stringify({ success: true, userId }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -130,6 +152,8 @@ Deno.serve(async (req) => {
           email: targetUser.user.email,
         });
         if (linkErr) throw linkErr;
+
+        await logAudit('admin.force_password_reset', 'user', user_id, { email: targetUser.user.email });
 
         return new Response(JSON.stringify({
           success: true,
@@ -181,6 +205,8 @@ Deno.serve(async (req) => {
             roles.map((role: string) => ({ user_id, role }))
           );
         }
+
+        await logAudit('admin.user_role_change', 'user', user_id, { roles });
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
