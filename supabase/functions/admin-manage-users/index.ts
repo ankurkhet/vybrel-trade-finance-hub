@@ -113,6 +113,8 @@ Deno.serve(async (req) => {
           await supabaseAdmin.from('profiles').update({ organization_id }).eq('user_id', userId);
         }
 
+        await logAudit('admin.user_create', 'user', userId, { email, role, organization_id });
+
         return new Response(JSON.stringify({ success: true, userId }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
