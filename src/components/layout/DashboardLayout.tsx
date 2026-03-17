@@ -76,6 +76,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: BarChart3, label: "Reports", path: "/originator/reports", show: isOriginatorAdmin },
     { icon: Palette, label: "Branding", path: "/originator/branding", show: isOriginatorAdmin },
     { icon: Palette, label: "Branding Profiles", path: "/originator/branding-profiles", show: isOriginatorAdmin },
+    { icon: Shield, label: "Credit Committee", path: "/originator/credit-committee", show: isOriginatorAdmin },
+    { icon: Settings, label: "Committee Config", path: "/originator/credit-committee/config", show: isOriginatorAdmin },
     // Broker
     { icon: Users, label: "Borrowers", path: "/broker/borrowers", show: isBroker },
     { icon: FileText, label: "Contracts", path: "/broker/contracts", show: isBroker },
