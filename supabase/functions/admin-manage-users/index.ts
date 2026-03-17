@@ -153,6 +153,8 @@ Deno.serve(async (req) => {
         });
         if (linkErr) throw linkErr;
 
+        await logAudit('admin.force_password_reset', 'user', user_id, { email: targetUser.user.email });
+
         return new Response(JSON.stringify({
           success: true,
           message: `Password reset link generated for ${targetUser.user.email}`,
