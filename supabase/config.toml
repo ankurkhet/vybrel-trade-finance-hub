@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.admin-manage-users]
 verify_jwt = false
+
+[functions.credit-committee-decide]
+verify_jwt = false
