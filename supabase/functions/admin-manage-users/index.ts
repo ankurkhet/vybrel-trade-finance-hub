@@ -21,6 +21,25 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
+    const logAudit = async (action: string, resourceType: string, resourceId?: string, details?: Record<string, unknown>) => {
+      await supabaseAdmin.from('audit_logs').insert({
+        user_id: caller?.id,
+        user_email: caller?.email,
+        action,
+        resource_type: resourceType,
+        resource_id: resourceId,
+        details: details || {},
+      });
+    };
+
+    let caller: any = null;
+
+    const callerClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
     const callerClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
