@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.generate-settlement]
 verify_jwt = false
+
+[functions.ai-validate-doc-type]
+verify_jwt = false

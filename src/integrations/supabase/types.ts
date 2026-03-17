@@ -1313,6 +1313,7 @@ export type Database = {
         | "under_review"
         | "approved"
         | "rejected"
+        | "on_hold"
       product_type:
         | "receivables_purchase"
         | "reverse_factoring"
@@ -1503,6 +1504,7 @@ export const Constants = {
         "under_review",
         "approved",
         "rejected",
+        "on_hold",
       ],
       product_type: [
         "receivables_purchase",
