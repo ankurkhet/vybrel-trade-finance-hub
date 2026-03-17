@@ -206,6 +206,8 @@ Deno.serve(async (req) => {
           );
         }
 
+        await logAudit('admin.user_role_change', 'user', user_id, { roles });
+
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
