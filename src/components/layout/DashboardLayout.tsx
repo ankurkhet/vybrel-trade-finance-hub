@@ -32,6 +32,7 @@ import {
   FileCheck,
   Receipt,
   ArrowDownUp,
+  UserPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
