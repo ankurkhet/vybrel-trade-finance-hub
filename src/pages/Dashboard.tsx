@@ -117,12 +117,12 @@ export default function Dashboard() {
       if (existing) {
         await supabase
           .from("dashboard_preferences")
-          .update({ widget_config: config as unknown as Record<string, unknown> })
+          .update({ widget_config: JSON.parse(JSON.stringify(config)) })
           .eq("user_id", user.id);
       } else {
         await supabase
           .from("dashboard_preferences")
-          .insert({ user_id: user.id, widget_config: config as unknown as Record<string, unknown> });
+          .insert([{ user_id: user.id, widget_config: JSON.parse(JSON.stringify(config)) }]);
       }
     },
     [user?.id]
