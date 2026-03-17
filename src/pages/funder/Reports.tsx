@@ -1,3 +1,4 @@
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ReportPage } from "@/components/reports/ReportPage";
 import { ReportCard } from "@/components/reports/ReportCard";
 import { ReportChart } from "@/components/reports/ReportChart";
@@ -31,49 +32,51 @@ const dealHistory = [
 
 export default function FunderReports() {
   return (
-    <ReportPage
-      title="Portfolio Reports"
-      description="Portfolio performance, concentration, and deal analytics"
-      onExportCSV={() => {}}
-      onRefresh={() => {}}
-    >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <ReportCard title="Total Funded" value="$40M" change={14.3} icon={TrendingUp} />
-        <ReportCard title="Avg. Yield" value="7.2%" change={0.5} icon={Percent} />
-        <ReportCard title="Active Deals" value="86" change={11} icon={BarChart3} />
-        <ReportCard title="Default Rate" value="0.8%" change={-0.2} icon={Shield} />
-      </div>
+    <DashboardLayout>
+      <ReportPage
+        title="Portfolio Reports"
+        description="Portfolio performance, concentration, and deal analytics"
+        onExportCSV={() => {}}
+        onRefresh={() => {}}
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ReportCard title="Total Funded" value="$40M" change={14.3} icon={TrendingUp} />
+          <ReportCard title="Avg. Yield" value="7.2%" change={0.5} icon={Percent} />
+          <ReportCard title="Active Deals" value="86" change={11} icon={BarChart3} />
+          <ReportCard title="Default Rate" value="0.8%" change={-0.2} icon={Shield} />
+        </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ReportChart
+            title="Portfolio Growth ($M)"
+            data={portfolioData}
+            type="line"
+            dataKeys={[
+              { key: "funded", color: "hsl(217, 91%, 40%)", label: "Funded" },
+              { key: "returns", color: "hsl(142, 71%, 45%)", label: "Returns" },
+            ]}
+            xAxisKey="month"
+          />
+          <ReportChart
+            title="Sector Concentration"
+            data={concentrationData}
+            type="pie"
+            dataKeys={[{ key: "value", color: "" }]}
+          />
+        </div>
+
         <ReportChart
-          title="Portfolio Growth ($M)"
-          data={portfolioData}
-          type="line"
+          title="Deal Acceptance History"
+          data={dealHistory}
+          type="bar"
           dataKeys={[
-            { key: "funded", color: "hsl(217, 91%, 40%)", label: "Funded" },
-            { key: "returns", color: "hsl(142, 71%, 45%)", label: "Returns" },
+            { key: "offered", color: "hsl(199, 89%, 48%)", label: "Offered" },
+            { key: "accepted", color: "hsl(142, 71%, 45%)", label: "Accepted" },
+            { key: "declined", color: "hsl(0, 84%, 60%)", label: "Declined" },
           ]}
           xAxisKey="month"
         />
-        <ReportChart
-          title="Sector Concentration"
-          data={concentrationData}
-          type="pie"
-          dataKeys={[{ key: "value", color: "" }]}
-        />
-      </div>
-
-      <ReportChart
-        title="Deal Acceptance History"
-        data={dealHistory}
-        type="bar"
-        dataKeys={[
-          { key: "offered", color: "hsl(199, 89%, 48%)", label: "Offered" },
-          { key: "accepted", color: "hsl(142, 71%, 45%)", label: "Accepted" },
-          { key: "declined", color: "hsl(0, 84%, 60%)", label: "Declined" },
-        ]}
-        xAxisKey="month"
-      />
-    </ReportPage>
+      </ReportPage>
+    </DashboardLayout>
   );
 }

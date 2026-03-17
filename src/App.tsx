@@ -94,6 +94,16 @@ const App = () => (
               <Route path="/originator/collections" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorCollections /></ProtectedRoute>} />
               <Route path="/originator/fee-config" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorFeeConfig /></ProtectedRoute>} />
 
+              {/* Broker (reuses originator components with read-only fee config) */}
+              <Route path="/broker/borrowers" element={<ProtectedRoute requiredRoles={["broker_admin"]}><OriginatorBorrowers /></ProtectedRoute>} />
+              <Route path="/broker/contracts" element={<ProtectedRoute requiredRoles={["broker_admin"]}><OriginatorContracts /></ProtectedRoute>} />
+              <Route path="/broker/invoices" element={<ProtectedRoute requiredRoles={["broker_admin"]}><OriginatorInvoices /></ProtectedRoute>} />
+              <Route path="/broker/collections" element={<ProtectedRoute requiredRoles={["broker_admin"]}><OriginatorCollections /></ProtectedRoute>} />
+              <Route path="/broker/fee-config" element={<ProtectedRoute requiredRoles={["broker_admin"]}><OriginatorFeeConfig /></ProtectedRoute>} />
+              <Route path="/broker/documents" element={<ProtectedRoute requiredRoles={["broker_admin"]}><OriginatorDocuments /></ProtectedRoute>} />
+              <Route path="/broker/reports" element={<ProtectedRoute requiredRoles={["broker_admin"]}><OriginatorReports /></ProtectedRoute>} />
+              <Route path="/broker/branding" element={<ProtectedRoute requiredRoles={["broker_admin"]}><OriginatorBranding /></ProtectedRoute>} />
+
               {/* Borrower */}
               <Route path="/borrower/documents" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerDocuments /></ProtectedRoute>} />
               <Route path="/borrower/invoices" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerInvoices /></ProtectedRoute>} />

@@ -110,6 +110,7 @@ export type Database = {
       borrowers: {
         Row: {
           aml_cleared: boolean
+          broker_user_id: string | null
           company_name: string
           contact_email: string
           contact_name: string | null
@@ -129,6 +130,7 @@ export type Database = {
         }
         Insert: {
           aml_cleared?: boolean
+          broker_user_id?: string | null
           company_name: string
           contact_email: string
           contact_name?: string | null
@@ -148,6 +150,7 @@ export type Database = {
         }
         Update: {
           aml_cleared?: boolean
+          broker_user_id?: string | null
           company_name?: string
           contact_email?: string
           contact_name?: string | null
@@ -1278,6 +1281,7 @@ export type Database = {
         | "originator_user"
         | "borrower"
         | "funder"
+        | "broker_admin"
       collection_status: "received" | "confirmed" | "disputed" | "reversed"
       credit_memo_status:
         | "draft"
@@ -1463,6 +1467,7 @@ export const Constants = {
         "originator_user",
         "borrower",
         "funder",
+        "broker_admin",
       ],
       collection_status: ["received", "confirmed", "disputed", "reversed"],
       credit_memo_status: [
