@@ -148,7 +148,7 @@ export default function BrandingProfiles() {
       profile_name: profileName,
       logo_url: logoUrl || null,
       logo_icon_url: logoIconUrl || null,
-      colors,
+      colors: colors as unknown as Record<string, string>,
       font_family: fontFamily || null,
       custom_domain: customDomain || null,
       login_welcome_text: loginWelcomeText || null,
