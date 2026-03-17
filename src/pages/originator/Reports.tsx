@@ -1,3 +1,4 @@
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ReportPage } from "@/components/reports/ReportPage";
 import { ReportCard } from "@/components/reports/ReportCard";
 import { ReportChart } from "@/components/reports/ReportChart";
@@ -29,49 +30,51 @@ const funderAllocation = [
 
 export default function OriginatorReports() {
   return (
-    <ReportPage
-      title="Originator Reports"
-      description="Portfolio, pipeline, credit, and collections performance"
-      onExportCSV={() => {}}
-      onRefresh={() => {}}
-    >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <ReportCard title="Total Exposure" value="$42.5M" change={6.3} icon={DollarSign} />
-        <ReportCard title="Active Deals" value="156" change={12} icon={Briefcase} />
-        <ReportCard title="Avg. Turnaround" value="3.2 days" change={-15} icon={Clock} />
-        <ReportCard title="Utilization Rate" value="78%" change={4.1} icon={PieChart} />
-      </div>
+    <DashboardLayout>
+      <ReportPage
+        title="Originator Reports"
+        description="Portfolio, pipeline, credit, and collections performance"
+        onExportCSV={() => {}}
+        onRefresh={() => {}}
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ReportCard title="Total Exposure" value="$42.5M" change={6.3} icon={DollarSign} />
+          <ReportCard title="Active Deals" value="156" change={12} icon={Briefcase} />
+          <ReportCard title="Avg. Turnaround" value="3.2 days" change={-15} icon={Clock} />
+          <ReportCard title="Utilization Rate" value="78%" change={4.1} icon={PieChart} />
+        </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ReportChart
+            title="Deal Pipeline"
+            data={pipelineData}
+            type="bar"
+            dataKeys={[
+              { key: "submitted", color: "hsl(217, 91%, 40%)", label: "Submitted" },
+              { key: "approved", color: "hsl(142, 71%, 45%)", label: "Approved" },
+              { key: "declined", color: "hsl(0, 84%, 60%)", label: "Declined" },
+            ]}
+            xAxisKey="month"
+          />
+          <ReportChart
+            title="Collections Aging"
+            data={collectionsData}
+            type="pie"
+            dataKeys={[{ key: "value", color: "" }]}
+          />
+        </div>
+
         <ReportChart
-          title="Deal Pipeline"
-          data={pipelineData}
+          title="Funder Allocation vs Utilization ($M)"
+          data={funderAllocation}
           type="bar"
           dataKeys={[
-            { key: "submitted", color: "hsl(217, 91%, 40%)", label: "Submitted" },
-            { key: "approved", color: "hsl(142, 71%, 45%)", label: "Approved" },
-            { key: "declined", color: "hsl(0, 84%, 60%)", label: "Declined" },
+            { key: "allocated", color: "hsl(217, 91%, 40%)", label: "Allocated" },
+            { key: "utilized", color: "hsl(142, 71%, 45%)", label: "Utilized" },
           ]}
-          xAxisKey="month"
+          xAxisKey="funder"
         />
-        <ReportChart
-          title="Collections Aging"
-          data={collectionsData}
-          type="pie"
-          dataKeys={[{ key: "value", color: "" }]}
-        />
-      </div>
-
-      <ReportChart
-        title="Funder Allocation vs Utilization ($M)"
-        data={funderAllocation}
-        type="bar"
-        dataKeys={[
-          { key: "allocated", color: "hsl(217, 91%, 40%)", label: "Allocated" },
-          { key: "utilized", color: "hsl(142, 71%, 45%)", label: "Utilized" },
-        ]}
-        xAxisKey="funder"
-      />
-    </ReportPage>
+      </ReportPage>
+    </DashboardLayout>
   );
 }

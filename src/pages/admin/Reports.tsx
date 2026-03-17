@@ -1,3 +1,4 @@
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ReportPage } from "@/components/reports/ReportPage";
 import { ReportCard } from "@/components/reports/ReportCard";
 import { ReportChart } from "@/components/reports/ReportChart";
@@ -28,50 +29,50 @@ const revenueData = [
 
 export default function AdminReports() {
   return (
-    <ReportPage
-      title="Platform Analytics"
-      description="Platform-wide performance metrics and originator analytics"
-      onExportCSV={() => {}}
-      onRefresh={() => {}}
-    >
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <ReportCard title="Total AUM" value="$190M" change={8.2} icon={DollarSign} />
-        <ReportCard title="Active Originators" value="12" change={2} icon={Building2} />
-        <ReportCard title="Pipeline Volume" value="$78M" change={11.4} icon={TrendingUp} />
-        <ReportCard title="Active Users" value="1,248" change={5.3} icon={Users} />
-      </div>
+    <DashboardLayout>
+      <ReportPage
+        title="Platform Analytics"
+        description="Platform-wide performance metrics and originator analytics"
+        onExportCSV={() => {}}
+        onRefresh={() => {}}
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ReportCard title="Total AUM" value="$190M" change={8.2} icon={DollarSign} />
+          <ReportCard title="Active Originators" value="12" change={2} icon={Building2} />
+          <ReportCard title="Pipeline Volume" value="$78M" change={11.4} icon={TrendingUp} />
+          <ReportCard title="Active Users" value="1,248" change={5.3} icon={Users} />
+        </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ReportChart
+            title="Platform Growth (AUM in $M)"
+            data={platformData}
+            type="line"
+            dataKeys={[
+              { key: "aum", color: "hsl(217, 91%, 40%)", label: "AUM" },
+              { key: "pipeline", color: "hsl(38, 92%, 50%)", label: "Pipeline" },
+              { key: "disbursed", color: "hsl(142, 71%, 45%)", label: "Disbursed" },
+            ]}
+            xAxisKey="month"
+          />
+          <ReportChart
+            title="Revenue Breakdown"
+            data={revenueData}
+            type="pie"
+            dataKeys={[{ key: "value", color: "" }]}
+          />
+        </div>
+
         <ReportChart
-          title="Platform Growth (AUM in $M)"
-          data={platformData}
-          type="line"
+          title="Originator Performance"
+          data={originatorPerformance}
+          type="bar"
           dataKeys={[
-            { key: "aum", color: "hsl(217, 91%, 40%)", label: "AUM" },
-            { key: "pipeline", color: "hsl(38, 92%, 50%)", label: "Pipeline" },
-            { key: "disbursed", color: "hsl(142, 71%, 45%)", label: "Disbursed" },
+            { key: "deals", color: "hsl(217, 91%, 40%)", label: "Deals" },
+            { key: "volume", color: "hsl(142, 71%, 45%)", label: "Volume ($M)" },
           ]}
-          xAxisKey="month"
         />
-        <ReportChart
-          title="Revenue Breakdown"
-          data={revenueData}
-          type="pie"
-          dataKeys={[{ key: "value", color: "" }]}
-        />
-      </div>
-
-      <ReportChart
-        title="Originator Performance"
-        data={originatorPerformance}
-        type="bar"
-        dataKeys={[
-          { key: "deals", color: "hsl(217, 91%, 40%)", label: "Deals" },
-          { key: "volume", color: "hsl(142, 71%, 45%)", label: "Volume ($M)" },
-        ]}
-      />
-    </ReportPage>
+      </ReportPage>
+    </DashboardLayout>
   );
 }
