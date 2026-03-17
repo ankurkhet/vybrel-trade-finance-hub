@@ -52,6 +52,9 @@ import OriginatorCounterparties from "./pages/originator/Counterparties";
 import OriginatorInviteUsers from "./pages/originator/InviteUsers";
 import OriginatorBrandingProfiles from "./pages/originator/BrandingProfiles";
 import Settings from "./pages/Settings";
+import CreditCommittee from "./pages/originator/CreditCommittee";
+import CreditCommitteeConfig from "./pages/originator/CreditCommitteeConfig";
+import CreditCommitteeApplicationDetail from "./pages/originator/CreditCommitteeApplicationDetail";
 
 const queryClient = new QueryClient();
 
@@ -101,6 +104,9 @@ const App = () => (
               <Route path="/originator/counterparties" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorCounterparties /></ProtectedRoute>} />
               <Route path="/originator/invite" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorInviteUsers /></ProtectedRoute>} />
               <Route path="/originator/branding-profiles" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorBrandingProfiles /></ProtectedRoute>} />
+              <Route path="/originator/credit-committee" element={<ProtectedRoute requiredRoles={["originator_admin", "credit_committee_member"]}><CreditCommittee /></ProtectedRoute>} />
+              <Route path="/originator/credit-committee/config" element={<ProtectedRoute requiredRoles={["originator_admin"]}><CreditCommitteeConfig /></ProtectedRoute>} />
+              <Route path="/originator/credit-committee/applications/:id" element={<ProtectedRoute requiredRoles={["originator_admin", "credit_committee_member"]}><CreditCommitteeApplicationDetail /></ProtectedRoute>} />
 
               {/* Broker (reuses originator components with read-only fee config) */}
               <Route path="/broker/borrowers" element={<ProtectedRoute requiredRoles={["broker_admin"]}><OriginatorBorrowers /></ProtectedRoute>} />
