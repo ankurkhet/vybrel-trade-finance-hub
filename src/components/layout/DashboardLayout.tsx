@@ -34,6 +34,7 @@ import {
   ArrowDownUp,
   UserPlus,
 } from "lucide-react";
+import { Gavel } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
