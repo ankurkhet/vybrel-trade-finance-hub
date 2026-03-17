@@ -1503,6 +1503,7 @@ export type Database = {
         | "borrower"
         | "funder"
         | "broker_admin"
+        | "credit_committee_member"
       collection_status: "received" | "confirmed" | "disputed" | "reversed"
       credit_memo_status:
         | "draft"
@@ -1690,6 +1691,7 @@ export const Constants = {
         "borrower",
         "funder",
         "broker_admin",
+        "credit_committee_member",
       ],
       collection_status: ["received", "confirmed", "disputed", "reversed"],
       credit_memo_status: [
