@@ -108,10 +108,22 @@ export default function Dashboard() {
   const savePrefs = useCallback(
     async (config: WidgetConfig) => {
       if (!user?.id) return;
-      await supabase.from("dashboard_preferences").upsert(
-        { user_id: user.id, widget_config: config as unknown as Record<string, unknown> },
-        { onConflict: "user_id" }
-      );
+      const { data: existing } = await supabase
+        .from("dashboard_preferences")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from("dashboard_preferences")
+          .update({ widget_config: config as unknown as Record<string, unknown> })
+          .eq("user_id", user.id);
+      } else {
+        await supabase
+          .from("dashboard_preferences")
+          .insert({ user_id: user.id, widget_config: config as unknown as Record<string, unknown> });
+      }
     },
     [user?.id]
   );
