@@ -57,12 +57,12 @@ class AuditLogger {
         action: e.action,
         resource_type: e.resource_type,
         resource_id: e.resource_id || null,
-        details: e.details || {},
+        details: (e.details || {}) as Record<string, unknown> as import("@/integrations/supabase/types").Json,
         user_agent: e.user_agent || null,
         created_at: e.timestamp,
       }));
 
-      const { error } = await supabase.from("audit_logs").insert(rows);
+      const { error } = await (supabase.from("audit_logs") as any).insert(rows);
 
       if (error) {
         if (import.meta.env.DEV) console.warn("[Audit] Failed to persist:", error.message);

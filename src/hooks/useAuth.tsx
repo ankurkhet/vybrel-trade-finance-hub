@@ -93,6 +93,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    auditLogger.log(AuditLogger.Actions.LOGOUT, "session");
+    await auditLogger.forceFlush();
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
