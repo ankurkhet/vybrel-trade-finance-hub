@@ -113,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isOriginatorAdmin: hasRole("originator_admin"),
         isBorrower: hasRole("borrower"),
         isFunder: hasRole("funder"),
+        isBroker: hasRole("broker_admin"),
       }}
     >
       {children}
