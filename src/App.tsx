@@ -52,6 +52,9 @@ import OriginatorCounterparties from "./pages/originator/Counterparties";
 import OriginatorInviteUsers from "./pages/originator/InviteUsers";
 import OriginatorBrandingProfiles from "./pages/originator/BrandingProfiles";
 import Settings from "./pages/Settings";
+import CreditCommittee from "./pages/originator/CreditCommittee";
+import CreditCommitteeConfig from "./pages/originator/CreditCommitteeConfig";
+import CreditCommitteeApplicationDetail from "./pages/originator/CreditCommitteeApplicationDetail";
 
 const queryClient = new QueryClient();
 
