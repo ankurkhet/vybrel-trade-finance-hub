@@ -47,6 +47,9 @@ import FunderMarketplace from "./pages/funder/Marketplace";
 import FunderPortfolio from "./pages/funder/Portfolio";
 import FunderSettlements from "./pages/funder/Settlements";
 import OriginatorDocuments from "./pages/originator/Documents";
+import OriginatorCounterparties from "./pages/originator/Counterparties";
+import OriginatorInviteUsers from "./pages/originator/InviteUsers";
+import OriginatorBrandingProfiles from "./pages/originator/BrandingProfiles";
 import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
