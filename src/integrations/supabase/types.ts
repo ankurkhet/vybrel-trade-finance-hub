@@ -107,6 +107,52 @@ export type Database = {
           },
         ]
       }
+      borrower_counterparties: {
+        Row: {
+          borrower_id: string
+          counterparty_id: string
+          created_at: string
+          id: string
+          organization_id: string
+        }
+        Insert: {
+          borrower_id: string
+          counterparty_id: string
+          created_at?: string
+          id?: string
+          organization_id: string
+        }
+        Update: {
+          borrower_id?: string
+          counterparty_id?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "borrower_counterparties_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "borrower_counterparties_counterparty_id_fkey"
+            columns: ["counterparty_id"]
+            isOneToOne: false
+            referencedRelation: "counterparties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "borrower_counterparties_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       borrowers: {
         Row: {
           aml_cleared: boolean
@@ -171,6 +217,71 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "borrowers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      branding_profiles: {
+        Row: {
+          colors: Json
+          created_at: string
+          custom_domain: string | null
+          email_footer_text: string | null
+          email_from_name: string | null
+          favicon_url: string | null
+          font_family: string | null
+          id: string
+          is_active: boolean
+          login_welcome_text: string | null
+          logo_icon_url: string | null
+          logo_url: string | null
+          organization_id: string
+          profile_name: string
+          support_email: string | null
+          updated_at: string
+        }
+        Insert: {
+          colors?: Json
+          created_at?: string
+          custom_domain?: string | null
+          email_footer_text?: string | null
+          email_from_name?: string | null
+          favicon_url?: string | null
+          font_family?: string | null
+          id?: string
+          is_active?: boolean
+          login_welcome_text?: string | null
+          logo_icon_url?: string | null
+          logo_url?: string | null
+          organization_id: string
+          profile_name?: string
+          support_email?: string | null
+          updated_at?: string
+        }
+        Update: {
+          colors?: Json
+          created_at?: string
+          custom_domain?: string | null
+          email_footer_text?: string | null
+          email_from_name?: string | null
+          favicon_url?: string | null
+          font_family?: string | null
+          id?: string
+          is_active?: boolean
+          login_welcome_text?: string | null
+          logo_icon_url?: string | null
+          logo_url?: string | null
+          organization_id?: string
+          profile_name?: string
+          support_email?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branding_profiles_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -319,6 +430,53 @@ export type Database = {
           },
           {
             foreignKeyName: "contracts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      counterparties: {
+        Row: {
+          company_name: string
+          contact_email: string
+          contact_name: string | null
+          contact_phone: string | null
+          country: string | null
+          created_at: string
+          id: string
+          organization_id: string
+          registration_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_name: string
+          contact_email: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          organization_id: string
+          registration_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_name?: string
+          contact_email?: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          organization_id?: string
+          registration_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "counterparties_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
