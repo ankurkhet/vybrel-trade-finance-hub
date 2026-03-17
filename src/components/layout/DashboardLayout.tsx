@@ -32,6 +32,7 @@ import {
   FileCheck,
   Receipt,
   ArrowDownUp,
+  UserPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -69,8 +70,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Upload, label: "KYC/KYB Docs", path: "/originator/documents", show: isOriginatorAdmin },
     { icon: Receipt, label: "Collections", path: "/originator/collections", show: isOriginatorAdmin },
     { icon: ArrowDownUp, label: "Fee Config", path: "/originator/fee-config", show: isOriginatorAdmin },
+    { icon: Users, label: "Counterparties", path: "/originator/counterparties", show: isOriginatorAdmin },
+    { icon: UserPlus, label: "Invite Users", path: "/originator/invite", show: isOriginatorAdmin },
     { icon: BarChart3, label: "Reports", path: "/originator/reports", show: isOriginatorAdmin },
     { icon: Palette, label: "Branding", path: "/originator/branding", show: isOriginatorAdmin },
+    { icon: Palette, label: "Branding Profiles", path: "/originator/branding-profiles", show: isOriginatorAdmin },
     // Broker
     { icon: Users, label: "Borrowers", path: "/broker/borrowers", show: isBroker },
     { icon: FileText, label: "Contracts", path: "/broker/contracts", show: isBroker },

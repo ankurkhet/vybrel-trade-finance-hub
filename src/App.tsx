@@ -47,6 +47,9 @@ import FunderMarketplace from "./pages/funder/Marketplace";
 import FunderPortfolio from "./pages/funder/Portfolio";
 import FunderSettlements from "./pages/funder/Settlements";
 import OriginatorDocuments from "./pages/originator/Documents";
+import OriginatorCounterparties from "./pages/originator/Counterparties";
+import OriginatorInviteUsers from "./pages/originator/InviteUsers";
+import OriginatorBrandingProfiles from "./pages/originator/BrandingProfiles";
 import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
@@ -93,6 +96,9 @@ const App = () => (
               <Route path="/originator/documents" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorDocuments /></ProtectedRoute>} />
               <Route path="/originator/collections" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorCollections /></ProtectedRoute>} />
               <Route path="/originator/fee-config" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorFeeConfig /></ProtectedRoute>} />
+              <Route path="/originator/counterparties" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorCounterparties /></ProtectedRoute>} />
+              <Route path="/originator/invite" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorInviteUsers /></ProtectedRoute>} />
+              <Route path="/originator/branding-profiles" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorBrandingProfiles /></ProtectedRoute>} />
 
               {/* Broker (reuses originator components with read-only fee config) */}
               <Route path="/broker/borrowers" element={<ProtectedRoute requiredRoles={["broker_admin"]}><OriginatorBorrowers /></ProtectedRoute>} />
