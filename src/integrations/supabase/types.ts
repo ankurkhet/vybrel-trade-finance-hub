@@ -523,6 +523,240 @@ export type Database = {
           },
         ]
       }
+      credit_committee_applications: {
+        Row: {
+          application_number: string | null
+          borrower_id: string | null
+          created_at: string
+          created_by: string | null
+          debtor_name: string | null
+          decision: string | null
+          decision_notes: string | null
+          id: string
+          metadata: Json | null
+          organization_id: string
+          parent_application_id: string | null
+          reviewed_at: string | null
+          status: string
+          submitted_at: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          application_number?: string | null
+          borrower_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          debtor_name?: string | null
+          decision?: string | null
+          decision_notes?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+          parent_application_id?: string | null
+          reviewed_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          application_number?: string | null
+          borrower_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          debtor_name?: string | null
+          decision?: string | null
+          decision_notes?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+          parent_application_id?: string | null
+          reviewed_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_committee_applications_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_committee_applications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_committee_applications_parent_application_id_fkey"
+            columns: ["parent_application_id"]
+            isOneToOne: false
+            referencedRelation: "credit_committee_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_committee_config: {
+        Row: {
+          minimum_votes_required: number
+          organization_id: string
+          quorum_type: string
+          total_active_members: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          minimum_votes_required?: number
+          organization_id: string
+          quorum_type?: string
+          total_active_members?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          minimum_votes_required?: number
+          organization_id?: string
+          quorum_type?: string
+          total_active_members?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_committee_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_committee_info_requests: {
+        Row: {
+          answer: string | null
+          answered_at: string | null
+          application_id: string
+          created_at: string
+          id: string
+          question: string
+          requested_by: string | null
+          requested_to: string | null
+          status: string
+        }
+        Insert: {
+          answer?: string | null
+          answered_at?: string | null
+          application_id: string
+          created_at?: string
+          id?: string
+          question: string
+          requested_by?: string | null
+          requested_to?: string | null
+          status?: string
+        }
+        Update: {
+          answer?: string | null
+          answered_at?: string | null
+          application_id?: string
+          created_at?: string
+          id?: string
+          question?: string
+          requested_by?: string | null
+          requested_to?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_committee_info_requests_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "credit_committee_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_committee_members: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          organization_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          organization_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          organization_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_committee_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_committee_minutes: {
+        Row: {
+          application_id: string
+          attachments: Json | null
+          attendees: string[] | null
+          created_at: string
+          id: string
+          meeting_date: string | null
+          minutes_text: string | null
+          updated_at: string
+          votes: Json | null
+        }
+        Insert: {
+          application_id: string
+          attachments?: Json | null
+          attendees?: string[] | null
+          created_at?: string
+          id?: string
+          meeting_date?: string | null
+          minutes_text?: string | null
+          updated_at?: string
+          votes?: Json | null
+        }
+        Update: {
+          application_id?: string
+          attachments?: Json | null
+          attendees?: string[] | null
+          created_at?: string
+          id?: string
+          meeting_date?: string | null
+          minutes_text?: string | null
+          updated_at?: string
+          votes?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_committee_minutes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "credit_committee_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       credit_memos: {
         Row: {
           ai_analysis_id: string | null
