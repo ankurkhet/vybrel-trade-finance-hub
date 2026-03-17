@@ -46,8 +46,9 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user: caller } } = await callerClient.auth.getUser();
-    if (!caller) throw new Error('Unauthorized');
+    const { data: { user: callerUser } } = await callerClient.auth.getUser();
+    if (!callerUser) throw new Error('Unauthorized');
+    caller = callerUser;
 
     // Verify admin role
     const { data: isAdmin } = await supabaseAdmin.rpc('has_role', {
