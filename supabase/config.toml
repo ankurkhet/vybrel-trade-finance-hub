@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.ai-validate-doc-type]
 verify_jwt = false
+
+[functions.admin-manage-users]
+verify_jwt = false
