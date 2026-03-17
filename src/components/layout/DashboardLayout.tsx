@@ -71,6 +71,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: ArrowDownUp, label: "Fee Config", path: "/originator/fee-config", show: isOriginatorAdmin },
     { icon: BarChart3, label: "Reports", path: "/originator/reports", show: isOriginatorAdmin },
     { icon: Palette, label: "Branding", path: "/originator/branding", show: isOriginatorAdmin },
+    // Broker
+    { icon: Users, label: "Borrowers", path: "/broker/borrowers", show: isBroker },
+    { icon: FileText, label: "Contracts", path: "/broker/contracts", show: isBroker },
+    { icon: CreditCard, label: "Invoices", path: "/broker/invoices", show: isBroker },
+    { icon: Receipt, label: "Collections", path: "/broker/collections", show: isBroker },
+    { icon: ArrowDownUp, label: "Fee Config", path: "/broker/fee-config", show: isBroker },
+    { icon: Upload, label: "KYC/KYB Docs", path: "/broker/documents", show: isBroker },
+    { icon: BarChart3, label: "Reports", path: "/broker/reports", show: isBroker },
+    { icon: Palette, label: "Branding", path: "/broker/branding", show: isBroker },
     // Borrower
     { icon: Upload, label: "My Documents", path: "/borrower/documents", show: isBorrower },
     { icon: CreditCard, label: "My Invoices", path: "/borrower/invoices", show: isBorrower },
@@ -82,7 +91,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Receipt, label: "Settlements", path: "/funder/settlements", show: isFunder },
     { icon: BarChart3, label: "Reports", path: "/funder/reports", show: isFunder },
     // Counterparty — visible to non-admin, non-originator users
-    { icon: FileCheck, label: "Verify Invoices", path: "/counterparty/dashboard", show: !isAdmin && !isOriginatorAdmin },
+    { icon: FileCheck, label: "Verify Invoices", path: "/counterparty/dashboard", show: !isAdmin && !isOriginatorAdmin && !isBroker },
     // Common
     { icon: Settings, label: "Settings", path: "/settings", show: true },
   ].filter((item) => item.show);
