@@ -40,7 +40,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { user, profile, roles, signOut, isAdmin, isOriginatorAdmin, isBorrower, isFunder } = useAuth();
+  const { user, profile, roles, signOut, isAdmin, isOriginatorAdmin, isBorrower, isFunder, isBroker } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
