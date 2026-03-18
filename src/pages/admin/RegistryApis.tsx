@@ -77,10 +77,25 @@ export default function RegistryApis() {
       toast.error("Fill required fields");
       return;
     }
+    const payload: any = {
+      country_code: form.country_code,
+      country_name: form.country_name,
+      registry_name: form.registry_name,
+      api_base_url: form.api_base_url,
+      api_key_secret_name: form.api_key_secret_name,
+      capabilities: form.capabilities,
+    };
+    // Only include api_key_value if the user entered one
+    if (form.api_key_value.trim()) {
+      payload.api_key_value = form.api_key_value.trim();
+    }
     if (editConfig) {
-      await supabase.from("registry_api_configs").update(form).eq("id", editConfig.id);
+      await supabase.from("registry_api_configs").update(payload).eq("id", editConfig.id);
     } else {
-      await supabase.from("registry_api_configs").insert(form);
+      if (!form.api_key_value.trim()) {
+        payload.api_key_value = null;
+      }
+      await supabase.from("registry_api_configs").insert(payload);
     }
     setDialogOpen(false);
     setEditConfig(null);
