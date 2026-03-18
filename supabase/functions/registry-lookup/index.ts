@@ -50,6 +50,9 @@ serve(async (req) => {
           console.log(`Auth header: ${JSON.stringify(Object.keys(testHeaders))}`);
           const res = await fetch(testUrl, { headers: testHeaders });
 
+          const resBody = await res.text();
+          console.log(`Health check response: status=${res.status}, body=${resBody.substring(0, 500)}`);
+
           if (res.ok || res.status === 200) {
             healthStatus = "healthy";
             healthMessage = "API responding normally";
