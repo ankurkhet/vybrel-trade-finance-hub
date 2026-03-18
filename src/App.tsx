@@ -91,6 +91,7 @@ const App = () => (
               <Route path="/admin/reports" element={<ProtectedRoute requiredRoles={["admin"]}><AdminReports /></ProtectedRoute>} />
               <Route path="/admin/products" element={<ProtectedRoute requiredRoles={["admin"]}><AdminProducts /></ProtectedRoute>} />
               <Route path="/admin/audit-logs" element={<ProtectedRoute requiredRoles={["admin"]}><AdminAuditLogs /></ProtectedRoute>} />
+              <Route path="/admin/workflow-studio" element={<ProtectedRoute requiredRoles={["admin"]}><WorkflowStudio /></ProtectedRoute>} />
 
               {/* Originator */}
               <Route path="/originator/borrowers" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorBorrowers /></ProtectedRoute>} />
