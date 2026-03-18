@@ -96,6 +96,7 @@ export default function RegistryApis() {
       registry_name: config.registry_name,
       api_base_url: config.api_base_url,
       api_key_secret_name: config.api_key_secret_name,
+      api_key_value: config.api_key_value || "",
       capabilities: config.capabilities || [],
     });
     setDialogOpen(true);
