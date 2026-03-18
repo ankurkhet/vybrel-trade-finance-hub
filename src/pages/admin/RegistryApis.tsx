@@ -169,7 +169,14 @@ export default function RegistryApis() {
                       <TableCell className="font-medium">{c.country_name}</TableCell>
                       <TableCell className="text-sm">{c.registry_name}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-xs font-mono"><Key className="mr-1 h-3 w-3" />{c.api_key_secret_name}</Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs font-mono"><Key className="mr-1 h-3 w-3" />{c.api_key_secret_name}</Badge>
+                          {c.api_key_value ? (
+                            <Badge variant="default" className="text-[10px]">Key set</Badge>
+                          ) : (
+                            <Badge variant="destructive" className="text-[10px]">No key</Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
