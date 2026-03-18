@@ -28,6 +28,7 @@ export default function RegistryApis() {
     registry_name: "",
     api_base_url: "",
     api_key_secret_name: "",
+    api_key_value: "",
     capabilities: [] as string[],
   });
 
@@ -76,10 +77,25 @@ export default function RegistryApis() {
       toast.error("Fill required fields");
       return;
     }
+    const payload: any = {
+      country_code: form.country_code,
+      country_name: form.country_name,
+      registry_name: form.registry_name,
+      api_base_url: form.api_base_url,
+      api_key_secret_name: form.api_key_secret_name,
+      capabilities: form.capabilities,
+    };
+    // Only include api_key_value if the user entered one
+    if (form.api_key_value.trim()) {
+      payload.api_key_value = form.api_key_value.trim();
+    }
     if (editConfig) {
-      await supabase.from("registry_api_configs").update(form).eq("id", editConfig.id);
+      await supabase.from("registry_api_configs").update(payload).eq("id", editConfig.id);
     } else {
-      await supabase.from("registry_api_configs").insert(form);
+      if (!form.api_key_value.trim()) {
+        payload.api_key_value = null;
+      }
+      await supabase.from("registry_api_configs").insert(payload);
     }
     setDialogOpen(false);
     setEditConfig(null);
@@ -95,6 +111,7 @@ export default function RegistryApis() {
       registry_name: config.registry_name,
       api_base_url: config.api_base_url,
       api_key_secret_name: config.api_key_secret_name,
+      api_key_value: config.api_key_value || "",
       capabilities: config.capabilities || [],
     });
     setDialogOpen(true);
@@ -118,7 +135,7 @@ export default function RegistryApis() {
             <Button variant="outline" onClick={seedDefaults}>
               <Globe className="mr-2 h-4 w-4" /> Seed Defaults
             </Button>
-            <Button onClick={() => { setEditConfig(null); setForm({ country_code: "", country_name: "", registry_name: "", api_base_url: "", api_key_secret_name: "", capabilities: [] }); setDialogOpen(true); }}>
+            <Button onClick={() => { setEditConfig(null); setForm({ country_code: "", country_name: "", registry_name: "", api_base_url: "", api_key_secret_name: "", api_key_value: "", capabilities: [] }); setDialogOpen(true); }}>
               <Plus className="mr-2 h-4 w-4" /> Add Registry
             </Button>
           </div>
@@ -152,7 +169,14 @@ export default function RegistryApis() {
                       <TableCell className="font-medium">{c.country_name}</TableCell>
                       <TableCell className="text-sm">{c.registry_name}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-xs font-mono"><Key className="mr-1 h-3 w-3" />{c.api_key_secret_name}</Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs font-mono"><Key className="mr-1 h-3 w-3" />{c.api_key_secret_name}</Badge>
+                          {c.api_key_value ? (
+                            <Badge variant="default" className="text-[10px]">Key set</Badge>
+                          ) : (
+                            <Badge variant="destructive" className="text-[10px]">No key</Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
@@ -235,7 +259,22 @@ export default function RegistryApis() {
             <div className="space-y-2">
               <Label>Secret Name (for API Key) *</Label>
               <Input value={form.api_key_secret_name} onChange={(e) => setForm({ ...form, api_key_secret_name: e.target.value })} placeholder="COMPANIES_HOUSE_API_KEY" className="font-mono" />
-              <p className="text-xs text-muted-foreground">This must match the secret name configured in the platform</p>
+              <p className="text-xs text-muted-foreground">An identifier for this API key</p>
+            </div>
+            <div className="space-y-2">
+              <Label>API Key Value</Label>
+              <Input
+                type="password"
+                value={form.api_key_value}
+                onChange={(e) => setForm({ ...form, api_key_value: e.target.value })}
+                placeholder={editConfig?.api_key_value ? "••••••••••••••••" : "Enter API key"}
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                {editConfig?.api_key_value
+                  ? "Leave blank to keep the existing key, or enter a new value to update it"
+                  : "Paste the API key provided by the registry"}
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Capabilities</Label>

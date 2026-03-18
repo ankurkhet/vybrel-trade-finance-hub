@@ -35,7 +35,7 @@ serve(async (req) => {
         });
       }
 
-      const apiKey = Deno.env.get(config.api_key_secret_name);
+      const apiKey = config.api_key_value || Deno.env.get(config.api_key_secret_name);
       let healthStatus = "unhealthy";
       let healthMessage = "API key not configured";
 
@@ -113,7 +113,7 @@ serve(async (req) => {
     const results: any[] = [];
 
     for (const registry of registries) {
-      const apiKey = Deno.env.get(registry.api_key_secret_name);
+      const apiKey = registry.api_key_value || Deno.env.get(registry.api_key_secret_name);
       if (!apiKey) {
         results.push({
           registry: registry.registry_name,

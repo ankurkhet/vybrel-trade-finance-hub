@@ -1,0 +1,1 @@
+ALTER TABLE public.registry_api_configs ADD COLUMN api_key_value text;
