@@ -98,6 +98,7 @@ const App = () => (
 
               {/* Originator */}
               <Route path="/originator/borrowers" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorBorrowers /></ProtectedRoute>} />
+              <Route path="/originator/borrowers/:id" element={<ProtectedRoute requiredRoles={["originator_admin"]}><BorrowerDetail /></ProtectedRoute>} />
               <Route path="/originator/contracts" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorContracts /></ProtectedRoute>} />
               <Route path="/originator/invoices" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorInvoices /></ProtectedRoute>} />
               <Route path="/originator/reports" element={<ProtectedRoute requiredRoles={["originator_admin", "originator_user"]}><OriginatorReports /></ProtectedRoute>} />
