@@ -1199,6 +1199,136 @@ export type Database = {
           },
         ]
       }
+      invoice_submission_documents: {
+        Row: {
+          ai_confidence: number | null
+          ai_extracted: Json | null
+          ai_tag: string | null
+          borrower_comment: string | null
+          created_at: string
+          document_id: string
+          id: string
+          submission_id: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_extracted?: Json | null
+          ai_tag?: string | null
+          borrower_comment?: string | null
+          created_at?: string
+          document_id: string
+          id?: string
+          submission_id: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_extracted?: Json | null
+          ai_tag?: string | null
+          borrower_comment?: string | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_submission_documents_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_submission_documents_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_submissions: {
+        Row: {
+          ai_analysis: Json | null
+          borrower_comments: Json | null
+          borrower_id: string
+          created_at: string
+          document_comments: Json | null
+          extracted_data: Json | null
+          funding_id: string | null
+          id: string
+          invoice_id: string | null
+          observations: Json | null
+          organization_id: string
+          overall_comment: string | null
+          request_number: string
+          status: string
+          submitted_at: string | null
+          submitted_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          borrower_comments?: Json | null
+          borrower_id: string
+          created_at?: string
+          document_comments?: Json | null
+          extracted_data?: Json | null
+          funding_id?: string | null
+          id?: string
+          invoice_id?: string | null
+          observations?: Json | null
+          organization_id: string
+          overall_comment?: string | null
+          request_number: string
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_analysis?: Json | null
+          borrower_comments?: Json | null
+          borrower_id?: string
+          created_at?: string
+          document_comments?: Json | null
+          extracted_data?: Json | null
+          funding_id?: string | null
+          id?: string
+          invoice_id?: string | null
+          observations?: Json | null
+          organization_id?: string
+          overall_comment?: string | null
+          request_number?: string
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_submissions_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_submissions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_submissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           acceptance_status:
