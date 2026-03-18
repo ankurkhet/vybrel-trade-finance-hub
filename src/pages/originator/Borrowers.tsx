@@ -51,6 +51,10 @@ export default function Borrowers() {
       toast.error("Company name and email are required");
       return;
     }
+    if (!profile?.organization_id) {
+      toast.error("No organization assigned to your account. Please contact an administrator.");
+      return;
+    }
     setSubmitting(true);
 
     const { error } = await supabase.from("borrowers").insert({
