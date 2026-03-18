@@ -28,6 +28,7 @@ export default function RegistryApis() {
     registry_name: "",
     api_base_url: "",
     api_key_secret_name: "",
+    api_key_value: "",
     capabilities: [] as string[],
   });
 
