@@ -39,11 +39,15 @@ serve(async (req) => {
       let healthStatus = "unhealthy";
       let healthMessage = "API key not configured";
 
+      console.log(`Health check for ${config.registry_name}: apiKey present=${!!apiKey}, from_db=${!!config.api_key_value}, key_prefix=${apiKey ? apiKey.substring(0, 8) + '...' : 'none'}`);
+
       if (apiKey) {
         try {
           // Try a simple request to verify the API key works
           const testUrl = getHealthCheckUrl(config.country_code, config.api_base_url);
           const testHeaders = getAuthHeaders(config.country_code, apiKey);
+          console.log(`Health check URL: ${testUrl}`);
+          console.log(`Auth header: ${JSON.stringify(Object.keys(testHeaders))}`);
           const res = await fetch(testUrl, { headers: testHeaders });
 
           if (res.ok || res.status === 200) {
