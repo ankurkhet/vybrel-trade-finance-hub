@@ -1690,6 +1690,109 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_versions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          edges: Json
+          id: string
+          nodes: Json
+          published_at: string | null
+          published_by: string | null
+          rules: Json
+          status: string
+          updated_at: string
+          version_label: string | null
+          version_number: number
+          workflow_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          edges?: Json
+          id?: string
+          nodes?: Json
+          published_at?: string | null
+          published_by?: string | null
+          rules?: Json
+          status?: string
+          updated_at?: string
+          version_label?: string | null
+          version_number?: number
+          workflow_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          edges?: Json
+          id?: string
+          nodes?: Json
+          published_at?: string | null
+          published_by?: string | null
+          rules?: Json
+          status?: string
+          updated_at?: string
+          version_label?: string | null
+          version_number?: number
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_versions_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflows: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_system: boolean
+          name: string
+          organization_id: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name: string
+          organization_id?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name?: string
+          organization_id?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflows_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
