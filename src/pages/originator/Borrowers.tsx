@@ -1,34 +1,30 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, Plus, Loader2, Search, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
+import { emptyCompanyForm, COUNTRIES } from "@/lib/onboarding-types";
+import type { CompanyFormData } from "@/lib/onboarding-types";
 
 export default function Borrowers() {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const [borrowers, setBorrowers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  // Form
-  const [companyName, setCompanyName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
-  const [country, setCountry] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [regNumber, setRegNumber] = useState("");
+  const [companyData, setCompanyData] = useState<CompanyFormData>({ ...emptyCompanyForm });
 
   useEffect(() => {
     if (profile?.organization_id) fetchBorrowers();
@@ -39,16 +35,19 @@ export default function Borrowers() {
     const { data } = await supabase
       .from("borrowers")
       .select("*")
-      .eq("organization_id", profile.organization_id)
+      .eq("organization_id", profile!.organization_id!)
       .order("created_at", { ascending: false });
-
     setBorrowers(data || []);
     setLoading(false);
   };
 
   const handleCreate = async () => {
-    if (!companyName || !contactEmail) {
+    if (!companyData.company_name || !companyData.contact_email) {
       toast.error("Company name and email are required");
+      return;
+    }
+    if (!companyData.country) {
+      toast.error("Country is required");
       return;
     }
     if (!profile?.organization_id) {
@@ -59,13 +58,22 @@ export default function Borrowers() {
 
     const { error } = await supabase.from("borrowers").insert({
       organization_id: profile.organization_id,
-      company_name: companyName,
-      contact_email: contactEmail,
-      contact_name: contactName || null,
-      contact_phone: contactPhone || null,
-      country: country || null,
-      industry: industry || null,
-      registration_number: regNumber || null,
+      company_name: companyData.company_name,
+      trading_name: companyData.trading_name || null,
+      contact_email: companyData.contact_email,
+      contact_name: companyData.contact_name || null,
+      contact_phone: companyData.phone || null,
+      phone: companyData.phone || null,
+      country: companyData.country || null,
+      industry: companyData.industry || null,
+      registration_number: companyData.registration_number || null,
+      incorporation_date: companyData.incorporation_date || null,
+      registered_address: companyData.registered_address as any,
+      trading_address: companyData.trading_address as any,
+      website: companyData.website || null,
+      vat_tax_id: companyData.vat_tax_id || null,
+      num_employees: companyData.num_employees ? parseInt(companyData.num_employees) : null,
+      annual_turnover: companyData.annual_turnover ? parseFloat(companyData.annual_turnover) : null,
       onboarding_status: "invited",
     });
 
@@ -73,20 +81,10 @@ export default function Borrowers() {
     else {
       toast.success("Borrower added successfully");
       setDialogOpen(false);
-      resetForm();
+      setCompanyData({ ...emptyCompanyForm });
       fetchBorrowers();
     }
     setSubmitting(false);
-  };
-
-  const resetForm = () => {
-    setCompanyName("");
-    setContactEmail("");
-    setContactName("");
-    setContactPhone("");
-    setCountry("");
-    setIndustry("");
-    setRegNumber("");
   };
 
   const filtered = borrowers.filter((b) =>
@@ -119,8 +117,7 @@ export default function Borrowers() {
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search borrowers..." value={search}
-              onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder="Search borrowers..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
           <Badge variant="secondary">{filtered.length} borrowers</Badge>
         </div>
@@ -132,9 +129,7 @@ export default function Borrowers() {
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center py-12">
                 <Users className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">
-                  {search ? "No borrowers match your search" : "No borrowers yet"}
-                </p>
+                <p className="text-sm text-muted-foreground">{search ? "No borrowers match your search" : "No borrowers yet"}</p>
               </div>
             ) : (
               <Table>
@@ -147,11 +142,12 @@ export default function Borrowers() {
                     <TableHead>KYC</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Credit Limit</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map((b) => (
-                    <TableRow key={b.id}>
+                    <TableRow key={b.id} className="cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/originator/borrowers/${b.id}`)}>
                       <TableCell>
                         <div>
                           <p className="font-medium text-foreground">{b.company_name}</p>
@@ -164,8 +160,10 @@ export default function Borrowers() {
                           <p className="text-xs text-muted-foreground">{b.contact_email}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{b.country || "—"}</TableCell>
-                      <TableCell className="text-sm">{b.industry || "—"}</TableCell>
+                      <TableCell className="text-sm">
+                        {b.country ? (COUNTRIES.find((c) => c.code === b.country)?.name || b.country) : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm capitalize">{b.industry?.replace(/_/g, " ") || "—"}</TableCell>
                       <TableCell>
                         <Badge variant={b.kyc_completed ? "default" : "outline"} className="text-xs">
                           {b.kyc_completed ? "Complete" : "Pending"}
@@ -179,6 +177,11 @@ export default function Borrowers() {
                       <TableCell className="text-sm">
                         {b.credit_limit ? `$${Number(b.credit_limit).toLocaleString()}` : "—"}
                       </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); navigate(`/originator/borrowers/${b.id}`); }}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -188,54 +191,13 @@ export default function Borrowers() {
         </Card>
       </div>
 
+      {/* Add Borrower Dialog - now uses the rich company form */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Borrower</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Company Name *</Label>
-              <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Acme Corp Ltd" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Contact Email *</Label>
-                <Input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Contact Name</Label>
-                <Input value={contactName} onChange={(e) => setContactName(e.target.value)} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Country</Label>
-                <Input value={country} onChange={(e) => setCountry(e.target.value)} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Industry</Label>
-                <Select value={industry} onValueChange={setIndustry}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    {["Manufacturing", "Retail", "Services", "Technology", "Agriculture", "Construction", "Other"].map((i) => (
-                      <SelectItem key={i.toLowerCase()} value={i.toLowerCase()}>{i}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Registration #</Label>
-                <Input value={regNumber} onChange={(e) => setRegNumber(e.target.value)} />
-              </div>
-            </div>
-          </div>
+          <CompanyInfoStep data={companyData} onChange={setCompanyData} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleCreate} disabled={submitting}>

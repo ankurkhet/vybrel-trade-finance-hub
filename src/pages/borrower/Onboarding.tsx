@@ -1,15 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { analyzeDocument } from "@/lib/ai-services";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Upload,
   FileText,
@@ -24,10 +22,14 @@ import {
   Brain,
 } from "lucide-react";
 import { toast } from "sonner";
+import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
+import { DirectorsStep } from "@/components/onboarding/DirectorsStep";
+import { emptyCompanyForm, emptyDirector } from "@/lib/onboarding-types";
+import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 
 const STEPS = [
   { id: "company", label: "Company Info", icon: Building2 },
-  { id: "contacts", label: "Contact Details", icon: User },
+  { id: "directors", label: "Directors & Signatories", icon: User },
   { id: "documents", label: "Upload Documents", icon: Upload },
   { id: "review", label: "AI Review", icon: Brain },
   { id: "complete", label: "Complete", icon: FileCheck },
@@ -40,38 +42,30 @@ export default function BorrowerOnboarding() {
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
 
   // Company info
-  const [companyName, setCompanyName] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [country, setCountry] = useState("");
-  const [regNumber, setRegNumber] = useState("");
+  const [companyData, setCompanyData] = useState<CompanyFormData>({
+    ...emptyCompanyForm,
+    contact_name: profile?.full_name || "",
+    contact_email: profile?.email || "",
+  });
 
-  // Contact
-  const [contactName, setContactName] = useState(profile?.full_name || "");
-  const [contactEmail, setContactEmail] = useState(profile?.email || "");
-  const [contactPhone, setContactPhone] = useState("");
+  // Directors
+  const [directors, setDirectors] = useState<DirectorData[]>([]);
 
   // Documents
-  const [uploadedDocs, setUploadedDocs] = useState<Array<{ name: string; type: string; id?: string }>>([]);
+  const [uploadedDocs, setUploadedDocs] = useState<Array<{ name: string; type: string }>>([]);
   const [aiResults, setAiResults] = useState<any[]>([]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, docType: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setLoading(true);
     const filePath = `onboarding/${Date.now()}_${file.name}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("documents")
-      .upload(filePath, file);
-
+    const { error: uploadError } = await supabase.storage.from("documents").upload(filePath, file);
     if (uploadError) {
       toast.error("Upload failed: " + uploadError.message);
       setLoading(false);
       return;
     }
-
-    // We'll create the document record when we have the borrower ID
     setUploadedDocs((prev) => [...prev, { name: file.name, type: docType }]);
     toast.success(`${file.name} uploaded`);
     setLoading(false);
@@ -79,8 +73,6 @@ export default function BorrowerOnboarding() {
 
   const handleAIReview = async () => {
     setAiAnalyzing(true);
-    // Simulate AI analysis for onboarding docs
-    // In production, this would iterate over uploaded doc IDs
     toast.info("AI is analyzing your documents...");
     await new Promise((r) => setTimeout(r, 2000));
     setAiResults([
@@ -89,6 +81,24 @@ export default function BorrowerOnboarding() {
       { doc: "Incorporation Certificate", status: "review", score: 68, notes: "Certificate date older than 5 years - may need renewal" },
     ]);
     setAiAnalyzing(false);
+  };
+
+  const validateStep = () => {
+    if (step === 0) {
+      if (!companyData.company_name) { toast.error("Company name is required"); return false; }
+      if (!companyData.country) { toast.error("Country is required"); return false; }
+      if (!companyData.contact_email) { toast.error("Email is required"); return false; }
+      if (!companyData.registered_address.line1 || !companyData.registered_address.city) {
+        toast.error("Registered office address (at least line 1 and city) is required");
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleNext = () => {
+    if (!validateStep()) return;
+    setStep(step + 1);
   };
 
   const progress = ((step + 1) / STEPS.length) * 100;
@@ -124,70 +134,17 @@ export default function BorrowerOnboarding() {
           </div>
         </div>
 
-        {/* Step Content */}
+        {/* Step 1: Company Info */}
         {step === 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Company Information</CardTitle>
-              <CardDescription>Tell us about your company</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Company Name</Label>
-                <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Acme Corp" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Industry</Label>
-                  <Select value={industry} onValueChange={setIndustry}>
-                    <SelectTrigger><SelectValue placeholder="Select industry" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="manufacturing">Manufacturing</SelectItem>
-                      <SelectItem value="retail">Retail</SelectItem>
-                      <SelectItem value="services">Services</SelectItem>
-                      <SelectItem value="technology">Technology</SelectItem>
-                      <SelectItem value="agriculture">Agriculture</SelectItem>
-                      <SelectItem value="construction">Construction</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Country</Label>
-                  <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="United States" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Registration Number</Label>
-                <Input value={regNumber} onChange={(e) => setRegNumber(e.target.value)} placeholder="Company registration #" />
-              </div>
-            </CardContent>
-          </Card>
+          <CompanyInfoStep data={companyData} onChange={setCompanyData} />
         )}
 
+        {/* Step 2: Directors */}
         {step === 1 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact Details</CardTitle>
-              <CardDescription>Primary contact for this borrower</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Contact Name</Label>
-                <Input value={contactName} onChange={(e) => setContactName(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
-              </div>
-            </CardContent>
-          </Card>
+          <DirectorsStep directors={directors} onChange={setDirectors} />
         )}
 
+        {/* Step 3: Documents */}
         {step === 2 && (
           <Card>
             <CardHeader>
@@ -205,25 +162,17 @@ export default function BorrowerOnboarding() {
                   <div key={doc.type} className="flex items-center justify-between rounded-lg border p-4">
                     <div className="flex items-center gap-3">
                       {uploaded ? (
-                        <CheckCircle2 className="h-5 w-5 text-[hsl(var(--success))]" />
+                        <CheckCircle2 className="h-5 w-5 text-[hsl(var(--chart-2))]" />
                       ) : (
                         <FileText className="h-5 w-5 text-muted-foreground" />
                       )}
                       <div>
                         <p className="font-medium">{doc.label}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {uploaded ? uploaded.name : doc.desc}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{uploaded ? uploaded.name : doc.desc}</p>
                       </div>
                     </div>
                     <Label className="cursor-pointer">
-                      <Input
-                        type="file"
-                        className="hidden"
-                        accept=".pdf,.jpg,.png,.doc,.docx"
-                        onChange={(e) => handleFileUpload(e, doc.type)}
-                        disabled={loading}
-                      />
+                      <Input type="file" className="hidden" accept=".pdf,.jpg,.png,.doc,.docx" onChange={(e) => handleFileUpload(e, doc.type)} disabled={loading} />
                       <Badge variant={uploaded ? "secondary" : "default"} className="cursor-pointer">
                         {uploaded ? "Replace" : "Upload"}
                       </Badge>
@@ -235,12 +184,12 @@ export default function BorrowerOnboarding() {
           </Card>
         )}
 
+        {/* Step 4: AI Review */}
         {step === 3 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Brain className="h-5 w-5 text-primary" />
-                AI Document Review
+                <Brain className="h-5 w-5 text-primary" /> AI Document Review
               </CardTitle>
               <CardDescription>Our AI analyzes your documents for completeness and compliance</CardDescription>
             </CardHeader>
@@ -260,9 +209,9 @@ export default function BorrowerOnboarding() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {result.status === "pass" ? (
-                          <CheckCircle2 className="h-5 w-5 text-[hsl(var(--success))]" />
+                          <CheckCircle2 className="h-5 w-5 text-[hsl(var(--chart-2))]" />
                         ) : (
-                          <AlertTriangle className="h-5 w-5 text-[hsl(var(--warning))]" />
+                          <AlertTriangle className="h-5 w-5 text-[hsl(var(--chart-4))]" />
                         )}
                         <span className="font-medium">{result.doc}</span>
                       </div>
@@ -278,11 +227,12 @@ export default function BorrowerOnboarding() {
           </Card>
         )}
 
+        {/* Step 5: Complete */}
         {step === 4 && (
           <Card>
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[hsl(var(--success))]/10">
-                <CheckCircle2 className="h-8 w-8 text-[hsl(var(--success))]" />
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <CheckCircle2 className="h-8 w-8 text-primary" />
               </div>
               <CardTitle>Onboarding Complete!</CardTitle>
               <CardDescription>
@@ -298,7 +248,7 @@ export default function BorrowerOnboarding() {
             <Button variant="outline" onClick={() => setStep(step - 1)} disabled={step === 0}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
-            <Button onClick={() => setStep(step + 1)} disabled={step === 2 && uploadedDocs.length === 0}>
+            <Button onClick={handleNext} disabled={step === 2 && uploadedDocs.length === 0}>
               {step === 3 ? "Complete" : "Next"} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
