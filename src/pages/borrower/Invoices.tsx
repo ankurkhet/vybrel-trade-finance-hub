@@ -241,6 +241,12 @@ export default function BorrowerInvoices() {
           <CardContent className="p-0">
             {loading ? (
               <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            ) : !borrower ? (
+              <div className="flex flex-col items-center py-12">
+                <FileText className="h-10 w-10 text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">No borrower profile is linked to your account.</p>
+                <p className="text-xs text-muted-foreground mt-1">Please contact your administrator to set up your borrower profile.</p>
+              </div>
             ) : invoices.length === 0 ? (
               <div className="flex flex-col items-center py-12">
                 <FileText className="h-10 w-10 text-muted-foreground mb-3" />
