@@ -65,6 +65,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Package, label: "Products", path: "/admin/products", show: isAdmin },
     { icon: Shield, label: "Audit Logs", path: "/admin/audit-logs", show: isAdmin },
     { icon: Workflow, label: "Workflow Studio", path: "/admin/workflow-studio", show: isAdmin },
+    { icon: Globe, label: "Registry APIs", path: "/admin/registry-apis", show: isAdmin },
     // Originator
     { icon: Users, label: "Borrowers", path: "/originator/borrowers", show: isOriginatorAdmin },
     { icon: FileText, label: "Contracts", path: "/originator/contracts", show: isOriginatorAdmin },
