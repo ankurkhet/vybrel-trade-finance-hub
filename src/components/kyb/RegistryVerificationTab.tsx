@@ -118,9 +118,9 @@ export function RegistryVerificationTab({ borrowerId, organizationId, borrowerDa
               </TabsTrigger>
             ))}
           </TabsList>
-          {Object.entries(grouped).map(([type, items]) => (
+          {Object.entries(grouped).map(([type, items]: [string, any[]]) => (
             <TabsContent key={type} value={type} className="space-y-3">
-              {items.map((item: any) => (
+              {(items as any[]).map((item: any) => (
                 <Card key={item.id}>
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
