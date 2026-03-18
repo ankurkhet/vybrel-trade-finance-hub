@@ -133,10 +133,10 @@ export function RegistryVerificationTab({ borrowerId, organizationId, borrowerDa
                   </CardHeader>
                   <CardContent>
                     {/* Match analysis details */}
-                    {item.match_analysis && item.match_analysis.differences && (
+                    {item.match_analysis && Array.isArray((item.match_analysis as any)?.differences) && (
                       <div className="mb-3 rounded-md bg-muted/50 p-3 space-y-1">
                         <p className="text-xs font-medium text-foreground">Match Analysis</p>
-                        {item.match_analysis.differences.map((diff: any, i: number) => (
+                        {((item.match_analysis as any).differences as any[]).map((diff: any, i: number) => (
                           <div key={i} className="flex items-start gap-2 text-xs">
                             <Badge variant={diff.severity === "high" ? "destructive" : "outline"} className="text-[10px] shrink-0">{diff.field}</Badge>
                             <span className="text-muted-foreground">
