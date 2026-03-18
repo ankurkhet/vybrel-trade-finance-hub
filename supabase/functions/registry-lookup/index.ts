@@ -94,6 +94,13 @@ serve(async (req) => {
       );
     }
 
+    // EU/EEA countries that can fall back to Open BRIS
+    const openBrisCountries = [
+      "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
+      "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK",
+      "SI", "ES", "SE", "IS", "LI", "NO"
+    ];
+
     // Find active registry for this country
     const { data: registries } = await supabase
       .from("registry_api_configs")
@@ -101,7 +108,23 @@ serve(async (req) => {
       .eq("country_code", country_code)
       .eq("is_active", true);
 
-    if (!registries || registries.length === 0) {
+    let activeRegistries = registries || [];
+
+    // If no country-specific registry found, fall back to Open BRIS for EU/EEA countries
+    if (activeRegistries.length === 0 && openBrisCountries.includes(country_code)) {
+      const { data: brisRegistries } = await supabase
+        .from("registry_api_configs")
+        .select("*")
+        .eq("country_code", "EU")
+        .eq("is_active", true);
+      
+      if (brisRegistries && brisRegistries.length > 0) {
+        console.log(`No country-specific registry for ${country_code}, falling back to Open BRIS`);
+        activeRegistries = brisRegistries;
+      }
+    }
+
+    if (activeRegistries.length === 0) {
       // Store a placeholder result indicating no registry available
       await supabase.from("registry_results").insert({
         borrower_id,
@@ -119,7 +142,7 @@ serve(async (req) => {
 
     const results: any[] = [];
 
-    for (const registry of registries) {
+    for (const registry of activeRegistries) {
       const apiKey = registry.api_key_value || Deno.env.get(registry.api_key_secret_name);
       if (!apiKey) {
         results.push({
@@ -135,7 +158,8 @@ serve(async (req) => {
           registry,
           apiKey,
           company_name,
-          registration_number
+          registration_number,
+          country_code
         );
 
         if (companyData) {
@@ -195,6 +219,8 @@ function getHealthCheckUrl(countryCode: string, baseUrl: string): string {
       return `${baseUrl}/search/companies?q=test&items_per_page=1`;
     case "DK":
       return `${baseUrl}?search=test&country=dk`;
+    case "EU":
+      return `${baseUrl}/api/search?q=test&country=de`;
     default:
       return baseUrl;
   }
@@ -215,10 +241,13 @@ async function fetchCompanyData(
   registry: any,
   apiKey: string,
   companyName: string,
-  registrationNumber?: string
+  registrationNumber?: string,
+  lookupCountryCode?: string
 ): Promise<Record<string, any> | null> {
   const results: Record<string, any> = {};
-  const headers = getAuthHeaders(registry.country_code, apiKey);
+  // Use the actual lookup country if this is an EU-wide registry
+  const effectiveCountry = registry.country_code === "EU" ? (lookupCountryCode || "EU") : registry.country_code;
+  const headers = getAuthHeaders(effectiveCountry, apiKey);
 
   switch (registry.country_code) {
     case "GB": {
@@ -274,6 +303,20 @@ async function fetchCompanyData(
       const searchUrl = `${registry.api_base_url}?search=${encodeURIComponent(registrationNumber || companyName)}&country=dk`;
       const res = await fetch(searchUrl, { headers });
       if (!res.ok) throw new Error(`CVR API error: ${res.status}`);
+      results.company_profile = await res.json();
+      break;
+    }
+
+    case "EU": {
+      // Open BRIS API - pass the actual country code for the lookup
+      const countryParam = lookupCountryCode ? lookupCountryCode.toLowerCase() : "";
+      const searchUrl = registrationNumber
+        ? `${registry.api_base_url}/api/company/${countryParam}/${encodeURIComponent(registrationNumber)}`
+        : `${registry.api_base_url}/api/search?q=${encodeURIComponent(companyName)}&country=${countryParam}`;
+      
+      console.log(`Open BRIS lookup: ${searchUrl} for country ${lookupCountryCode}`);
+      const res = await fetch(searchUrl, { headers });
+      if (!res.ok) throw new Error(`Open BRIS API error: ${res.status}`);
       results.company_profile = await res.json();
       break;
     }
