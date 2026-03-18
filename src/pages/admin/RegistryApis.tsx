@@ -120,7 +120,7 @@ export default function RegistryApis() {
             <Button variant="outline" onClick={seedDefaults}>
               <Globe className="mr-2 h-4 w-4" /> Seed Defaults
             </Button>
-            <Button onClick={() => { setEditConfig(null); setForm({ country_code: "", country_name: "", registry_name: "", api_base_url: "", api_key_secret_name: "", capabilities: [] }); setDialogOpen(true); }}>
+            <Button onClick={() => { setEditConfig(null); setForm({ country_code: "", country_name: "", registry_name: "", api_base_url: "", api_key_secret_name: "", api_key_value: "", capabilities: [] }); setDialogOpen(true); }}>
               <Plus className="mr-2 h-4 w-4" /> Add Registry
             </Button>
           </div>
