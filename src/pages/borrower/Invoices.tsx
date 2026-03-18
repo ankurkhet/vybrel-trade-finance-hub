@@ -302,106 +302,17 @@ export default function BorrowerInvoices() {
         </Card>
       </div>
 
-      {/* Submit Invoice Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Submit Invoice</DialogTitle>
-            <DialogDescription>Choose the product type and fill in invoice details</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
-            {/* Product Type */}
-            <div className="space-y-2">
-              <Label>Product Type *</Label>
-              <Select value={productType} onValueChange={setProductType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {PRODUCT_TYPES.map(pt => (
-                    <SelectItem key={pt.value} value={pt.value}>
-                      <div>
-                        <span className="font-medium">{pt.label}</span>
-                        <span className="text-xs text-muted-foreground ml-2">{pt.desc}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
-            <Separator />
-
-            {/* Invoice details */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Invoice Number *</Label>
-                <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="INV-001" />
-              </div>
-              <div className="space-y-2">
-                <Label>Debtor Name *</Label>
-                <Input value={debtorName} onChange={(e) => setDebtorName(e.target.value)} placeholder="Company Ltd" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Amount *</Label>
-                <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="10000" />
-              </div>
-              <div className="space-y-2">
-                <Label>Currency</Label>
-                <Input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="USD" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Issue Date *</Label>
-                <Input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Due Date *</Label>
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Counterparty acceptance */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-medium">Requires Counterparty Acceptance</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    The counterparty must verify this invoice before funding
-                  </p>
-                </div>
-                <Switch checked={requiresAcceptance} onCheckedChange={setRequiresAcceptance} />
-              </div>
-
-              {requiresAcceptance && (
-                <div className="grid grid-cols-2 gap-4 rounded-lg border p-3 bg-muted/30">
-                  <div className="space-y-2">
-                    <Label>Counterparty Name</Label>
-                    <Input value={counterpartyName} onChange={(e) => setCounterpartyName(e.target.value)} placeholder="Contact name" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Counterparty Email *</Label>
-                    <Input type="email" value={counterpartyEmail} onChange={(e) => setCounterpartyEmail(e.target.value)} placeholder="debtor@company.com" />
-                  </div>
-                  <p className="col-span-2 text-xs text-muted-foreground">
-                    A verification link will be sent to the counterparty, or you can upload acceptance documents on their behalf.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Submit Invoice
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Invoice Submission Wizard */}
+      {borrower && (
+        <InvoiceSubmissionWizard
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          borrower={borrower}
+          userId={user!.id}
+          onSubmitted={fetchData}
+        />
+      )}
 
       {/* Upload Acceptance Document Dialog */}
       <Dialog open={!!uploadDialogInvoice} onOpenChange={() => setUploadDialogInvoice(null)}>
