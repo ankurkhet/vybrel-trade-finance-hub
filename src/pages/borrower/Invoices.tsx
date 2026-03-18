@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { CreditCard, Plus, Loader2, FileText, Upload, CheckCircle2, Clock } from "lucide-react";
+import { InvoiceSubmissionWizard } from "@/components/invoice-submission/InvoiceSubmissionWizard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
