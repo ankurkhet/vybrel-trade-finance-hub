@@ -35,7 +35,7 @@ serve(async (req) => {
         });
       }
 
-      const apiKey = Deno.env.get(config.api_key_secret_name);
+      const apiKey = config.api_key_value || Deno.env.get(config.api_key_secret_name);
       let healthStatus = "unhealthy";
       let healthMessage = "API key not configured";
 
