@@ -219,6 +219,8 @@ function getHealthCheckUrl(countryCode: string, baseUrl: string): string {
       return `${baseUrl}/search/companies?q=test&items_per_page=1`;
     case "DK":
       return `${baseUrl}?search=test&country=dk`;
+    case "EU":
+      return `${baseUrl}/api/search?q=test&country=de`;
     default:
       return baseUrl;
   }
