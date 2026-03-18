@@ -1605,6 +1605,7 @@ export type Database = {
         Row: {
           api_base_url: string
           api_key_secret_name: string
+          api_key_value: string | null
           capabilities: string[] | null
           country_code: string
           country_name: string
@@ -1620,6 +1621,7 @@ export type Database = {
         Insert: {
           api_base_url: string
           api_key_secret_name: string
+          api_key_value?: string | null
           capabilities?: string[] | null
           country_code: string
           country_name: string
@@ -1635,6 +1637,7 @@ export type Database = {
         Update: {
           api_base_url?: string
           api_key_secret_name?: string
+          api_key_value?: string | null
           capabilities?: string[] | null
           country_code?: string
           country_name?: string
