@@ -192,9 +192,83 @@ export type Database = {
           },
         ]
       }
+      borrower_directors: {
+        Row: {
+          borrower_id: string
+          created_at: string
+          date_of_birth: string | null
+          email: string | null
+          first_name: string
+          id: string
+          id_document_path: string | null
+          last_name: string
+          middle_name: string | null
+          nationality: string | null
+          organization_id: string
+          phone: string | null
+          residential_address: Json | null
+          role: string
+          shareholding_pct: number | null
+          updated_at: string
+        }
+        Insert: {
+          borrower_id: string
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          first_name: string
+          id?: string
+          id_document_path?: string | null
+          last_name: string
+          middle_name?: string | null
+          nationality?: string | null
+          organization_id: string
+          phone?: string | null
+          residential_address?: Json | null
+          role?: string
+          shareholding_pct?: number | null
+          updated_at?: string
+        }
+        Update: {
+          borrower_id?: string
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          id_document_path?: string | null
+          last_name?: string
+          middle_name?: string | null
+          nationality?: string | null
+          organization_id?: string
+          phone?: string | null
+          residential_address?: Json | null
+          role?: string
+          shareholding_pct?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "borrower_directors_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "borrower_directors_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       borrowers: {
         Row: {
           aml_cleared: boolean
+          annual_turnover: number | null
+          bank_details: Json | null
           broker_user_id: string | null
           company_name: string
           contact_email: string
@@ -204,17 +278,27 @@ export type Database = {
           created_at: string
           credit_limit: number | null
           id: string
+          incorporation_date: string | null
           industry: string | null
           kyc_completed: boolean
           metadata: Json | null
+          num_employees: number | null
           onboarding_status: Database["public"]["Enums"]["onboarding_status"]
           organization_id: string
+          phone: string | null
+          registered_address: Json | null
           registration_number: string | null
+          trading_address: Json | null
+          trading_name: string | null
           updated_at: string
           user_id: string | null
+          vat_tax_id: string | null
+          website: string | null
         }
         Insert: {
           aml_cleared?: boolean
+          annual_turnover?: number | null
+          bank_details?: Json | null
           broker_user_id?: string | null
           company_name: string
           contact_email: string
@@ -224,17 +308,27 @@ export type Database = {
           created_at?: string
           credit_limit?: number | null
           id?: string
+          incorporation_date?: string | null
           industry?: string | null
           kyc_completed?: boolean
           metadata?: Json | null
+          num_employees?: number | null
           onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
           organization_id: string
+          phone?: string | null
+          registered_address?: Json | null
           registration_number?: string | null
+          trading_address?: Json | null
+          trading_name?: string | null
           updated_at?: string
           user_id?: string | null
+          vat_tax_id?: string | null
+          website?: string | null
         }
         Update: {
           aml_cleared?: boolean
+          annual_turnover?: number | null
+          bank_details?: Json | null
           broker_user_id?: string | null
           company_name?: string
           contact_email?: string
@@ -244,14 +338,22 @@ export type Database = {
           created_at?: string
           credit_limit?: number | null
           id?: string
+          incorporation_date?: string | null
           industry?: string | null
           kyc_completed?: boolean
           metadata?: Json | null
+          num_employees?: number | null
           onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
           organization_id?: string
+          phone?: string | null
+          registered_address?: Json | null
           registration_number?: string | null
+          trading_address?: Json | null
+          trading_name?: string | null
           updated_at?: string
           user_id?: string | null
+          vat_tax_id?: string | null
+          website?: string | null
         }
         Relationships: [
           {
@@ -1495,6 +1597,112 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      registry_api_configs: {
+        Row: {
+          api_base_url: string
+          api_key_secret_name: string
+          capabilities: string[] | null
+          country_code: string
+          country_name: string
+          created_at: string
+          health_message: string | null
+          health_status: string | null
+          id: string
+          is_active: boolean
+          last_health_check: string | null
+          registry_name: string
+          updated_at: string
+        }
+        Insert: {
+          api_base_url: string
+          api_key_secret_name: string
+          capabilities?: string[] | null
+          country_code: string
+          country_name: string
+          created_at?: string
+          health_message?: string | null
+          health_status?: string | null
+          id?: string
+          is_active?: boolean
+          last_health_check?: string | null
+          registry_name: string
+          updated_at?: string
+        }
+        Update: {
+          api_base_url?: string
+          api_key_secret_name?: string
+          capabilities?: string[] | null
+          country_code?: string
+          country_name?: string
+          created_at?: string
+          health_message?: string | null
+          health_status?: string | null
+          id?: string
+          is_active?: boolean
+          last_health_check?: string | null
+          registry_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      registry_results: {
+        Row: {
+          borrower_id: string
+          created_at: string
+          data: Json
+          fetched_at: string
+          id: string
+          match_analysis: Json | null
+          organization_id: string
+          registry_api_id: string | null
+          result_type: string
+        }
+        Insert: {
+          borrower_id: string
+          created_at?: string
+          data?: Json
+          fetched_at?: string
+          id?: string
+          match_analysis?: Json | null
+          organization_id: string
+          registry_api_id?: string | null
+          result_type: string
+        }
+        Update: {
+          borrower_id?: string
+          created_at?: string
+          data?: Json
+          fetched_at?: string
+          id?: string
+          match_analysis?: Json | null
+          organization_id?: string
+          registry_api_id?: string | null
+          result_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registry_results_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registry_results_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registry_results_registry_api_id_fkey"
+            columns: ["registry_api_id"]
+            isOneToOne: false
+            referencedRelation: "registry_api_configs"
             referencedColumns: ["id"]
           },
         ]

@@ -56,6 +56,8 @@ import CreditCommittee from "./pages/originator/CreditCommittee";
 import CreditCommitteeConfig from "./pages/originator/CreditCommitteeConfig";
 import CreditCommitteeApplicationDetail from "./pages/originator/CreditCommitteeApplicationDetail";
 import WorkflowStudio from "./pages/admin/WorkflowStudio";
+import RegistryApis from "./pages/admin/RegistryApis";
+import BorrowerDetail from "./pages/originator/BorrowerDetail";
 
 const queryClient = new QueryClient();
 
@@ -92,9 +94,11 @@ const App = () => (
               <Route path="/admin/products" element={<ProtectedRoute requiredRoles={["admin"]}><AdminProducts /></ProtectedRoute>} />
               <Route path="/admin/audit-logs" element={<ProtectedRoute requiredRoles={["admin"]}><AdminAuditLogs /></ProtectedRoute>} />
               <Route path="/admin/workflow-studio" element={<ProtectedRoute requiredRoles={["admin"]}><WorkflowStudio /></ProtectedRoute>} />
+              <Route path="/admin/registry-apis" element={<ProtectedRoute requiredRoles={["admin"]}><RegistryApis /></ProtectedRoute>} />
 
               {/* Originator */}
               <Route path="/originator/borrowers" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorBorrowers /></ProtectedRoute>} />
+              <Route path="/originator/borrowers/:id" element={<ProtectedRoute requiredRoles={["originator_admin"]}><BorrowerDetail /></ProtectedRoute>} />
               <Route path="/originator/contracts" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorContracts /></ProtectedRoute>} />
               <Route path="/originator/invoices" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorInvoices /></ProtectedRoute>} />
               <Route path="/originator/reports" element={<ProtectedRoute requiredRoles={["originator_admin", "originator_user"]}><OriginatorReports /></ProtectedRoute>} />

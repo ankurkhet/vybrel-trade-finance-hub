@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.workflow-engine]
 verify_jwt = false
+
+[functions.registry-lookup]
+verify_jwt = false
