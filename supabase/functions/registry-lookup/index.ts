@@ -239,10 +239,13 @@ async function fetchCompanyData(
   registry: any,
   apiKey: string,
   companyName: string,
-  registrationNumber?: string
+  registrationNumber?: string,
+  lookupCountryCode?: string
 ): Promise<Record<string, any> | null> {
   const results: Record<string, any> = {};
-  const headers = getAuthHeaders(registry.country_code, apiKey);
+  // Use the actual lookup country if this is an EU-wide registry
+  const effectiveCountry = registry.country_code === "EU" ? (lookupCountryCode || "EU") : registry.country_code;
+  const headers = getAuthHeaders(effectiveCountry, apiKey);
 
   switch (registry.country_code) {
     case "GB": {
@@ -298,6 +301,20 @@ async function fetchCompanyData(
       const searchUrl = `${registry.api_base_url}?search=${encodeURIComponent(registrationNumber || companyName)}&country=dk`;
       const res = await fetch(searchUrl, { headers });
       if (!res.ok) throw new Error(`CVR API error: ${res.status}`);
+      results.company_profile = await res.json();
+      break;
+    }
+
+    case "EU": {
+      // Open BRIS API - pass the actual country code for the lookup
+      const countryParam = lookupCountryCode ? lookupCountryCode.toLowerCase() : "";
+      const searchUrl = registrationNumber
+        ? `${registry.api_base_url}/api/company/${countryParam}/${encodeURIComponent(registrationNumber)}`
+        : `${registry.api_base_url}/api/search?q=${encodeURIComponent(companyName)}&country=${countryParam}`;
+      
+      console.log(`Open BRIS lookup: ${searchUrl} for country ${lookupCountryCode}`);
+      const res = await fetch(searchUrl, { headers });
+      if (!res.ok) throw new Error(`Open BRIS API error: ${res.status}`);
       results.company_profile = await res.json();
       break;
     }
