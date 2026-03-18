@@ -94,6 +94,13 @@ serve(async (req) => {
       );
     }
 
+    // EU/EEA countries that can fall back to Open BRIS
+    const openBrisCountries = [
+      "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
+      "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK",
+      "SI", "ES", "SE", "IS", "LI", "NO"
+    ];
+
     // Find active registry for this country
     const { data: registries } = await supabase
       .from("registry_api_configs")
@@ -101,7 +108,23 @@ serve(async (req) => {
       .eq("country_code", country_code)
       .eq("is_active", true);
 
-    if (!registries || registries.length === 0) {
+    let activeRegistries = registries || [];
+
+    // If no country-specific registry found, fall back to Open BRIS for EU/EEA countries
+    if (activeRegistries.length === 0 && openBrisCountries.includes(country_code)) {
+      const { data: brisRegistries } = await supabase
+        .from("registry_api_configs")
+        .select("*")
+        .eq("country_code", "EU")
+        .eq("is_active", true);
+      
+      if (brisRegistries && brisRegistries.length > 0) {
+        console.log(`No country-specific registry for ${country_code}, falling back to Open BRIS`);
+        activeRegistries = brisRegistries;
+      }
+    }
+
+    if (activeRegistries.length === 0) {
       // Store a placeholder result indicating no registry available
       await supabase.from("registry_results").insert({
         borrower_id,
