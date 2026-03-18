@@ -166,7 +166,12 @@ export default function RegistryApis() {
                 <TableBody>
                   {configs.map((c) => (
                     <TableRow key={c.id}>
-                      <TableCell className="font-medium">{c.country_name}</TableCell>
+                      <TableCell className="font-medium">
+                        {c.country_name}
+                        {c.country_code === "EU" && (
+                          <Badge variant="outline" className="ml-2 text-[10px]">30 countries</Badge>
+                        )}
+                      </TableCell>
                       <TableCell className="text-sm">{c.registry_name}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
