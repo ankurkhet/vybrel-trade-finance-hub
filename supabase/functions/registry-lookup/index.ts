@@ -158,7 +158,8 @@ serve(async (req) => {
           registry,
           apiKey,
           company_name,
-          registration_number
+          registration_number,
+          country_code
         );
 
         if (companyData) {
