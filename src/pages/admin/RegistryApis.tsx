@@ -237,7 +237,22 @@ export default function RegistryApis() {
             <div className="space-y-2">
               <Label>Secret Name (for API Key) *</Label>
               <Input value={form.api_key_secret_name} onChange={(e) => setForm({ ...form, api_key_secret_name: e.target.value })} placeholder="COMPANIES_HOUSE_API_KEY" className="font-mono" />
-              <p className="text-xs text-muted-foreground">This must match the secret name configured in the platform</p>
+              <p className="text-xs text-muted-foreground">An identifier for this API key</p>
+            </div>
+            <div className="space-y-2">
+              <Label>API Key Value</Label>
+              <Input
+                type="password"
+                value={form.api_key_value}
+                onChange={(e) => setForm({ ...form, api_key_value: e.target.value })}
+                placeholder={editConfig?.api_key_value ? "••••••••••••••••" : "Enter API key"}
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                {editConfig?.api_key_value
+                  ? "Leave blank to keep the existing key, or enter a new value to update it"
+                  : "Paste the API key provided by the registry"}
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Capabilities</Label>
