@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.credit-committee-decide]
 verify_jwt = false
+
+[functions.workflow-engine]
+verify_jwt = false
