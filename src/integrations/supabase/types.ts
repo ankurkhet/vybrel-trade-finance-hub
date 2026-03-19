@@ -1737,6 +1737,11 @@ export type Database = {
           api_key_secret_name: string
           api_key_value: string | null
           capabilities: string[] | null
+          ckan_dataset_id: string | null
+          ckan_query_field_mapping: Json | null
+          ckan_resource_id: string | null
+          ckan_search_action: string | null
+          ckan_show_action: string | null
           country_code: string
           country_name: string
           created_at: string
@@ -1746,6 +1751,7 @@ export type Database = {
           is_active: boolean
           last_health_check: string | null
           registry_name: string
+          registry_type: string
           updated_at: string
         }
         Insert: {
@@ -1753,6 +1759,11 @@ export type Database = {
           api_key_secret_name: string
           api_key_value?: string | null
           capabilities?: string[] | null
+          ckan_dataset_id?: string | null
+          ckan_query_field_mapping?: Json | null
+          ckan_resource_id?: string | null
+          ckan_search_action?: string | null
+          ckan_show_action?: string | null
           country_code: string
           country_name: string
           created_at?: string
@@ -1762,6 +1773,7 @@ export type Database = {
           is_active?: boolean
           last_health_check?: string | null
           registry_name: string
+          registry_type?: string
           updated_at?: string
         }
         Update: {
@@ -1769,6 +1781,11 @@ export type Database = {
           api_key_secret_name?: string
           api_key_value?: string | null
           capabilities?: string[] | null
+          ckan_dataset_id?: string | null
+          ckan_query_field_mapping?: Json | null
+          ckan_resource_id?: string | null
+          ckan_search_action?: string | null
+          ckan_show_action?: string | null
           country_code?: string
           country_name?: string
           created_at?: string
@@ -1778,6 +1795,7 @@ export type Database = {
           is_active?: boolean
           last_health_check?: string | null
           registry_name?: string
+          registry_type?: string
           updated_at?: string
         }
         Relationships: []
