@@ -251,7 +251,7 @@ async function fetchCkanCompanyData(
   companyName: string,
   registrationNumber?: string,
 ): Promise<Record<string, any> | null> {
-  const base = registry.api_base_url.replace(/\/+$/, "");
+  const base = getCkanBaseUrl(registry.api_base_url);
   const headers = apiKey ? getCkanHeaders(apiKey) : {};
   const results: Record<string, any> = {};
   const fieldMapping = registry.ckan_query_field_mapping || {};
