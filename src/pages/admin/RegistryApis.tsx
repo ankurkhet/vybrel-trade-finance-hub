@@ -10,9 +10,10 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Globe, Key, Settings2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Plus, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Globe, Key, Settings2, Database } from "lucide-react";
 import { toast } from "sonner";
-import { DEFAULT_REGISTRIES, REGISTRY_CAPABILITIES, COUNTRIES } from "@/lib/onboarding-types";
+import { DEFAULT_REGISTRIES, REGISTRY_CAPABILITIES } from "@/lib/onboarding-types";
 
 export default function RegistryApis() {
   const [configs, setConfigs] = useState<any[]>([]);
@@ -21,8 +22,7 @@ export default function RegistryApis() {
   const [editConfig, setEditConfig] = useState<any>(null);
   const [testing, setTesting] = useState<string | null>(null);
 
-  // Form state
-  const [form, setForm] = useState({
+  const emptyForm = {
     country_code: "",
     country_name: "",
     registry_name: "",
@@ -30,7 +30,15 @@ export default function RegistryApis() {
     api_key_secret_name: "",
     api_key_value: "",
     capabilities: [] as string[],
-  });
+    registry_type: "rest" as "rest" | "ckan",
+    ckan_dataset_id: "",
+    ckan_resource_id: "",
+    ckan_search_action: "package_search",
+    ckan_show_action: "package_show",
+    ckan_query_field_mapping: '{"acn": "q", "name": "q", "abn": "q"}',
+  };
+
+  const [form, setForm] = useState(emptyForm);
 
   useEffect(() => { fetchConfigs(); }, []);
 
@@ -77,6 +85,20 @@ export default function RegistryApis() {
       toast.error("Fill required fields");
       return;
     }
+    if (form.registry_type === "ckan" && !form.ckan_dataset_id) {
+      toast.error("Dataset ID is required for CKAN registries");
+      return;
+    }
+    // Validate JSON mapping
+    if (form.registry_type === "ckan") {
+      try {
+        JSON.parse(form.ckan_query_field_mapping);
+      } catch {
+        toast.error("Query Field Mapping must be valid JSON");
+        return;
+      }
+    }
+
     const payload: any = {
       country_code: form.country_code,
       country_name: form.country_name,
@@ -84,8 +106,13 @@ export default function RegistryApis() {
       api_base_url: form.api_base_url,
       api_key_secret_name: form.api_key_secret_name,
       capabilities: form.capabilities,
+      registry_type: form.registry_type,
+      ckan_dataset_id: form.registry_type === "ckan" ? form.ckan_dataset_id : null,
+      ckan_resource_id: form.registry_type === "ckan" ? (form.ckan_resource_id || null) : null,
+      ckan_search_action: form.registry_type === "ckan" ? form.ckan_search_action : "package_search",
+      ckan_show_action: form.registry_type === "ckan" ? form.ckan_show_action : "package_show",
+      ckan_query_field_mapping: form.registry_type === "ckan" ? JSON.parse(form.ckan_query_field_mapping) : {},
     };
-    // Only include api_key_value if the user entered one
     if (form.api_key_value.trim()) {
       payload.api_key_value = form.api_key_value.trim();
     }
@@ -113,6 +140,14 @@ export default function RegistryApis() {
       api_key_secret_name: config.api_key_secret_name,
       api_key_value: config.api_key_value || "",
       capabilities: config.capabilities || [],
+      registry_type: config.registry_type || "rest",
+      ckan_dataset_id: config.ckan_dataset_id || "",
+      ckan_resource_id: config.ckan_resource_id || "",
+      ckan_search_action: config.ckan_search_action || "package_search",
+      ckan_show_action: config.ckan_show_action || "package_show",
+      ckan_query_field_mapping: config.ckan_query_field_mapping
+        ? JSON.stringify(config.ckan_query_field_mapping, null, 2)
+        : '{}',
     });
     setDialogOpen(true);
   };
@@ -135,7 +170,7 @@ export default function RegistryApis() {
             <Button variant="outline" onClick={seedDefaults}>
               <Globe className="mr-2 h-4 w-4" /> Seed Defaults
             </Button>
-            <Button onClick={() => { setEditConfig(null); setForm({ country_code: "", country_name: "", registry_name: "", api_base_url: "", api_key_secret_name: "", api_key_value: "", capabilities: [] }); setDialogOpen(true); }}>
+            <Button onClick={() => { setEditConfig(null); setForm({ ...emptyForm }); setDialogOpen(true); }}>
               <Plus className="mr-2 h-4 w-4" /> Add Registry
             </Button>
           </div>
@@ -156,6 +191,7 @@ export default function RegistryApis() {
                   <TableRow>
                     <TableHead>Country</TableHead>
                     <TableHead>Registry</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Secret Name</TableHead>
                     <TableHead>Capabilities</TableHead>
                     <TableHead>Health</TableHead>
@@ -173,6 +209,15 @@ export default function RegistryApis() {
                         )}
                       </TableCell>
                       <TableCell className="text-sm">{c.registry_name}</TableCell>
+                      <TableCell>
+                        <Badge variant={c.registry_type === "ckan" ? "secondary" : "outline"} className="text-[10px] uppercase">
+                          {c.registry_type === "ckan" ? (
+                            <><Database className="mr-1 h-3 w-3" />CKAN</>
+                          ) : (
+                            "REST"
+                          )}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-xs font-mono"><Key className="mr-1 h-3 w-3" />{c.api_key_secret_name}</Badge>
@@ -238,32 +283,118 @@ export default function RegistryApis() {
 
       {/* Edit/Add Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editConfig ? "Edit Registry" : "Add Registry"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Registry Type */}
+            <div className="space-y-2">
+              <Label>Registry Type *</Label>
+              <Select value={form.registry_type} onValueChange={(v) => setForm({ ...form, registry_type: v as "rest" | "ckan" })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rest">Simple REST</SelectItem>
+                  <SelectItem value="ckan">CKAN Portal</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {form.registry_type === "ckan"
+                  ? "For CKAN-based open data portals (e.g. data.gov.au, data.gov.uk)"
+                  : "Standard REST API with direct endpoints (e.g. Companies House)"}
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Country Code *</Label>
-                <Input value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value.toUpperCase() })} placeholder="GB" maxLength={2} />
+                <Input value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value.toUpperCase() })} placeholder="AU" maxLength={2} />
               </div>
               <div className="space-y-2">
                 <Label>Country Name *</Label>
-                <Input value={form.country_name} onChange={(e) => setForm({ ...form, country_name: e.target.value })} placeholder="United Kingdom" />
+                <Input value={form.country_name} onChange={(e) => setForm({ ...form, country_name: e.target.value })} placeholder="Australia" />
               </div>
             </div>
             <div className="space-y-2">
               <Label>Registry Name *</Label>
-              <Input value={form.registry_name} onChange={(e) => setForm({ ...form, registry_name: e.target.value })} placeholder="Companies House" />
+              <Input value={form.registry_name} onChange={(e) => setForm({ ...form, registry_name: e.target.value })} placeholder={form.registry_type === "ckan" ? "Data.gov.au ASIC" : "Companies House"} />
             </div>
             <div className="space-y-2">
-              <Label>API Base URL</Label>
-              <Input value={form.api_base_url} onChange={(e) => setForm({ ...form, api_base_url: e.target.value })} placeholder="https://api.example.com" />
+              <Label>{form.registry_type === "ckan" ? "CKAN Portal Base URL *" : "API Base URL"}</Label>
+              <Input value={form.api_base_url} onChange={(e) => setForm({ ...form, api_base_url: e.target.value })} placeholder={form.registry_type === "ckan" ? "https://data.gov.au" : "https://api.example.com"} />
+              {form.registry_type === "ckan" && (
+                <p className="text-xs text-muted-foreground">The root URL of the CKAN portal (without /api/3/action)</p>
+              )}
             </div>
+
+            {/* CKAN-specific fields */}
+            {form.registry_type === "ckan" && (
+              <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Database className="h-4 w-4 text-primary" />
+                  CKAN Configuration
+                </div>
+                <div className="space-y-2">
+                  <Label>Dataset ID or Name *</Label>
+                  <Input
+                    value={form.ckan_dataset_id}
+                    onChange={(e) => setForm({ ...form, ckan_dataset_id: e.target.value })}
+                    placeholder="asic-companies or package UUID"
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">The CKAN package/dataset identifier</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Resource ID <span className="text-muted-foreground">(optional)</span></Label>
+                  <Input
+                    value={form.ckan_resource_id}
+                    onChange={(e) => setForm({ ...form, ckan_resource_id: e.target.value })}
+                    placeholder="Resource UUID for datastore_search"
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">If set, uses datastore_search on this resource instead of package_search</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Search Action</Label>
+                    <Input
+                      value={form.ckan_search_action}
+                      onChange={(e) => setForm({ ...form, ckan_search_action: e.target.value })}
+                      placeholder="package_search"
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Show Action</Label>
+                    <Input
+                      value={form.ckan_show_action}
+                      onChange={(e) => setForm({ ...form, ckan_show_action: e.target.value })}
+                      placeholder="package_show"
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Query Field Mapping (JSON)</Label>
+                  <Textarea
+                    value={form.ckan_query_field_mapping}
+                    onChange={(e) => setForm({ ...form, ckan_query_field_mapping: e.target.value })}
+                    placeholder='{"acn": "q", "name": "q"}'
+                    className="font-mono text-sm min-h-[80px]"
+                    rows={3}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Maps search fields to CKAN query parameters. Keys are your field names, values are the CKAN parameter names.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Secret Name (for API Key) *</Label>
-              <Input value={form.api_key_secret_name} onChange={(e) => setForm({ ...form, api_key_secret_name: e.target.value })} placeholder="COMPANIES_HOUSE_API_KEY" className="font-mono" />
+              <Input value={form.api_key_secret_name} onChange={(e) => setForm({ ...form, api_key_secret_name: e.target.value })} placeholder="ASIC_API_KEY" className="font-mono" />
               <p className="text-xs text-muted-foreground">An identifier for this API key</p>
             </div>
             <div className="space-y-2">
@@ -276,9 +407,11 @@ export default function RegistryApis() {
                 className="font-mono"
               />
               <p className="text-xs text-muted-foreground">
-                {editConfig?.api_key_value
-                  ? "Leave blank to keep the existing key, or enter a new value to update it"
-                  : "Paste the API key provided by the registry"}
+                {form.registry_type === "ckan"
+                  ? "CKAN portals often don't require an API key for public data – leave blank if not needed"
+                  : editConfig?.api_key_value
+                    ? "Leave blank to keep the existing key, or enter a new value to update it"
+                    : "Paste the API key provided by the registry"}
               </p>
             </div>
             <div className="space-y-2">
