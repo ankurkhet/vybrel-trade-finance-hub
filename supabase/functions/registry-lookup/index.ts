@@ -225,8 +225,13 @@ serve(async (req) => {
 
 // ─── CKAN helpers ───────────────────────────────────────────────────
 
+function getCkanBaseUrl(rawUrl: string): string {
+  // Strip trailing slash and /api/3/action suffix if already included
+  return rawUrl.replace(/\/+$/, "").replace(/\/api\/3\/action\/?$/, "");
+}
+
 function getCkanHealthCheckUrl(config: any): string {
-  const base = config.api_base_url.replace(/\/+$/, "");
+  const base = getCkanBaseUrl(config.api_base_url);
   // Use package_show with the configured dataset to verify connectivity
   if (config.ckan_dataset_id) {
     return `${base}/api/3/action/package_show?id=${encodeURIComponent(config.ckan_dataset_id)}`;
