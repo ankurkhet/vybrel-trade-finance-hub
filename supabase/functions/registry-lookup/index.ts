@@ -39,29 +39,45 @@ serve(async (req) => {
       let healthStatus = "unhealthy";
       let healthMessage = "API key not configured";
 
-      console.log(`Health check for ${config.registry_name}: apiKey present=${!!apiKey}, from_db=${!!config.api_key_value}, key_prefix=${apiKey ? apiKey.substring(0, 8) + '...' : 'none'}`);
-
-      if (apiKey) {
+      // CKAN portals often don't need an API key
+      const isCkan = config.registry_type === "ckan";
+      if (apiKey || isCkan) {
         try {
-          // Try a simple request to verify the API key works
-          const testUrl = getHealthCheckUrl(config.country_code, config.api_base_url);
-          const testHeaders = getAuthHeaders(config.country_code, apiKey);
+          const testUrl = isCkan
+            ? getCkanHealthCheckUrl(config)
+            : getHealthCheckUrl(config.country_code, config.api_base_url);
+          const testHeaders = apiKey ? (isCkan ? getCkanHeaders(apiKey) : getAuthHeaders(config.country_code, apiKey)) : {};
           console.log(`Health check URL: ${testUrl}`);
-          console.log(`Auth header: ${JSON.stringify(Object.keys(testHeaders))}`);
           const res = await fetch(testUrl, { headers: testHeaders });
-
           const resBody = await res.text();
           console.log(`Health check response: status=${res.status}, body=${resBody.substring(0, 500)}`);
 
-          if (res.ok || res.status === 200) {
-            healthStatus = "healthy";
-            healthMessage = "API responding normally";
-          } else if (res.status === 401 || res.status === 403) {
-            healthStatus = "unhealthy";
-            healthMessage = `Authentication failed (${res.status}). Please verify the API key.`;
+          if (isCkan) {
+            // CKAN returns {"success": true} for valid endpoints
+            try {
+              const parsed = JSON.parse(resBody);
+              if (parsed.success === true || res.ok) {
+                healthStatus = "healthy";
+                healthMessage = "CKAN portal responding normally";
+              } else {
+                healthStatus = "unhealthy";
+                healthMessage = `CKAN returned success=false: ${parsed.error?.message || res.status}`;
+              }
+            } catch {
+              healthStatus = res.ok ? "healthy" : "unhealthy";
+              healthMessage = res.ok ? "Portal responding" : `Portal returned status ${res.status}`;
+            }
           } else {
-            healthStatus = "unhealthy";
-            healthMessage = `API returned status ${res.status}`;
+            if (res.ok || res.status === 200) {
+              healthStatus = "healthy";
+              healthMessage = "API responding normally";
+            } else if (res.status === 401 || res.status === 403) {
+              healthStatus = "unhealthy";
+              healthMessage = `Authentication failed (${res.status}). Please verify the API key.`;
+            } else {
+              healthStatus = "unhealthy";
+              healthMessage = `API returned status ${res.status}`;
+            }
           }
         } catch (err) {
           healthStatus = "unhealthy";
@@ -125,7 +141,6 @@ serve(async (req) => {
     }
 
     if (activeRegistries.length === 0) {
-      // Store a placeholder result indicating no registry available
       await supabase.from("registry_results").insert({
         borrower_id,
         organization_id,
@@ -144,7 +159,10 @@ serve(async (req) => {
 
     for (const registry of activeRegistries) {
       const apiKey = registry.api_key_value || Deno.env.get(registry.api_key_secret_name);
-      if (!apiKey) {
+      const isCkan = registry.registry_type === "ckan";
+
+      // CKAN portals may not need API keys
+      if (!apiKey && !isCkan) {
         results.push({
           registry: registry.registry_name,
           error: `API key ${registry.api_key_secret_name} not configured`,
@@ -152,25 +170,18 @@ serve(async (req) => {
         continue;
       }
 
-      // Fetch company data based on country
       try {
-        const companyData = await fetchCompanyData(
-          registry,
-          apiKey,
-          company_name,
-          registration_number,
-          country_code
-        );
+        const companyData = isCkan
+          ? await fetchCkanCompanyData(registry, apiKey, company_name, registration_number)
+          : await fetchCompanyData(registry, apiKey!, company_name, registration_number, country_code);
 
         if (companyData) {
-          // Get borrower's submitted data for comparison
           const { data: borrower } = await supabase
             .from("borrowers")
             .select("*")
             .eq("id", borrower_id)
             .single();
 
-          // Store each result type
           for (const [resultType, data] of Object.entries(companyData)) {
             const matchAnalysis = analyzeMatch(resultType, data, borrower);
 
@@ -189,7 +200,6 @@ serve(async (req) => {
       } catch (err) {
         results.push({ registry: registry.registry_name, error: err.message });
 
-        // Update health status
         await supabase
           .from("registry_api_configs")
           .update({
@@ -212,6 +222,143 @@ serve(async (req) => {
     );
   }
 });
+
+// ─── CKAN helpers ───────────────────────────────────────────────────
+
+function getCkanHealthCheckUrl(config: any): string {
+  const base = config.api_base_url.replace(/\/+$/, "");
+  // Use package_show with the configured dataset to verify connectivity
+  if (config.ckan_dataset_id) {
+    return `${base}/api/3/action/package_show?id=${encodeURIComponent(config.ckan_dataset_id)}`;
+  }
+  // Fallback: site_read action (always available on CKAN)
+  return `${base}/api/3/action/site_read`;
+}
+
+function getCkanHeaders(apiKey?: string): Record<string, string> {
+  if (!apiKey) return {};
+  return { Authorization: apiKey };
+}
+
+async function fetchCkanCompanyData(
+  registry: any,
+  apiKey: string | null,
+  companyName: string,
+  registrationNumber?: string,
+): Promise<Record<string, any> | null> {
+  const base = registry.api_base_url.replace(/\/+$/, "");
+  const headers = apiKey ? getCkanHeaders(apiKey) : {};
+  const results: Record<string, any> = {};
+  const fieldMapping = registry.ckan_query_field_mapping || {};
+
+  // Determine the search query value
+  const queryValue = registrationNumber || companyName;
+
+  // If resource_id is set → use datastore_search
+  if (registry.ckan_resource_id) {
+    const searchUrl = `${base}/api/3/action/datastore_search?resource_id=${encodeURIComponent(registry.ckan_resource_id)}&q=${encodeURIComponent(queryValue)}&limit=10`;
+    console.log(`CKAN datastore_search: ${searchUrl}`);
+    const res = await fetch(searchUrl, { headers });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`CKAN datastore_search error ${res.status}: ${body.substring(0, 300)}`);
+    }
+    const data = await res.json();
+    if (data.success && data.result?.records) {
+      results.company_profile = normalizeCkanRecords(data.result.records, registry);
+    } else {
+      results.company_profile = { raw: data, message: "No records found" };
+    }
+    return Object.keys(results).length > 0 ? results : null;
+  }
+
+  // Otherwise use package_search / package_show flow
+  const searchAction = registry.ckan_search_action || "package_search";
+  const showAction = registry.ckan_show_action || "package_show";
+
+  // Determine which query parameter to use from mapping
+  const queryParam = Object.values(fieldMapping)[0] as string || "q";
+
+  if (searchAction === "package_search") {
+    // Search for datasets matching the query
+    const searchUrl = `${base}/api/3/action/${searchAction}?${queryParam}=${encodeURIComponent(queryValue)}&rows=5`;
+    console.log(`CKAN package_search: ${searchUrl}`);
+    const res = await fetch(searchUrl, { headers });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`CKAN ${searchAction} error ${res.status}: ${body.substring(0, 300)}`);
+    }
+    const data = await res.json();
+    if (data.success && data.result?.results?.length > 0) {
+      results.company_profile = {
+        source: "ckan_package_search",
+        count: data.result.count,
+        results: data.result.results.map((r: any) => ({
+          name: r.name,
+          title: r.title,
+          notes: r.notes,
+          organization: r.organization?.title,
+          metadata_modified: r.metadata_modified,
+          resources: r.resources?.length || 0,
+        })),
+      };
+    } else {
+      results.company_profile = { message: "No matching datasets found", searched: queryValue };
+    }
+  } else {
+    // Use configured show action with the dataset
+    const datasetId = registry.ckan_dataset_id;
+    const showUrl = `${base}/api/3/action/${showAction}?id=${encodeURIComponent(datasetId)}`;
+    console.log(`CKAN ${showAction}: ${showUrl}`);
+    const res = await fetch(showUrl, { headers });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`CKAN ${showAction} error ${res.status}: ${body.substring(0, 300)}`);
+    }
+    const data = await res.json();
+
+    // If dataset has datastore-enabled resources, search within them
+    if (data.success && data.result?.resources?.length > 0) {
+      const dsResource = data.result.resources.find((r: any) => r.datastore_active);
+      if (dsResource) {
+        const dsUrl = `${base}/api/3/action/datastore_search?resource_id=${dsResource.id}&q=${encodeURIComponent(queryValue)}&limit=10`;
+        console.log(`CKAN auto-datastore: ${dsUrl}`);
+        const dsRes = await fetch(dsUrl, { headers });
+        if (dsRes.ok) {
+          const dsData = await dsRes.json();
+          if (dsData.success && dsData.result?.records) {
+            results.company_profile = normalizeCkanRecords(dsData.result.records, registry);
+            return Object.keys(results).length > 0 ? results : null;
+          }
+        }
+      }
+    }
+
+    results.company_profile = data.success ? data.result : { message: "Dataset not found" };
+  }
+
+  return Object.keys(results).length > 0 ? results : null;
+}
+
+function normalizeCkanRecords(records: any[], _registry: any): any {
+  // Try to map common CKAN company data fields to structured output
+  return {
+    source: "ckan_datastore",
+    count: records.length,
+    companies: records.map((r: any) => ({
+      company_name: r.Company_Name || r.company_name || r.name || r.organisation_name || r.Name || null,
+      status: r.Company_Status || r.status || r.Status || null,
+      type: r.Company_Type || r.type || r.Type || r.Company_Class || null,
+      registration_number: r.ACN || r.ABN || r.Company_Number || r.registration_number || r.CRN || null,
+      registration_date: r.Registration_Date || r.date_registered || r.Date_Registered || null,
+      state: r.State || r.state || r.Jurisdiction || null,
+      postcode: r.Postcode || r.postcode || r.Post_Code || null,
+      raw: r,
+    })),
+  };
+}
+
+// ─── REST helpers (existing) ────────────────────────────────────────
 
 function getHealthCheckUrl(countryCode: string, baseUrl: string): string {
   switch (countryCode) {
@@ -245,14 +392,11 @@ async function fetchCompanyData(
   lookupCountryCode?: string
 ): Promise<Record<string, any> | null> {
   const results: Record<string, any> = {};
-  // Use the actual lookup country if this is an EU-wide registry
   const effectiveCountry = registry.country_code === "EU" ? (lookupCountryCode || "EU") : registry.country_code;
   const headers = getAuthHeaders(effectiveCountry, apiKey);
 
   switch (registry.country_code) {
     case "GB": {
-      // Companies House API
-      const searchParam = registrationNumber || companyName;
       const searchUrl = registrationNumber
         ? `${registry.api_base_url}/company/${registrationNumber}`
         : `${registry.api_base_url}/search/companies?q=${encodeURIComponent(companyName)}&items_per_page=5`;
@@ -260,14 +404,8 @@ async function fetchCompanyData(
       const searchRes = await fetch(searchUrl, { headers });
       if (!searchRes.ok) throw new Error(`Companies House API error: ${searchRes.status}`);
       const searchData = await searchRes.json();
+      results.company_profile = searchData;
 
-      if (registrationNumber) {
-        results.company_profile = searchData;
-      } else {
-        results.company_profile = searchData;
-      }
-
-      // If we have a company number, fetch additional data
       const companyNumber = registrationNumber || searchData?.items?.[0]?.company_number;
       if (companyNumber) {
         if (registry.capabilities?.includes("directors")) {
@@ -299,7 +437,6 @@ async function fetchCompanyData(
     }
 
     case "DK": {
-      // CVR API
       const searchUrl = `${registry.api_base_url}?search=${encodeURIComponent(registrationNumber || companyName)}&country=dk`;
       const res = await fetch(searchUrl, { headers });
       if (!res.ok) throw new Error(`CVR API error: ${res.status}`);
@@ -308,7 +445,6 @@ async function fetchCompanyData(
     }
 
     case "EU": {
-      // Open BRIS API - pass the actual country code for the lookup
       const countryParam = lookupCountryCode ? lookupCountryCode.toLowerCase() : "";
       const searchUrl = registrationNumber
         ? `${registry.api_base_url}/api/company/${countryParam}/${encodeURIComponent(registrationNumber)}`
@@ -322,7 +458,6 @@ async function fetchCompanyData(
     }
 
     default: {
-      // Generic - try a search endpoint
       const searchUrl = `${registry.api_base_url}/search?q=${encodeURIComponent(registrationNumber || companyName)}`;
       try {
         const res = await fetch(searchUrl, { headers });
@@ -354,7 +489,6 @@ function analyzeMatch(resultType: string, registryData: any, borrowerData: any):
   const analysis: any = { differences: [] };
 
   if (resultType === "company_profile") {
-    // Compare company name
     const regName = registryData?.company_name || registryData?.title || "";
     const subName = borrowerData?.company_name || "";
     if (regName && subName && regName.toLowerCase() !== subName.toLowerCase()) {
@@ -366,7 +500,6 @@ function analyzeMatch(resultType: string, registryData: any, borrowerData: any):
       });
     }
 
-    // Compare address
     const regAddress = registryData?.registered_office_address || registryData?.address || {};
     const subAddress = borrowerData?.registered_address || {};
     if (typeof regAddress === "object" && typeof subAddress === "object") {
@@ -378,7 +511,6 @@ function analyzeMatch(resultType: string, registryData: any, borrowerData: any):
           provided: subLine,
           registry: regLine,
           severity: "high",
-          // Simplified distance - in production would use geocoding
           distance_km: "N/A",
         });
       }

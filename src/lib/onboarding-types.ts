@@ -175,6 +175,12 @@ export interface RegistryApiConfig {
   last_health_check: string | null;
   health_status: string;
   health_message: string | null;
+  registry_type?: "rest" | "ckan";
+  ckan_dataset_id?: string;
+  ckan_resource_id?: string;
+  ckan_search_action?: string;
+  ckan_show_action?: string;
+  ckan_query_field_mapping?: Record<string, string>;
 }
 
 export const REGISTRY_CAPABILITIES = [
@@ -231,11 +237,16 @@ export const DEFAULT_REGISTRIES: Omit<RegistryApiConfig, "id" | "last_health_che
   {
     country_code: "AU",
     country_name: "Australia",
-    registry_name: "ASIC (Australian Securities & Investments Commission)",
-    api_base_url: "https://connectonline.asic.gov.au/RegistrySearch/faces/landing/SearchRegisters.jspx",
-    api_key_secret_name: "ASIC_API_KEY",
+    registry_name: "Data.gov.au ASIC Companies",
+    api_base_url: "https://data.gov.au",
+    api_key_secret_name: "DATAGOV_AU_API_KEY",
     is_active: false,
-    capabilities: ["company_search", "company_profile", "directors"],
+    capabilities: ["company_search", "company_profile"],
+    registry_type: "ckan",
+    ckan_dataset_id: "asic-companies",
+    ckan_search_action: "package_search",
+    ckan_show_action: "package_show",
+    ckan_query_field_mapping: { acn: "q", name: "q", abn: "q" },
   },
   {
     country_code: "DE",
