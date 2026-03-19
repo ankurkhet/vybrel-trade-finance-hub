@@ -175,6 +175,12 @@ export interface RegistryApiConfig {
   last_health_check: string | null;
   health_status: string;
   health_message: string | null;
+  registry_type?: "rest" | "ckan";
+  ckan_dataset_id?: string;
+  ckan_resource_id?: string;
+  ckan_search_action?: string;
+  ckan_show_action?: string;
+  ckan_query_field_mapping?: Record<string, string>;
 }
 
 export const REGISTRY_CAPABILITIES = [
