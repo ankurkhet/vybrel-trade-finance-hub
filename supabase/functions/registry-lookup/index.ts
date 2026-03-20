@@ -380,9 +380,10 @@ function getHealthCheckUrl(countryCode: string, baseUrl: string, registryName?: 
     return baseUrl.replace(/\/+$/, "");
   }
   if (name.includes("financial modeling") || name.includes("fmp")) {
-    // FMP uses query-param auth, not headers
+    // FMP uses query-param auth and stable API endpoints
     const key = apiKey || "demo";
-    return `${baseUrl.replace(/\/+$/, "")}/stock/list?apikey=${encodeURIComponent(key)}`;
+    const stableBase = baseUrl.replace(/\/+$/, "").replace(/\/api\/v[0-9]+$/, "");
+    return `${stableBase}/stable/profile?symbol=AAPL&apikey=${encodeURIComponent(key)}`;
   }
   if (name.includes("creditsafe")) {
     return `${baseUrl.replace(/\/+$/, "")}/authenticate`;
