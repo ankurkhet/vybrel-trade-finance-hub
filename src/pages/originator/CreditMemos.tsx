@@ -77,7 +77,7 @@ export default function CreditMemos() {
         </div>
 
         {/* Stats */}
-        <div className="grid gap-4 sm:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-5">
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
               <FileText className="h-5 w-5 text-muted-foreground" />
@@ -98,10 +98,19 @@ export default function CreditMemos() {
           </Card>
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
+              <Send className="h-5 w-5 text-[hsl(var(--chart-3))]" />
+              <div>
+                <p className="text-2xl font-bold">{stats.withCommittee}</p>
+                <p className="text-xs text-muted-foreground">With Committee</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
               <CheckCircle2 className="h-5 w-5 text-[hsl(var(--chart-2))]" />
               <div>
-                <p className="text-2xl font-bold">{stats.finalized}</p>
-                <p className="text-xs text-muted-foreground">Finalized</p>
+                <p className="text-2xl font-bold">{stats.approved}</p>
+                <p className="text-xs text-muted-foreground">Approved</p>
               </div>
             </CardContent>
           </Card>
