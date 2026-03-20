@@ -212,7 +212,7 @@ export default function BorrowerDetail() {
 
         {/* Tabs */}
         <Tabs defaultValue="company" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="company" className="gap-1.5">
               <Building2 className="h-4 w-4" /> Company
             </TabsTrigger>
@@ -223,7 +223,10 @@ export default function BorrowerDetail() {
               <FileCheck className="h-4 w-4" /> Documents
             </TabsTrigger>
             <TabsTrigger value="kyb" className="gap-1.5">
-              <Shield className="h-4 w-4" /> KYB Verification
+              <Shield className="h-4 w-4" /> KYB
+            </TabsTrigger>
+            <TabsTrigger value="validation" className="gap-1.5">
+              <ShieldCheck className="h-4 w-4" /> Validation
             </TabsTrigger>
           </TabsList>
 
