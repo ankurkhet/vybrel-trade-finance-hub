@@ -38,6 +38,8 @@ serve(async (req) => {
       // TrueLayer uses its own edge function for health check
       const isTrueLayer = (config.registry_name || "").toLowerCase().includes("truelayer");
       if (isTrueLayer) {
+        let healthStatus = "unhealthy";
+        let healthMessage = "Unknown";
         try {
           const tlRes = await fetch(`${supabaseUrl}/functions/v1/truelayer-name-verify`, {
             method: "POST",
