@@ -87,6 +87,7 @@ const App = () => (
 
               {/* Protected routes */}
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
 
               {/* Admin */}
               <Route path="/admin/organizations" element={<ProtectedRoute requiredRoles={["admin"]}><AdminOrganizations /></ProtectedRoute>} />
