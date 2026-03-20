@@ -33,6 +33,7 @@ import {
   Receipt,
   ArrowDownUp,
   UserPlus,
+  MessageSquare,
 } from "lucide-react";
 import { Gavel, Workflow, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
