@@ -195,6 +195,10 @@ export const REGISTRY_CAPABILITIES = [
   "tax_registration",
   "address_verification",
   "filing_history",
+  "sanctions_screening",
+  "pep_screening",
+  "iban_validation",
+  "sort_code_validation",
 ] as const;
 
 export const DEFAULT_REGISTRIES: Omit<RegistryApiConfig, "id" | "last_health_check" | "health_status" | "health_message">[] = [
