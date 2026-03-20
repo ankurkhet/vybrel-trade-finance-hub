@@ -347,4 +347,23 @@ export const DEFAULT_REGISTRIES: Omit<RegistryApiConfig, "id" | "last_health_che
     is_active: false,
     capabilities: ["sort_code_validation"],
   },
+  // ─── Financial Inputs ────────────────────────────────────────
+  {
+    country_code: "GLOBAL",
+    country_name: "Global",
+    registry_name: "Creditsafe",
+    api_base_url: "https://connect.creditsafe.com/v1",
+    api_key_secret_name: "CREDITSAFE_API_KEY",
+    is_active: false,
+    capabilities: ["financial_data", "credit_scores", "company_profile"],
+  },
+  {
+    country_code: "GLOBAL",
+    country_name: "Global",
+    registry_name: "Financial Modeling Prep (FMP)",
+    api_base_url: "https://financialmodelingprep.com/api/v3",
+    api_key_secret_name: "FMP_API_KEY",
+    is_active: false,
+    capabilities: ["financial_data", "financial_statements"],
+  },
 ];
