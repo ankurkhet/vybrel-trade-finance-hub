@@ -393,6 +393,18 @@ export default function RegistryApis() {
               <Input value={form.registry_name} onChange={(e) => setForm({ ...form, registry_name: e.target.value })} placeholder={form.registry_type === "ckan" ? "Data.gov.au ASIC" : "Companies House"} />
             </div>
             <div className="space-y-2">
+              <Label>Client ID <span className="text-muted-foreground">(optional)</span></Label>
+              <Input
+                value={form.client_id}
+                onChange={(e) => setForm({ ...form, client_id: e.target.value })}
+                placeholder="e.g. sandbox-vybre1-74baba"
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Required for OAuth2-based APIs like TrueLayer. The Client Secret goes in the API Key Value field below.
+              </p>
+            </div>
+            <div className="space-y-2">
               <Label>{form.registry_type === "ckan" ? "CKAN Portal Base URL *" : "API Base URL"}</Label>
               <Input value={form.api_base_url} onChange={(e) => setForm({ ...form, api_base_url: e.target.value })} placeholder={form.registry_type === "ckan" ? "https://data.gov.au" : "https://api.example.com"} />
               {form.registry_type === "ckan" && (
