@@ -199,6 +199,7 @@ export const REGISTRY_CAPABILITIES = [
   "pep_screening",
   "iban_validation",
   "sort_code_validation",
+  "account_name_verification",
   "financial_data",
   "credit_scores",
   "financial_statements",
