@@ -80,7 +80,7 @@ export function ValidationResultsPanel({ borrowerData, entityData, entityType = 
           action: "sanctions_check",
           name,
           birth_date: birthDate || undefined,
-          country: borrowerData?.country || undefined,
+          country: entity.country || borrowerData?.country || undefined,
         },
       });
       if (!error && data) {
