@@ -9,12 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, ArrowLeft, Building2, Users, FileCheck, Shield, Plus, Save, Send, ShieldCheck } from "lucide-react";
+import { Loader2, ArrowLeft, Building2, Users, FileCheck, Shield, Plus, Save, Send, ShieldCheck, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
 import { DirectorsStep } from "@/components/onboarding/DirectorsStep";
 import { RegistryVerificationTab } from "@/components/kyb/RegistryVerificationTab";
 import { ValidationResultsPanel } from "@/components/kyb/ValidationResultsPanel";
+import { CreditMemoEditor } from "@/components/credit-memo/CreditMemoEditor";
 import { emptyCompanyForm, emptyDirector, COUNTRIES } from "@/lib/onboarding-types";
 import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 
@@ -212,7 +213,7 @@ export default function BorrowerDetail() {
 
         {/* Tabs */}
         <Tabs defaultValue="company" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="company" className="gap-1.5">
               <Building2 className="h-4 w-4" /> Company
             </TabsTrigger>
@@ -227,6 +228,9 @@ export default function BorrowerDetail() {
             </TabsTrigger>
             <TabsTrigger value="validation" className="gap-1.5">
               <ShieldCheck className="h-4 w-4" /> Validation
+            </TabsTrigger>
+            <TabsTrigger value="credit-memo" className="gap-1.5">
+              <FileText className="h-4 w-4" /> Credit Memo
             </TabsTrigger>
           </TabsList>
 
@@ -265,6 +269,14 @@ export default function BorrowerDetail() {
             <ValidationResultsPanel
               borrowerData={borrower}
               directors={directors}
+            />
+          </TabsContent>
+
+          <TabsContent value="credit-memo" className="mt-6">
+            <CreditMemoEditor
+              borrowerId={id!}
+              organizationId={profile?.organization_id || ""}
+              borrowerName={borrower.company_name}
             />
           </TabsContent>
         </Tabs>
