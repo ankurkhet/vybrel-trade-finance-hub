@@ -348,6 +348,15 @@ export const DEFAULT_REGISTRIES: Omit<RegistryApiConfig, "id" | "last_health_che
     is_active: false,
     capabilities: ["sort_code_validation"],
   },
+  {
+    country_code: "GLOBAL",
+    country_name: "Global",
+    registry_name: "TrueLayer Account Holder Verification",
+    api_base_url: "https://api.truelayer-sandbox.com",
+    api_key_secret_name: "TRUELAYER_CLIENT_SECRET",
+    is_active: false,
+    capabilities: ["account_name_verification"],
+  },
   // ─── Financial Inputs ────────────────────────────────────────
   {
     country_code: "GLOBAL",
