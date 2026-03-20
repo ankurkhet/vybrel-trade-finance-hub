@@ -201,8 +201,11 @@ export default function RegistryApis() {
                 </TableHeader>
                 <TableBody>
                   {(() => {
+                    const financialTools = configs.filter(c =>
+                      (c.capabilities || []).some((cap: string) => ["financial_data", "credit_scores", "financial_statements"].includes(cap))
+                    );
                     const companyRegistries = configs.filter(c => 
-                      !(c.capabilities || []).some((cap: string) => ["sanctions_screening", "pep_screening", "iban_validation", "sort_code_validation"].includes(cap))
+                      !(c.capabilities || []).some((cap: string) => ["sanctions_screening", "pep_screening", "iban_validation", "sort_code_validation", "financial_data", "credit_scores", "financial_statements"].includes(cap))
                     );
                     const sanctionsTools = configs.filter(c =>
                       (c.capabilities || []).some((cap: string) => ["sanctions_screening", "pep_screening"].includes(cap))
@@ -284,6 +287,16 @@ export default function RegistryApis() {
                               </TableCell>
                             </TableRow>
                             {renderRows(companyRegistries)}
+                          </>
+                        )}
+                        {financialTools.length > 0 && (
+                          <>
+                            <TableRow>
+                              <TableCell colSpan={8} className="bg-muted/50 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Financial Inputs
+                              </TableCell>
+                            </TableRow>
+                            {renderRows(financialTools)}
                           </>
                         )}
                         {sanctionsTools.length > 0 && (

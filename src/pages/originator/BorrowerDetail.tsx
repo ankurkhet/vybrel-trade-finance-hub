@@ -271,6 +271,14 @@ export default function BorrowerDetail() {
               directors={directors}
             />
           </TabsContent>
+
+          <TabsContent value="credit-memo" className="mt-6">
+            <CreditMemoEditor
+              borrowerId={id!}
+              organizationId={profile?.organization_id || ""}
+              borrowerName={borrower.company_name}
+            />
+          </TabsContent>
         </Tabs>
       </div>
 
