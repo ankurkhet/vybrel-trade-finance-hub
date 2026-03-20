@@ -87,7 +87,7 @@ export default function CreditMemos() {
           </Card>
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
-              <Clock className="h-5 w-5 text-amber-500" />
+              <Clock className="h-5 w-5 text-[hsl(var(--chart-4))]" />
               <div>
                 <p className="text-2xl font-bold">{stats.pending}</p>
                 <p className="text-xs text-muted-foreground">Pending Review</p>
