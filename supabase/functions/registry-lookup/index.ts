@@ -368,7 +368,23 @@ function normalizeCkanRecords(records: any[], _registry: any): any {
 
 // ─── REST helpers (existing) ────────────────────────────────────────
 
-function getHealthCheckUrl(countryCode: string, baseUrl: string): string {
+function getHealthCheckUrl(countryCode: string, baseUrl: string, registryName?: string): string {
+  // Handle specific registries by name first
+  const name = (registryName || "").toLowerCase();
+  if (name.includes("openiban")) {
+    return `${baseUrl.replace(/\/+$/, "")}/validate/DE89370400440532013000`;
+  }
+  if (name.includes("sortcode")) {
+    return `${baseUrl.replace(/\/+$/, "")}/api/v1/validate/040004/12345678`;
+  }
+  if (name.includes("financial modeling") || name.includes("fmp")) {
+    // FMP requires apikey param even for health check
+    return `${baseUrl.replace(/\/+$/, "")}/stock/list?apikey=demo`;
+  }
+  if (name.includes("creditsafe")) {
+    return `${baseUrl.replace(/\/+$/, "")}/authenticate`;
+  }
+
   switch (countryCode) {
     case "GB":
       return `${baseUrl}/search/companies?q=test&items_per_page=1`;
