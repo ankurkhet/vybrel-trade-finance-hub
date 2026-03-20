@@ -96,7 +96,7 @@ export default function CreditMemos() {
           </Card>
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              <CheckCircle2 className="h-5 w-5 text-[hsl(var(--chart-2))]" />
               <div>
                 <p className="text-2xl font-bold">{stats.finalized}</p>
                 <p className="text-xs text-muted-foreground">Finalized</p>
