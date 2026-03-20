@@ -117,7 +117,7 @@ export function ValidationResultsPanel({ borrowerData, entityData, entityType = 
     try {
       const body: any = {
         action: "verify_name",
-        name: bankDetails.account_holder_name || borrowerData?.company_name || "",
+        name: bankDetails.account_holder_name || entity.name || borrowerData?.company_name || "",
       };
       if (bankDetails.iban) {
         body.iban = bankDetails.iban;
