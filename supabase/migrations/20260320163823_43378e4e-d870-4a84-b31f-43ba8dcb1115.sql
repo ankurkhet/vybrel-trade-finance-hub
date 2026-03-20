@@ -1,0 +1,1 @@
+ALTER TYPE public.credit_memo_status ADD VALUE IF NOT EXISTS 'submitted_to_committee';

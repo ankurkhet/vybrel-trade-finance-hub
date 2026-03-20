@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Sparkles, Save, Send, FileText, AlertTriangle, CheckCircle2, RotateCcw } from "lucide-react";
+import { Loader2, Sparkles, Save, Send, FileText, AlertTriangle, CheckCircle2, RotateCcw, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { generateCreditMemo } from "@/lib/ai-services";
 
@@ -18,9 +21,11 @@ interface CreditMemoEditorProps {
 
 export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: CreditMemoEditorProps) {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [memos, setMemos] = useState<any[]>([]);
   const [activeMemo, setActiveMemo] = useState<any>(null);
   const [editedText, setEditedText] = useState("");
+  const [proposedLimit, setProposedLimit] = useState("");
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -40,6 +45,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
     if (data && data.length > 0) {
       setActiveMemo(data[0]);
       setEditedText(data[0].analyst_edits || data[0].ai_draft || "");
+      setProposedLimit(data[0].recommended_limit?.toString() || "");
     }
     setLoading(false);
   };
@@ -67,6 +73,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
       .from("credit_memos")
       .update({
         analyst_edits: editedText,
+        recommended_limit: proposedLimit ? Number(proposedLimit) : null,
         status: "under_review",
       })
       .eq("id", activeMemo.id);
@@ -79,23 +86,54 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
     setSaving(false);
   };
 
-  const handleFinalize = async () => {
+  const handleSubmitToCommittee = async () => {
     if (!activeMemo) return;
+    if (!proposedLimit || Number(proposedLimit) <= 0) {
+      toast.error("Please enter a proposed credit limit before submitting to the committee.");
+      return;
+    }
     setSaving(true);
-    const { error } = await supabase
-      .from("credit_memos")
-      .update({
-        final_memo: editedText,
-        status: "approved",
-        reviewed_by: profile?.user_id,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", activeMemo.id);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Credit memo finalized and ready for committee");
+    try {
+      // Update memo status
+      const { error: memoError } = await supabase
+        .from("credit_memos")
+        .update({
+          analyst_edits: editedText,
+          recommended_limit: Number(proposedLimit),
+          final_memo: editedText,
+          status: "submitted_to_committee",
+          reviewed_by: profile?.user_id,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", activeMemo.id);
+      if (memoError) throw memoError;
+
+      // Auto-create a credit committee application
+      const appNum = `CC-${Date.now().toString(36).toUpperCase()}`;
+      const { error: appError } = await supabase
+        .from("credit_committee_applications")
+        .insert({
+          organization_id: organizationId,
+          type: "credit_limit",
+          borrower_id: borrowerId,
+          debtor_name: borrowerName,
+          application_number: appNum,
+          status: "submitted",
+          submitted_at: new Date().toISOString(),
+          created_by: profile?.user_id,
+          metadata: {
+            credit_memo_id: activeMemo.id,
+            proposed_limit: Number(proposedLimit),
+            risk_rating: activeMemo.risk_rating,
+            memo_number: activeMemo.memo_number,
+          },
+        });
+      if (appError) throw appError;
+
+      toast.success("Credit memo submitted to committee for approval");
       await fetchMemos();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit to committee");
     }
     setSaving(false);
   };
@@ -180,37 +218,69 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
                     Risk: {activeMemo.risk_rating}
                   </Badge>
                 )}
-                {activeMemo.recommended_limit && (
-                  <span className="text-sm text-muted-foreground">
-                    Recommended Limit: <strong className="text-foreground">${Number(activeMemo.recommended_limit).toLocaleString()}</strong>
-                  </span>
-                )}
                 {activeMemo.memo_number && (
                   <span className="text-xs font-mono text-muted-foreground">{activeMemo.memo_number}</span>
                 )}
               </div>
               <div className="flex gap-2">
-                {activeMemo.status !== "approved" && (
+                {!["approved", "submitted_to_committee"].includes(activeMemo.status) && (
                   <>
                     <Button variant="outline" size="sm" onClick={handleSave} disabled={saving}>
                       {saving ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Save className="mr-1 h-3 w-3" />}
                       Save Draft
                     </Button>
-                    <Button size="sm" onClick={handleFinalize} disabled={saving}>
+                    <Button size="sm" onClick={handleSubmitToCommittee} disabled={saving}>
                       {saving ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Send className="mr-1 h-3 w-3" />}
-                      Finalize for Committee
+                      Submit to Committee
                     </Button>
                   </>
+                )}
+                {activeMemo.status === "submitted_to_committee" && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4 text-[hsl(var(--chart-4))]" />
+                    Submitted — awaiting Credit Committee decision
+                  </div>
                 )}
                 {activeMemo.status === "approved" && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <CheckCircle2 className="h-4 w-4 text-[hsl(var(--chart-2))]" />
-                    Finalized — ready for Credit Committee
+                    Approved by Credit Committee
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
+
+          {/* Proposed Credit Limit */}
+          {!["approved", "submitted_to_committee"].includes(activeMemo.status) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Proposed Credit Limit</CardTitle>
+                <CardDescription>Set the credit limit to recommend to the committee</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3">
+                  <Label htmlFor="proposed-limit" className="shrink-0">Amount ($)</Label>
+                  <Input
+                    id="proposed-limit"
+                    type="number"
+                    placeholder="e.g. 500000"
+                    value={proposedLimit}
+                    onChange={(e) => setProposedLimit(e.target.value)}
+                    className="max-w-[240px]"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {["approved", "submitted_to_committee"].includes(activeMemo.status) && activeMemo.recommended_limit && (
+            <Card>
+              <CardContent className="flex items-center gap-3 py-4">
+                <span className="text-sm text-muted-foreground">Proposed Credit Limit:</span>
+                <span className="text-lg font-bold text-foreground">${Number(activeMemo.recommended_limit).toLocaleString()}</span>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Memo Content */}
           <Tabs defaultValue="edit" className="w-full">

@@ -10,13 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Search, AlertTriangle, CheckCircle2, Clock, Loader2 } from "lucide-react";
+import { FileText, Search, AlertTriangle, CheckCircle2, Clock, Loader2, Send } from "lucide-react";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   draft: { label: "Draft", variant: "outline" },
   ai_generated: { label: "AI Generated", variant: "secondary" },
   under_review: { label: "Under Review", variant: "default" },
-  approved: { label: "Finalized", variant: "default" },
+  submitted_to_committee: { label: "With Committee", variant: "secondary" },
+  approved: { label: "Approved", variant: "default" },
   rejected: { label: "Rejected", variant: "destructive" },
 };
 
@@ -60,7 +61,8 @@ export default function CreditMemos() {
   const stats = {
     total: memos.length,
     pending: memos.filter((m: any) => ["draft", "ai_generated", "under_review"].includes(m.status)).length,
-    finalized: memos.filter((m: any) => m.status === "approved").length,
+    withCommittee: memos.filter((m: any) => m.status === "submitted_to_committee").length,
+    approved: memos.filter((m: any) => m.status === "approved").length,
     rejected: memos.filter((m: any) => m.status === "rejected").length,
   };
 
@@ -75,7 +77,7 @@ export default function CreditMemos() {
         </div>
 
         {/* Stats */}
-        <div className="grid gap-4 sm:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-5">
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
               <FileText className="h-5 w-5 text-muted-foreground" />
@@ -96,10 +98,19 @@ export default function CreditMemos() {
           </Card>
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
+              <Send className="h-5 w-5 text-[hsl(var(--chart-3))]" />
+              <div>
+                <p className="text-2xl font-bold">{stats.withCommittee}</p>
+                <p className="text-xs text-muted-foreground">With Committee</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
               <CheckCircle2 className="h-5 w-5 text-[hsl(var(--chart-2))]" />
               <div>
-                <p className="text-2xl font-bold">{stats.finalized}</p>
-                <p className="text-xs text-muted-foreground">Finalized</p>
+                <p className="text-2xl font-bold">{stats.approved}</p>
+                <p className="text-xs text-muted-foreground">Approved</p>
               </div>
             </CardContent>
           </Card>
@@ -134,7 +145,8 @@ export default function CreditMemos() {
               <SelectItem value="draft">Draft</SelectItem>
               <SelectItem value="ai_generated">AI Generated</SelectItem>
               <SelectItem value="under_review">Under Review</SelectItem>
-              <SelectItem value="approved">Finalized</SelectItem>
+              <SelectItem value="submitted_to_committee">With Committee</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
