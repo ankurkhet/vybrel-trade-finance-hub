@@ -261,7 +261,7 @@ export default function BorrowerOnboarding() {
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
             <Button onClick={handleNext} disabled={step === 2 && uploadedDocs.length === 0}>
-              {step === 3 ? "Complete" : "Next"} <ArrowRight className="ml-2 h-4 w-4" />
+              {step === 4 ? "Complete" : "Next"} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         )}
