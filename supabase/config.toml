@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.ai-analyze-invoice-docs]
 verify_jwt = false
+
+[functions.validation-lookup]
+verify_jwt = false
