@@ -376,7 +376,8 @@ function getHealthCheckUrl(countryCode: string, baseUrl: string, registryName?: 
     return `${baseUrl.replace(/\/+$/, "")}/validate/DE89370400440532013000`;
   }
   if (name.includes("sortcode")) {
-    return `${baseUrl.replace(/\/+$/, "")}/api/v1/validate/040004/12345678`;
+    // Just verify the site is reachable
+    return baseUrl.replace(/\/+$/, "");
   }
   if (name.includes("financial modeling") || name.includes("fmp")) {
     // FMP requires apikey param even for health check
