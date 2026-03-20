@@ -195,6 +195,10 @@ export const REGISTRY_CAPABILITIES = [
   "tax_registration",
   "address_verification",
   "filing_history",
+  "sanctions_screening",
+  "pep_screening",
+  "iban_validation",
+  "sort_code_validation",
 ] as const;
 
 export const DEFAULT_REGISTRIES: Omit<RegistryApiConfig, "id" | "last_health_check" | "health_status" | "health_message">[] = [
@@ -310,5 +314,34 @@ export const DEFAULT_REGISTRIES: Omit<RegistryApiConfig, "id" | "last_health_che
     api_key_secret_name: "ICRIS_HK_API_KEY",
     is_active: false,
     capabilities: ["company_search", "company_profile", "directors", "charges"],
+  },
+  // ─── Sanctions Screening ─────────────────────────────────────
+  {
+    country_code: "GLOBAL",
+    country_name: "Global",
+    registry_name: "OpenSanctions",
+    api_base_url: "https://api.opensanctions.org",
+    api_key_secret_name: "OPENSANCTIONS_API_KEY",
+    is_active: false,
+    capabilities: ["sanctions_screening", "pep_screening"],
+  },
+  // ─── Bank Account Validation ─────────────────────────────────
+  {
+    country_code: "GLOBAL",
+    country_name: "Global",
+    registry_name: "OpenIBAN",
+    api_base_url: "https://openiban.com/validate",
+    api_key_secret_name: "OPENIBAN_API_KEY",
+    is_active: false,
+    capabilities: ["iban_validation"],
+  },
+  {
+    country_code: "GB",
+    country_name: "United Kingdom",
+    registry_name: "Sortcode.co.uk",
+    api_base_url: "https://www.sortcode.co.uk",
+    api_key_secret_name: "SORTCODE_UK_API_KEY",
+    is_active: false,
+    capabilities: ["sort_code_validation"],
   },
 ];

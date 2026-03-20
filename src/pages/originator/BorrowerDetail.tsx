@@ -9,11 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, ArrowLeft, Building2, Users, FileCheck, Shield, Plus, Save, Send } from "lucide-react";
+import { Loader2, ArrowLeft, Building2, Users, FileCheck, Shield, Plus, Save, Send, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
 import { DirectorsStep } from "@/components/onboarding/DirectorsStep";
 import { RegistryVerificationTab } from "@/components/kyb/RegistryVerificationTab";
+import { ValidationResultsPanel } from "@/components/kyb/ValidationResultsPanel";
 import { emptyCompanyForm, emptyDirector, COUNTRIES } from "@/lib/onboarding-types";
 import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 
@@ -211,7 +212,7 @@ export default function BorrowerDetail() {
 
         {/* Tabs */}
         <Tabs defaultValue="company" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="company" className="gap-1.5">
               <Building2 className="h-4 w-4" /> Company
             </TabsTrigger>
@@ -222,7 +223,10 @@ export default function BorrowerDetail() {
               <FileCheck className="h-4 w-4" /> Documents
             </TabsTrigger>
             <TabsTrigger value="kyb" className="gap-1.5">
-              <Shield className="h-4 w-4" /> KYB Verification
+              <Shield className="h-4 w-4" /> KYB
+            </TabsTrigger>
+            <TabsTrigger value="validation" className="gap-1.5">
+              <ShieldCheck className="h-4 w-4" /> Validation
             </TabsTrigger>
           </TabsList>
 
@@ -254,6 +258,13 @@ export default function BorrowerDetail() {
               borrowerId={id!}
               organizationId={profile?.organization_id || ""}
               borrowerData={borrower}
+            />
+          </TabsContent>
+
+          <TabsContent value="validation" className="mt-6">
+            <ValidationResultsPanel
+              borrowerData={borrower}
+              directors={directors}
             />
           </TabsContent>
         </Tabs>

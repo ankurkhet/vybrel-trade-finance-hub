@@ -20,16 +20,20 @@ import {
   User,
   FileCheck,
   Brain,
+  Landmark,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
 import { DirectorsStep } from "@/components/onboarding/DirectorsStep";
+import { BankDetailsForm, emptyBankDetails } from "@/components/onboarding/BankDetailsForm";
+import type { BankDetails } from "@/components/onboarding/BankDetailsForm";
 import { emptyCompanyForm, emptyDirector } from "@/lib/onboarding-types";
 import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 
 const STEPS = [
   { id: "company", label: "Company Info", icon: Building2 },
   { id: "directors", label: "Directors & Signatories", icon: User },
+  { id: "bank", label: "Bank Details", icon: Landmark },
   { id: "documents", label: "Upload Documents", icon: Upload },
   { id: "review", label: "AI Review", icon: Brain },
   { id: "complete", label: "Complete", icon: FileCheck },
@@ -50,6 +54,9 @@ export default function BorrowerOnboarding() {
 
   // Directors
   const [directors, setDirectors] = useState<DirectorData[]>([]);
+
+  // Bank details
+  const [bankDetails, setBankDetails] = useState<BankDetails>({ ...emptyBankDetails });
 
   // Documents
   const [uploadedDocs, setUploadedDocs] = useState<Array<{ name: string; type: string }>>([]);
@@ -144,8 +151,13 @@ export default function BorrowerOnboarding() {
           <DirectorsStep directors={directors} onChange={setDirectors} />
         )}
 
-        {/* Step 3: Documents */}
+        {/* Step 3: Bank Details */}
         {step === 2 && (
+          <BankDetailsForm value={bankDetails} onChange={setBankDetails} />
+        )}
+
+        {/* Step 3: Documents */}
+        {step === 3 && (
           <Card>
             <CardHeader>
               <CardTitle>Upload Documents</CardTitle>
@@ -185,7 +197,7 @@ export default function BorrowerOnboarding() {
         )}
 
         {/* Step 4: AI Review */}
-        {step === 3 && (
+        {step === 4 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -228,7 +240,7 @@ export default function BorrowerOnboarding() {
         )}
 
         {/* Step 5: Complete */}
-        {step === 4 && (
+        {step === 5 && (
           <Card>
             <CardHeader className="text-center">
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
@@ -243,13 +255,13 @@ export default function BorrowerOnboarding() {
         )}
 
         {/* Navigation */}
-        {step < 4 && (
+        {step < 5 && (
           <div className="flex justify-between">
             <Button variant="outline" onClick={() => setStep(step - 1)} disabled={step === 0}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
-            <Button onClick={handleNext} disabled={step === 2 && uploadedDocs.length === 0}>
-              {step === 3 ? "Complete" : "Next"} <ArrowRight className="ml-2 h-4 w-4" />
+            <Button onClick={handleNext} disabled={step === 3 && uploadedDocs.length === 0}>
+              {step === 4 ? "Complete" : "Next"} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         )}
