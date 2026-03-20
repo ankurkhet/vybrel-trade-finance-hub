@@ -35,6 +35,34 @@ serve(async (req) => {
         });
       }
 
+      // TrueLayer uses its own edge function for health check
+      const isTrueLayer = (config.registry_name || "").toLowerCase().includes("truelayer");
+      if (isTrueLayer) {
+        try {
+          const tlRes = await fetch(`${supabaseUrl}/functions/v1/truelayer-name-verify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+            body: JSON.stringify({ action: "health_check" }),
+          });
+          const tlData = await tlRes.json();
+          healthStatus = tlData.status || "unhealthy";
+          healthMessage = tlData.message || "Unknown";
+        } catch (err) {
+          healthStatus = "unhealthy";
+          healthMessage = `TrueLayer health check error: ${err.message}`;
+        }
+
+        await supabase
+          .from("registry_api_configs")
+          .update({ health_status: healthStatus, health_message: healthMessage, last_health_check: new Date().toISOString() })
+          .eq("id", registry_id);
+
+        return new Response(
+          JSON.stringify({ status: healthStatus, message: healthMessage }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       const noAuthNeeded = config.api_key_secret_name === "NO_AUTH_NEEDED" || (!config.api_key_value && !Deno.env.get(config.api_key_secret_name));
       const apiKey = noAuthNeeded ? null : (config.api_key_value || Deno.env.get(config.api_key_secret_name));
       let healthStatus = "unhealthy";
