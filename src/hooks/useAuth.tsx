@@ -33,34 +33,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      if (!mounted) return;
       setSession(newSession);
       setUser(newSession?.user ?? null);
 
       if (newSession?.user) {
-        // Defer profile/role fetching to avoid deadlocks
-        setTimeout(async () => {
+        // Use queueMicrotask instead of setTimeout for more reliable timing
+        queueMicrotask(async () => {
+          if (!mounted) return;
           await fetchProfileAndRoles(newSession.user.id);
-        }, 0);
+          if (mounted) setLoading(false);
+        });
       } else {
         setProfile(null);
         setRoles([]);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: existingSession } }) => {
+      if (!mounted) return;
       setSession(existingSession);
       setUser(existingSession?.user ?? null);
       if (existingSession?.user) {
-        fetchProfileAndRoles(existingSession.user.id);
+        await fetchProfileAndRoles(existingSession.user.id);
       }
-      setLoading(false);
+      if (mounted) setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchProfileAndRoles = async (userId: string) => {

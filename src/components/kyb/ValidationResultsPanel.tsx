@@ -16,7 +16,14 @@ import {
 } from "lucide-react";
 
 interface ValidationResultsPanelProps {
-  borrowerData: any;
+  borrowerData?: any;
+  entityData?: {
+    id: string;
+    name: string;
+    country?: string;
+    bank_details?: any;
+  };
+  entityType?: "borrower" | "originator" | "funder" | "counterparty" | "broker";
   directors?: any[];
 }
 
@@ -48,7 +55,7 @@ interface NameVerifyResult {
   error?: string;
 }
 
-export function ValidationResultsPanel({ borrowerData, directors }: ValidationResultsPanelProps) {
+export function ValidationResultsPanel({ borrowerData, entityData, entityType = "borrower", directors }: ValidationResultsPanelProps) {
   const [sanctionsResults, setSanctionsResults] = useState<Record<string, SanctionsResult>>({});
   const [bankResult, setBankResult] = useState<BankValidationResult | null>(null);
   const [nameVerifyResult, setNameVerifyResult] = useState<NameVerifyResult | null>(null);
@@ -56,7 +63,14 @@ export function ValidationResultsPanel({ borrowerData, directors }: ValidationRe
   const [loadingBank, setLoadingBank] = useState(false);
   const [loadingNameVerify, setLoadingNameVerify] = useState(false);
 
-  const bankDetails = borrowerData?.bank_details || {};
+  // Support both legacy borrowerData and new entityData props
+  const entity = entityData || {
+    id: borrowerData?.id,
+    name: borrowerData?.company_name || "",
+    country: borrowerData?.country,
+    bank_details: borrowerData?.bank_details,
+  };
+  const bankDetails = entity.bank_details || borrowerData?.bank_details || {};
 
   const runSanctionsCheck = async (name: string, key: string, birthDate?: string) => {
     setLoadingSanctions(key);
@@ -66,7 +80,7 @@ export function ValidationResultsPanel({ borrowerData, directors }: ValidationRe
           action: "sanctions_check",
           name,
           birth_date: birthDate || undefined,
-          country: borrowerData?.country || undefined,
+          country: entity.country || borrowerData?.country || undefined,
         },
       });
       if (!error && data) {
@@ -103,7 +117,7 @@ export function ValidationResultsPanel({ borrowerData, directors }: ValidationRe
     try {
       const body: any = {
         action: "verify_name",
-        name: bankDetails.account_holder_name || borrowerData?.company_name || "",
+        name: bankDetails.account_holder_name || entity.name || borrowerData?.company_name || "",
       };
       if (bankDetails.iban) {
         body.iban = bankDetails.iban;
@@ -123,8 +137,8 @@ export function ValidationResultsPanel({ borrowerData, directors }: ValidationRe
     setLoadingNameVerify(false);
   };
 
-  const companyName = borrowerData?.company_name || "";
-  const companyKey = `company_${borrowerData?.id}`;
+  const companyName = entity.name || borrowerData?.company_name || "";
+  const companyKey = `${entityType}_${entity.id || borrowerData?.id}`;
   const hasBankDetails = bankDetails.iban || bankDetails.sort_code;
 
   return (
@@ -286,7 +300,7 @@ export function ValidationResultsPanel({ borrowerData, directors }: ValidationRe
             </div>
           ) : (
             <p className="text-sm text-muted-foreground py-4 text-center">
-              No bank details have been provided by this borrower yet.
+               No bank details have been provided yet.
             </p>
           )}
         </CardContent>
@@ -342,7 +356,7 @@ export function ValidationResultsPanel({ borrowerData, directors }: ValidationRe
             </div>
           ) : (
             <p className="text-sm text-muted-foreground py-4 text-center">
-              No bank details have been provided by this borrower yet.
+              No bank details have been provided yet.
             </p>
           )}
         </CardContent>

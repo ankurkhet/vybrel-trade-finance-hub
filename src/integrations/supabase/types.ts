@@ -975,44 +975,74 @@ export type Database = {
         Row: {
           borrower_id: string | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           document_type: Database["public"]["Enums"]["document_type"]
           file_name: string
           file_path: string
           file_size: number | null
           id: string
+          is_deleted: boolean
           metadata: Json | null
           mime_type: string | null
+          notes: string | null
           organization_id: string
+          parent_document_id: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
           updated_at: string
           uploaded_by: string | null
+          version: number
         }
         Insert: {
           borrower_id?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           document_type: Database["public"]["Enums"]["document_type"]
           file_name: string
           file_path: string
           file_size?: number | null
           id?: string
+          is_deleted?: boolean
           metadata?: Json | null
           mime_type?: string | null
+          notes?: string | null
           organization_id: string
+          parent_document_id?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
           updated_at?: string
           uploaded_by?: string | null
+          version?: number
         }
         Update: {
           borrower_id?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           document_type?: Database["public"]["Enums"]["document_type"]
           file_name?: string
           file_path?: string
           file_size?: number | null
           id?: string
+          is_deleted?: boolean
           metadata?: Json | null
           mime_type?: string | null
+          notes?: string | null
           organization_id?: string
+          parent_document_id?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
           updated_at?: string
           uploaded_by?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -1027,6 +1057,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_parent_document_id_fkey"
+            columns: ["parent_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
         ]
@@ -1439,6 +1476,69 @@ export type Database = {
           },
         ]
       }
+      messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          is_read: boolean
+          message_type: string
+          organization_id: string | null
+          parent_message_id: string | null
+          recipient_id: string
+          related_entity_id: string | null
+          related_entity_type: string | null
+          sender_id: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_type?: string
+          organization_id?: string | null
+          parent_message_id?: string | null
+          recipient_id: string
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          sender_id: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_type?: string
+          organization_id?: string | null
+          parent_message_id?: string | null
+          recipient_id?: string
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          sender_id?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_parent_message_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_contacts: {
         Row: {
           created_at: string
@@ -1486,54 +1586,72 @@ export type Database = {
       org_documents: {
         Row: {
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           document_label: string
           document_type: string
           file_name: string
           file_path: string
           file_size: number | null
           id: string
+          is_deleted: boolean
           mime_type: string | null
+          notes: string | null
           organization_id: string
+          parent_document_id: string | null
           review_notes: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
           updated_at: string
           uploaded_by: string | null
+          version: number
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           document_label: string
           document_type: string
           file_name: string
           file_path: string
           file_size?: number | null
           id?: string
+          is_deleted?: boolean
           mime_type?: string | null
+          notes?: string | null
           organization_id: string
+          parent_document_id?: string | null
           review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
           updated_at?: string
           uploaded_by?: string | null
+          version?: number
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           document_label?: string
           document_type?: string
           file_name?: string
           file_path?: string
           file_size?: number | null
           id?: string
+          is_deleted?: boolean
           mime_type?: string | null
+          notes?: string | null
           organization_id?: string
+          parent_document_id?: string | null
           review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
           updated_at?: string
           uploaded_by?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -1541,6 +1659,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_documents_parent_document_id_fkey"
+            columns: ["parent_document_id"]
+            isOneToOne: false
+            referencedRelation: "org_documents"
             referencedColumns: ["id"]
           },
         ]

@@ -25,6 +25,7 @@ import DataProcessingAgreement from "./pages/legal/DataProcessingAgreement";
 
 // Protected pages
 import Dashboard from "./pages/Dashboard";
+import Messages from "./pages/Messages";
 import AdminReports from "./pages/admin/Reports";
 import AdminOrganizations from "./pages/admin/Organizations";
 import AdminUsers from "./pages/admin/Users";
@@ -86,6 +87,7 @@ const App = () => (
 
               {/* Protected routes */}
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
 
               {/* Admin */}
               <Route path="/admin/organizations" element={<ProtectedRoute requiredRoles={["admin"]}><AdminOrganizations /></ProtectedRoute>} />

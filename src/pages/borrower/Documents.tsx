@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Loader2, CheckCircle2, XCircle, Clock, FileText, AlertCircle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Upload, Loader2, CheckCircle2, XCircle, Clock, FileText, AlertCircle, ChevronDown, ChevronRight, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -20,13 +21,31 @@ const DOC_TYPES = [
   { value: "other", label: "Other" },
 ];
 
+interface Doc {
+  id: string;
+  document_type: string;
+  file_name: string;
+  file_path: string;
+  file_size: number | null;
+  mime_type: string | null;
+  notes: string | null;
+  version: number;
+  status: string;
+  rejection_reason: string | null;
+  parent_document_id: string | null;
+  is_deleted: boolean;
+  created_at: string;
+}
+
 export default function BorrowerDocuments() {
-  const { user, profile } = useAuth();
-  const [docs, setDocs] = useState<any[]>([]);
+  const { user } = useAuth();
+  const [docs, setDocs] = useState<Doc[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [docType, setDocType] = useState<string>("kyc");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set(DOC_TYPES.map(d => d.value)));
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [borrower, setBorrower] = useState<any>(null);
 
   useEffect(() => {
     if (user) fetchDocs();
@@ -34,41 +53,30 @@ export default function BorrowerDocuments() {
 
   const fetchDocs = async () => {
     setLoading(true);
-    // Get borrower record for current user
-    const { data: borrower } = await supabase
+    const { data: b } = await supabase
       .from("borrowers")
       .select("id, organization_id")
       .eq("user_id", user!.id)
       .single();
 
-    if (!borrower) { setLoading(false); return; }
+    if (!b) { setLoading(false); return; }
+    setBorrower(b);
 
     const { data } = await supabase
       .from("documents")
       .select("*")
-      .eq("borrower_id", borrower.id)
+      .eq("borrower_id", b.id)
+      .eq("is_deleted", false)
       .order("created_at", { ascending: false });
 
-    setDocs(data || []);
+    setDocs((data || []) as Doc[]);
     setLoading(false);
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = async (docType: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setUploading(true);
-
-    const { data: borrower } = await supabase
-      .from("borrowers")
-      .select("id, organization_id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!borrower) {
-      toast.error("Borrower record not found");
-      setUploading(false);
-      return;
-    }
+    if (!file || !user || !borrower) return;
+    setUploading(docType);
 
     const filePath = `borrower/${borrower.id}/${Date.now()}_${file.name}`;
     const { error: uploadErr } = await supabase.storage
@@ -77,9 +85,13 @@ export default function BorrowerDocuments() {
 
     if (uploadErr) {
       toast.error(uploadErr.message);
-      setUploading(false);
+      setUploading(null);
       return;
     }
+
+    // Find existing docs of same type to determine version
+    const existingDocs = docs.filter(d => d.document_type === docType);
+    const maxVersion = existingDocs.length > 0 ? Math.max(...existingDocs.map(d => d.version)) : 0;
 
     const { error } = await supabase.from("documents").insert({
       organization_id: borrower.organization_id,
@@ -90,20 +102,45 @@ export default function BorrowerDocuments() {
       file_size: file.size,
       mime_type: file.type,
       uploaded_by: user.id,
+      notes: notes[docType] || null,
+      version: maxVersion + 1,
+      status: "pending",
     });
 
     if (error) toast.error(error.message);
     else toast.success(`"${file.name}" uploaded`);
 
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    setUploading(null);
+    setNotes(prev => ({ ...prev, [docType]: "" }));
+    if (fileInputRefs.current[docType]) fileInputRefs.current[docType]!.value = "";
     fetchDocs();
   };
 
-  const statusIcon = (type: string) => {
-    // Use metadata for review status if available
-    return <FileText className="h-4 w-4 text-muted-foreground" />;
+  const toggleType = (type: string) => {
+    setExpandedTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type); else next.add(type);
+      return next;
+    });
   };
+
+  const statusIcon = (status: string) => {
+    switch (status) {
+      case "approved": return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      case "rejected": return <XCircle className="h-4 w-4 text-destructive" />;
+      default: return <Clock className="h-4 w-4 text-yellow-600" />;
+    }
+  };
+
+  const statusBadgeVariant = (status: string): "default" | "destructive" | "secondary" => {
+    switch (status) {
+      case "approved": return "default";
+      case "rejected": return "destructive";
+      default: return "secondary";
+    }
+  };
+
+  const getDocsForType = (type: string) => docs.filter(d => d.document_type === type);
 
   return (
     <DashboardLayout>
@@ -113,70 +150,126 @@ export default function BorrowerDocuments() {
           <p className="text-sm text-muted-foreground">Upload and manage your KYC & compliance documents</p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Upload Document</CardTitle>
-            <CardDescription>Submit required documents for review</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Document Type</Label>
-                <Select value={docType} onValueChange={setDocType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {DOC_TYPES.map((d) => (
-                      <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div>
-              <input ref={fileInputRef} type="file" className="hidden" onChange={handleUpload}
-                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" />
-              <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                {uploading ? "Uploading..." : "Choose File & Upload"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {loading ? (
+          <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+        ) : (
+          <div className="space-y-4">
+            {DOC_TYPES.map((docType) => {
+              const typeDocs = getDocsForType(docType.value);
+              const isOpen = expandedTypes.has(docType.value);
+              const latestDoc = typeDocs[0];
+              const hasRejected = typeDocs.some(d => d.status === "rejected");
+              const hasApproved = typeDocs.some(d => d.status === "approved");
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Submitted Documents</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-            ) : docs.length === 0 ? (
-              <div className="flex flex-col items-center py-8">
-                <FileText className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">No documents uploaded yet</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {docs.map((doc) => (
-                  <div key={doc.id} className="flex items-center justify-between rounded-lg border p-3">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{doc.file_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {doc.document_type.replace(/_/g, " ")} · {new Date(doc.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="text-xs capitalize">
-                      {doc.document_type.replace(/_/g, " ")}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              return (
+                <Card key={docType.value}>
+                  <Collapsible open={isOpen} onOpenChange={() => toggleType(docType.value)}>
+                    <CollapsibleTrigger asChild>
+                      <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors py-4">
+                        <CardTitle className="flex items-center gap-3 text-sm font-medium">
+                          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          <FileText className="h-4 w-4 text-primary" />
+                          {docType.label}
+                          <div className="ml-auto flex items-center gap-2">
+                            {typeDocs.length > 0 && (
+                              <Badge variant="secondary" className="text-[10px]">
+                                {typeDocs.length} upload{typeDocs.length !== 1 ? "s" : ""}
+                              </Badge>
+                            )}
+                            {hasApproved && <Badge className="bg-green-600 text-[10px]">Approved</Badge>}
+                            {hasRejected && !hasApproved && <Badge variant="destructive" className="text-[10px]">Action Required</Badge>}
+                            {!latestDoc && <Badge variant="outline" className="text-[10px]">Not uploaded</Badge>}
+                          </div>
+                        </CardTitle>
+                      </CardHeader>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <CardContent className="pt-0 space-y-4">
+                        {/* Rejection notice */}
+                        {latestDoc?.status === "rejected" && latestDoc.rejection_reason && (
+                          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                              <div>
+                                <p className="text-sm font-medium text-destructive">Document Rejected</p>
+                                <p className="text-xs text-muted-foreground mt-1">{latestDoc.rejection_reason}</p>
+                                <p className="text-xs text-muted-foreground mt-1">Please upload a corrected version below.</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Upload section */}
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <div className="flex-1 space-y-1.5">
+                            <Label className="text-xs">Notes (optional)</Label>
+                            <Input
+                              placeholder="e.g. Q4 2025 statements"
+                              value={notes[docType.value] || ""}
+                              onChange={(e) => setNotes(prev => ({ ...prev, [docType.value]: e.target.value }))}
+                            />
+                          </div>
+                          <div className="flex items-end">
+                            <input
+                              ref={(el) => { fileInputRefs.current[docType.value] = el; }}
+                              type="file"
+                              className="hidden"
+                              onChange={(e) => handleUpload(docType.value, e)}
+                              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => fileInputRefs.current[docType.value]?.click()}
+                              disabled={uploading === docType.value}
+                            >
+                              {uploading === docType.value ? (
+                                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Upload className="mr-2 h-3.5 w-3.5" />
+                              )}
+                              Upload
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Document history */}
+                        {typeDocs.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <History className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="text-xs font-medium text-muted-foreground">Upload History</span>
+                            </div>
+                            {typeDocs.map((doc) => (
+                              <div key={doc.id} className="flex items-center justify-between rounded-lg border p-3">
+                                <div className="flex items-center gap-3">
+                                  {statusIcon(doc.status)}
+                                  <div>
+                                    <p className="text-sm font-medium text-foreground">{doc.file_name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      v{doc.version} · {new Date(doc.created_at).toLocaleDateString()}
+                                      {doc.notes && ` · ${doc.notes}`}
+                                    </p>
+                                    {doc.status === "rejected" && doc.rejection_reason && (
+                                      <p className="text-xs text-destructive mt-0.5">Reason: {doc.rejection_reason}</p>
+                                    )}
+                                  </div>
+                                </div>
+                                <Badge variant={statusBadgeVariant(doc.status)} className="text-xs capitalize">
+                                  {doc.status}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

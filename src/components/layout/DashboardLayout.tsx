@@ -33,6 +33,7 @@ import {
   Receipt,
   ArrowDownUp,
   UserPlus,
+  MessageSquare,
 } from "lucide-react";
 import { Gavel, Workflow, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", show: true },
+    { icon: MessageSquare, label: "Messages", path: "/messages", show: true },
     // Admin
     { icon: Building2, label: "Organizations", path: "/admin/organizations", show: isAdmin },
     { icon: Users, label: "All Users", path: "/admin/users", show: isAdmin },
