@@ -20,10 +20,13 @@ import {
   User,
   FileCheck,
   Brain,
+  Landmark,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
 import { DirectorsStep } from "@/components/onboarding/DirectorsStep";
+import { BankDetailsForm, emptyBankDetails } from "@/components/onboarding/BankDetailsForm";
+import type { BankDetails } from "@/components/onboarding/BankDetailsForm";
 import { emptyCompanyForm, emptyDirector } from "@/lib/onboarding-types";
 import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 
