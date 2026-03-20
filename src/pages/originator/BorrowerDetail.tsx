@@ -260,6 +260,13 @@ export default function BorrowerDetail() {
               borrowerData={borrower}
             />
           </TabsContent>
+
+          <TabsContent value="validation" className="mt-6">
+            <ValidationResultsPanel
+              borrowerData={borrower}
+              directors={directors}
+            />
+          </TabsContent>
         </Tabs>
       </div>
 
