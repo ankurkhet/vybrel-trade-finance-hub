@@ -369,19 +369,19 @@ function normalizeCkanRecords(records: any[], _registry: any): any {
 
 // ─── REST helpers (existing) ────────────────────────────────────────
 
-function getHealthCheckUrl(countryCode: string, baseUrl: string, registryName?: string): string {
+function getHealthCheckUrl(countryCode: string, baseUrl: string, registryName?: string, apiKey?: string | null): string {
   // Handle specific registries by name first
   const name = (registryName || "").toLowerCase();
   if (name.includes("openiban")) {
     return `${baseUrl.replace(/\/+$/, "")}/validate/DE89370400440532013000`;
   }
   if (name.includes("sortcode")) {
-    // Just verify the site is reachable
     return baseUrl.replace(/\/+$/, "");
   }
   if (name.includes("financial modeling") || name.includes("fmp")) {
-    // FMP requires apikey param even for health check
-    return `${baseUrl.replace(/\/+$/, "")}/stock/list?apikey=demo`;
+    // FMP uses query-param auth, not headers
+    const key = apiKey || "demo";
+    return `${baseUrl.replace(/\/+$/, "")}/stock/list?apikey=${encodeURIComponent(key)}`;
   }
   if (name.includes("creditsafe")) {
     return `${baseUrl.replace(/\/+$/, "")}/authenticate`;
@@ -397,6 +397,11 @@ function getHealthCheckUrl(countryCode: string, baseUrl: string, registryName?: 
     default:
       return baseUrl;
   }
+}
+
+function isFmpRegistry(registryName?: string): boolean {
+  const name = (registryName || "").toLowerCase();
+  return name.includes("financial modeling") || name.includes("fmp");
 }
 
 function getAuthHeaders(countryCode: string, apiKey: string): Record<string, string> {
