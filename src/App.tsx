@@ -59,6 +59,8 @@ import CreditCommitteeApplicationDetail from "./pages/originator/CreditCommittee
 import WorkflowStudio from "./pages/admin/WorkflowStudio";
 import RegistryApis from "./pages/admin/RegistryApis";
 import BorrowerDetail from "./pages/originator/BorrowerDetail";
+import CreditMemos from "./pages/originator/CreditMemos";
+import CreditMemoDetail from "./pages/originator/CreditMemoDetail";
 
 const queryClient = new QueryClient();
 
@@ -115,6 +117,8 @@ const App = () => (
               <Route path="/originator/credit-committee" element={<ProtectedRoute requiredRoles={["originator_admin", "credit_committee_member"]}><CreditCommittee /></ProtectedRoute>} />
               <Route path="/originator/credit-committee/config" element={<ProtectedRoute requiredRoles={["originator_admin"]}><CreditCommitteeConfig /></ProtectedRoute>} />
               <Route path="/originator/credit-committee/applications/:id" element={<ProtectedRoute requiredRoles={["originator_admin", "credit_committee_member"]}><CreditCommitteeApplicationDetail /></ProtectedRoute>} />
+              <Route path="/originator/credit-memos" element={<ProtectedRoute requiredRoles={["originator_admin"]}><CreditMemos /></ProtectedRoute>} />
+              <Route path="/originator/credit-memos/:id" element={<ProtectedRoute requiredRoles={["originator_admin"]}><CreditMemoDetail /></ProtectedRoute>} />
 
               {/* Broker (reuses originator components with read-only fee config) */}
               <Route path="/broker/borrowers" element={<ProtectedRoute requiredRoles={["broker_admin"]}><OriginatorBorrowers /></ProtectedRoute>} />
