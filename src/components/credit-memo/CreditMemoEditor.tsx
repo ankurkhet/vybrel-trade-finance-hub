@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Sparkles, Save, Send, FileText, AlertTriangle, CheckCircle2, RotateCcw } from "lucide-react";
+import { Loader2, Sparkles, Save, Send, FileText, AlertTriangle, CheckCircle2, RotateCcw, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { generateCreditMemo } from "@/lib/ai-services";
 
