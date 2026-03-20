@@ -157,7 +157,7 @@ export default function BorrowerOnboarding() {
         )}
 
         {/* Step 3: Documents */}
-        {step === 2 && (
+        {step === 3 && (
           <Card>
             <CardHeader>
               <CardTitle>Upload Documents</CardTitle>
