@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
 import { DirectorsStep } from "@/components/onboarding/DirectorsStep";
 import { RegistryVerificationTab } from "@/components/kyb/RegistryVerificationTab";
+import { ValidationResultsPanel } from "@/components/kyb/ValidationResultsPanel";
 import { emptyCompanyForm, emptyDirector, COUNTRIES } from "@/lib/onboarding-types";
 import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 
