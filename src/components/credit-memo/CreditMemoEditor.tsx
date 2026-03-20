@@ -115,8 +115,8 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
       case "draft": return "outline";
       case "ai_generated": return "secondary";
       case "under_review": return "default";
-      case "finalized": return "default";
       case "approved": return "default";
+      case "rejected": return "destructive";
       default: return "outline";
     }
   };
