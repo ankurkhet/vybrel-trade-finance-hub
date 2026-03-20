@@ -44,11 +44,12 @@ serve(async (req) => {
       // Allow health check if we have an API key, it's CKAN, or no auth is needed
       if (apiKey || isCkan || noAuthNeeded) {
         try {
+          const isFmp = isFmpRegistry(config.registry_name);
           const testUrl = isCkan
             ? getCkanHealthCheckUrl(config)
-            : getHealthCheckUrl(config.country_code, config.api_base_url, config.registry_name);
+            : getHealthCheckUrl(config.country_code, config.api_base_url, config.registry_name, apiKey);
           const testHeaders: Record<string, string> = {};
-          if (apiKey && !noAuthNeeded) {
+          if (apiKey && !noAuthNeeded && !isFmp) {
             Object.assign(testHeaders, isCkan ? getCkanHeaders(apiKey) : getAuthHeaders(config.country_code, apiKey));
           }
           console.log(`Health check URL: ${testUrl}, noAuth: ${noAuthNeeded}`);
@@ -369,19 +370,20 @@ function normalizeCkanRecords(records: any[], _registry: any): any {
 
 // ─── REST helpers (existing) ────────────────────────────────────────
 
-function getHealthCheckUrl(countryCode: string, baseUrl: string, registryName?: string): string {
+function getHealthCheckUrl(countryCode: string, baseUrl: string, registryName?: string, apiKey?: string | null): string {
   // Handle specific registries by name first
   const name = (registryName || "").toLowerCase();
   if (name.includes("openiban")) {
     return `${baseUrl.replace(/\/+$/, "")}/validate/DE89370400440532013000`;
   }
   if (name.includes("sortcode")) {
-    // Just verify the site is reachable
     return baseUrl.replace(/\/+$/, "");
   }
   if (name.includes("financial modeling") || name.includes("fmp")) {
-    // FMP requires apikey param even for health check
-    return `${baseUrl.replace(/\/+$/, "")}/stock/list?apikey=demo`;
+    // FMP uses query-param auth and stable API endpoints
+    const key = apiKey || "demo";
+    const stableBase = baseUrl.replace(/\/+$/, "").replace(/\/api\/v[0-9]+$/, "");
+    return `${stableBase}/stable/profile?symbol=AAPL&apikey=${encodeURIComponent(key)}`;
   }
   if (name.includes("creditsafe")) {
     return `${baseUrl.replace(/\/+$/, "")}/authenticate`;
@@ -397,6 +399,11 @@ function getHealthCheckUrl(countryCode: string, baseUrl: string, registryName?: 
     default:
       return baseUrl;
   }
+}
+
+function isFmpRegistry(registryName?: string): boolean {
+  const name = (registryName || "").toLowerCase();
+  return name.includes("financial modeling") || name.includes("fmp");
 }
 
 function getAuthHeaders(countryCode: string, apiKey: string): Record<string, string> {
