@@ -59,6 +59,8 @@ import CreditCommitteeApplicationDetail from "./pages/originator/CreditCommittee
 import WorkflowStudio from "./pages/admin/WorkflowStudio";
 import RegistryApis from "./pages/admin/RegistryApis";
 import BorrowerDetail from "./pages/originator/BorrowerDetail";
+import CreditMemos from "./pages/originator/CreditMemos";
+import CreditMemoDetail from "./pages/originator/CreditMemoDetail";
 
 const queryClient = new QueryClient();
 
