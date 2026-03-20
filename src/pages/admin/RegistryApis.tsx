@@ -137,6 +137,7 @@ export default function RegistryApis() {
       country_code: config.country_code,
       country_name: config.country_name,
       registry_name: config.registry_name,
+      client_id: config.client_id || "",
       api_base_url: config.api_base_url,
       api_key_secret_name: config.api_key_secret_name,
       api_key_value: config.api_key_value || "",
