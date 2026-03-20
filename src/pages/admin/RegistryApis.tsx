@@ -201,18 +201,47 @@ export default function RegistryApis() {
                 </TableHeader>
                 <TableBody>
                   {(() => {
-                    const financialTools = configs.filter(c =>
-                      (c.capabilities || []).some((cap: string) => ["financial_data", "credit_scores", "financial_statements"].includes(cap))
-                    );
-                    const companyRegistries = configs.filter(c => 
-                      !(c.capabilities || []).some((cap: string) => ["sanctions_screening", "pep_screening", "iban_validation", "sort_code_validation", "financial_data", "credit_scores", "financial_statements"].includes(cap))
-                    );
-                    const sanctionsTools = configs.filter(c =>
-                      (c.capabilities || []).some((cap: string) => ["sanctions_screening", "pep_screening"].includes(cap))
-                    );
-                    const bankTools = configs.filter(c =>
-                      (c.capabilities || []).some((cap: string) => ["iban_validation", "sort_code_validation"].includes(cap))
-                    );
+                    const SANCTIONS_CAPS = ["sanctions_screening", "pep_screening"];
+                    const BANK_CAPS = ["iban_validation", "sort_code_validation", "account_name_verification"];
+                    const FINANCIAL_CAPS = ["financial_data", "credit_scores", "financial_statements"];
+
+                    const hasCap = (c: any, caps: string[]) =>
+                      (c.capabilities || []).some((cap: string) => caps.includes(cap));
+
+                    const categorize = (c: any): string => {
+                      if (hasCap(c, SANCTIONS_CAPS)) return "Sanctions Screening";
+                      if (hasCap(c, BANK_CAPS)) return "Bank Account Validation";
+                      if (hasCap(c, FINANCIAL_CAPS)) return "Financial Inputs";
+                      return "Company Registries";
+                    };
+
+                    // Sort: active+unhealthy first, active+healthy, inactive+healthy, inactive+unhealthy/unknown
+                    const sortOrder = (c: any): number => {
+                      const active = c.is_active;
+                      const healthy = c.health_status === "healthy";
+                      const unhealthy = c.health_status === "unhealthy";
+                      if (active && unhealthy) return 0;
+                      if (active && healthy) return 1;
+                      if (active) return 2; // unknown
+                      if (!active && healthy) return 3;
+                      if (!active && unhealthy) return 4;
+                      return 5; // inactive unknown
+                    };
+
+                    const sortedConfigs = [...configs].sort((a, b) => {
+                      const oa = sortOrder(a);
+                      const ob = sortOrder(b);
+                      if (oa !== ob) return oa - ob;
+                      return (a.country_name || "").localeCompare(b.country_name || "");
+                    });
+
+                    const sectionOrder = ["Company Registries", "Financial Inputs", "Sanctions Screening", "Bank Account Validation"];
+                    const grouped: Record<string, any[]> = {};
+                    for (const c of sortedConfigs) {
+                      const cat = categorize(c);
+                      if (!grouped[cat]) grouped[cat] = [];
+                      grouped[cat].push(c);
+                    }
 
                     const renderRows = (items: any[]) => items.map((c) => (
                       <TableRow key={c.id}>
@@ -281,46 +310,20 @@ export default function RegistryApis() {
 
                     return (
                       <>
-                        {companyRegistries.length > 0 && (
-                          <>
-                            <TableRow>
-                              <TableCell colSpan={8} className="bg-muted/50 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Company Registries
-                              </TableCell>
-                            </TableRow>
-                            {renderRows(companyRegistries)}
-                          </>
-                        )}
-                        {financialTools.length > 0 && (
-                          <>
-                            <TableRow>
-                              <TableCell colSpan={8} className="bg-muted/50 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Financial Inputs
-                              </TableCell>
-                            </TableRow>
-                            {renderRows(financialTools)}
-                          </>
-                        )}
-                        {sanctionsTools.length > 0 && (
-                          <>
-                            <TableRow>
-                              <TableCell colSpan={8} className="bg-muted/50 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Sanctions Screening
-                              </TableCell>
-                            </TableRow>
-                            {renderRows(sanctionsTools)}
-                          </>
-                        )}
-                        {bankTools.length > 0 && (
-                          <>
-                            <TableRow>
-                              <TableCell colSpan={8} className="bg-muted/50 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Bank Account Validation
-                              </TableCell>
-                            </TableRow>
-                            {renderRows(bankTools)}
-                          </>
-                        )}
+                        {sectionOrder.map((section) => {
+                          const items = grouped[section];
+                          if (!items || items.length === 0) return null;
+                          return (
+                            <React.Fragment key={section}>
+                              <TableRow>
+                                <TableCell colSpan={8} className="bg-muted/50 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                  {section}
+                                </TableCell>
+                              </TableRow>
+                              {renderRows(items)}
+                            </React.Fragment>
+                          );
+                        })}
                       </>
                     );
                   })()}
