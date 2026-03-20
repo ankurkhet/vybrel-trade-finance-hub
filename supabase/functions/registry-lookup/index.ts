@@ -161,11 +161,12 @@ serve(async (req) => {
     const results: any[] = [];
 
     for (const registry of activeRegistries) {
-      const apiKey = registry.api_key_value || Deno.env.get(registry.api_key_secret_name);
+      const noAuth = registry.api_key_secret_name === "NO_AUTH_NEEDED";
+      const apiKey = noAuth ? null : (registry.api_key_value || Deno.env.get(registry.api_key_secret_name));
       const isCkan = registry.registry_type === "ckan";
 
-      // CKAN portals may not need API keys
-      if (!apiKey && !isCkan) {
+      // CKAN portals and no-auth APIs don't need keys
+      if (!apiKey && !isCkan && !noAuth) {
         results.push({
           registry: registry.registry_name,
           error: `API key ${registry.api_key_secret_name} not configured`,
