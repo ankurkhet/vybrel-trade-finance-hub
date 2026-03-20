@@ -145,7 +145,8 @@ export default function CreditMemos() {
               <SelectItem value="draft">Draft</SelectItem>
               <SelectItem value="ai_generated">AI Generated</SelectItem>
               <SelectItem value="under_review">Under Review</SelectItem>
-              <SelectItem value="approved">Finalized</SelectItem>
+              <SelectItem value="submitted_to_committee">With Committee</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>

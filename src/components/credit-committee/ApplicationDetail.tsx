@@ -134,10 +134,33 @@ export function ApplicationDetail({ applicationId }: Props) {
           await supabase.from("credit_committee_applications").update({
             status: "approved", decision: "approved", reviewed_at: new Date().toISOString(),
           }).eq("id", applicationId);
+
+          // Assign proposed credit limit to borrower and update memo status
+          const metadata = application?.metadata as any;
+          if (metadata?.proposed_limit && application?.borrower_id) {
+            await supabase.from("borrowers").update({
+              credit_limit: metadata.proposed_limit,
+            }).eq("id", application.borrower_id);
+          }
+          if (metadata?.credit_memo_id) {
+            await supabase.from("credit_memos").update({
+              status: "approved",
+              approved_by: user!.id,
+              approved_at: new Date().toISOString(),
+            }).eq("id", metadata.credit_memo_id);
+          }
         } else if (totalReject >= needed) {
           await supabase.from("credit_committee_applications").update({
             status: "rejected", decision: "rejected", reviewed_at: new Date().toISOString(),
           }).eq("id", applicationId);
+
+          // Update memo status back to rejected
+          const metadata = application?.metadata as any;
+          if (metadata?.credit_memo_id) {
+            await supabase.from("credit_memos").update({
+              status: "rejected",
+            }).eq("id", metadata.credit_memo_id);
+          }
         } else if (voteChoice === "request_info") {
           await supabase.from("credit_committee_applications").update({ status: "pending_info" }).eq("id", applicationId);
         } else {
