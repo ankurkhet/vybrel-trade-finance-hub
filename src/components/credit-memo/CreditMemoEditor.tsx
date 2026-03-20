@@ -230,7 +230,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
                     onChange={(e) => setEditedText(e.target.value)}
                     className="min-h-[600px] font-mono text-sm leading-relaxed"
                     placeholder="Credit memo content will appear here after generation..."
-                    disabled={activeMemo.status === "finalized" || activeMemo.status === "approved"}
+                    disabled={activeMemo.status === "approved"}
                   />
                 </CardContent>
               </Card>
