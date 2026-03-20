@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, ArrowLeft, Building2, Users, FileCheck, Shield, Plus, Save, Send } from "lucide-react";
+import { Loader2, ArrowLeft, Building2, Users, FileCheck, Shield, Plus, Save, Send, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
 import { DirectorsStep } from "@/components/onboarding/DirectorsStep";
