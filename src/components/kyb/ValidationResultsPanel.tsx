@@ -300,7 +300,7 @@ export function ValidationResultsPanel({ borrowerData, entityData, entityType = 
             </div>
           ) : (
             <p className="text-sm text-muted-foreground py-4 text-center">
-              No bank details have been provided by this borrower yet.
+               No bank details have been provided yet.
             </p>
           )}
         </CardContent>
