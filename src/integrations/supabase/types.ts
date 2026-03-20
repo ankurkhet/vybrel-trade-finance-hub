@@ -2335,6 +2335,7 @@ export type Database = {
         | "under_review"
         | "approved"
         | "rejected"
+        | "submitted_to_committee"
       document_type:
         | "kyc"
         | "financial_statement"
@@ -2524,6 +2525,7 @@ export const Constants = {
         "under_review",
         "approved",
         "rejected",
+        "submitted_to_committee",
       ],
       document_type: [
         "kyc",
