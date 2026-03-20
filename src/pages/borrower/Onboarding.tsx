@@ -55,6 +55,9 @@ export default function BorrowerOnboarding() {
   // Directors
   const [directors, setDirectors] = useState<DirectorData[]>([]);
 
+  // Bank details
+  const [bankDetails, setBankDetails] = useState<BankDetails>({ ...emptyBankDetails });
+
   // Documents
   const [uploadedDocs, setUploadedDocs] = useState<Array<{ name: string; type: string }>>([]);
   const [aiResults, setAiResults] = useState<any[]>([]);
