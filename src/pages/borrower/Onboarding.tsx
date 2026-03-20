@@ -151,6 +151,11 @@ export default function BorrowerOnboarding() {
           <DirectorsStep directors={directors} onChange={setDirectors} />
         )}
 
+        {/* Step 3: Bank Details */}
+        {step === 2 && (
+          <BankDetailsForm value={bankDetails} onChange={setBankDetails} />
+        )}
+
         {/* Step 3: Documents */}
         {step === 2 && (
           <Card>
