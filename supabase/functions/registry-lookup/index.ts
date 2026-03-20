@@ -44,11 +44,12 @@ serve(async (req) => {
       // Allow health check if we have an API key, it's CKAN, or no auth is needed
       if (apiKey || isCkan || noAuthNeeded) {
         try {
+          const isFmp = isFmpRegistry(config.registry_name);
           const testUrl = isCkan
             ? getCkanHealthCheckUrl(config)
-            : getHealthCheckUrl(config.country_code, config.api_base_url, config.registry_name);
+            : getHealthCheckUrl(config.country_code, config.api_base_url, config.registry_name, apiKey);
           const testHeaders: Record<string, string> = {};
-          if (apiKey && !noAuthNeeded) {
+          if (apiKey && !noAuthNeeded && !isFmp) {
             Object.assign(testHeaders, isCkan ? getCkanHeaders(apiKey) : getAuthHeaders(config.country_code, apiKey));
           }
           console.log(`Health check URL: ${testUrl}, noAuth: ${noAuthNeeded}`);
