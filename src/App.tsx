@@ -25,6 +25,7 @@ import DataProcessingAgreement from "./pages/legal/DataProcessingAgreement";
 
 // Protected pages
 import Dashboard from "./pages/Dashboard";
+import Messages from "./pages/Messages";
 import AdminReports from "./pages/admin/Reports";
 import AdminOrganizations from "./pages/admin/Organizations";
 import AdminUsers from "./pages/admin/Users";
