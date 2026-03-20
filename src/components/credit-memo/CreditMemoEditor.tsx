@@ -190,7 +190,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
                 )}
               </div>
               <div className="flex gap-2">
-                {activeMemo.status !== "finalized" && activeMemo.status !== "approved" && (
+                {activeMemo.status !== "approved" && (
                   <>
                     <Button variant="outline" size="sm" onClick={handleSave} disabled={saving}>
                       {saving ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Save className="mr-1 h-3 w-3" />}
@@ -202,7 +202,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
                     </Button>
                   </>
                 )}
-                {activeMemo.status === "finalized" && (
+                {activeMemo.status === "approved" && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <CheckCircle2 className="h-4 w-4 text-[hsl(var(--chart-2))]" />
                     Finalized — ready for Credit Committee
