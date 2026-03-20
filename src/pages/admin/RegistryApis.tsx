@@ -26,6 +26,7 @@ export default function RegistryApis() {
     country_code: "",
     country_name: "",
     registry_name: "",
+    client_id: "",
     api_base_url: "",
     api_key_secret_name: "",
     api_key_value: "",
