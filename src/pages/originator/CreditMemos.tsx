@@ -16,7 +16,8 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   draft: { label: "Draft", variant: "outline" },
   ai_generated: { label: "AI Generated", variant: "secondary" },
   under_review: { label: "Under Review", variant: "default" },
-  approved: { label: "Finalized", variant: "default" },
+  submitted_to_committee: { label: "With Committee", variant: "secondary" },
+  approved: { label: "Approved", variant: "default" },
   rejected: { label: "Rejected", variant: "destructive" },
 };
 
