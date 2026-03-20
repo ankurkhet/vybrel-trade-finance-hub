@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Sparkles, Save, Send, FileText, AlertTriangle, CheckCircle2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
@@ -18,9 +21,11 @@ interface CreditMemoEditorProps {
 
 export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: CreditMemoEditorProps) {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [memos, setMemos] = useState<any[]>([]);
   const [activeMemo, setActiveMemo] = useState<any>(null);
   const [editedText, setEditedText] = useState("");
+  const [proposedLimit, setProposedLimit] = useState("");
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -40,6 +45,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
     if (data && data.length > 0) {
       setActiveMemo(data[0]);
       setEditedText(data[0].analyst_edits || data[0].ai_draft || "");
+      setProposedLimit(data[0].recommended_limit?.toString() || "");
     }
     setLoading(false);
   };
@@ -67,6 +73,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
       .from("credit_memos")
       .update({
         analyst_edits: editedText,
+        recommended_limit: proposedLimit ? Number(proposedLimit) : null,
         status: "under_review",
       })
       .eq("id", activeMemo.id);
@@ -79,23 +86,54 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
     setSaving(false);
   };
 
-  const handleFinalize = async () => {
+  const handleSubmitToCommittee = async () => {
     if (!activeMemo) return;
+    if (!proposedLimit || Number(proposedLimit) <= 0) {
+      toast.error("Please enter a proposed credit limit before submitting to the committee.");
+      return;
+    }
     setSaving(true);
-    const { error } = await supabase
-      .from("credit_memos")
-      .update({
-        final_memo: editedText,
-        status: "approved",
-        reviewed_by: profile?.user_id,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", activeMemo.id);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Credit memo finalized and ready for committee");
+    try {
+      // Update memo status
+      const { error: memoError } = await supabase
+        .from("credit_memos")
+        .update({
+          analyst_edits: editedText,
+          recommended_limit: Number(proposedLimit),
+          final_memo: editedText,
+          status: "submitted_to_committee",
+          reviewed_by: profile?.user_id,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", activeMemo.id);
+      if (memoError) throw memoError;
+
+      // Auto-create a credit committee application
+      const appNum = `CC-${Date.now().toString(36).toUpperCase()}`;
+      const { error: appError } = await supabase
+        .from("credit_committee_applications")
+        .insert({
+          organization_id: organizationId,
+          type: "credit_limit",
+          borrower_id: borrowerId,
+          debtor_name: borrowerName,
+          application_number: appNum,
+          status: "submitted",
+          submitted_at: new Date().toISOString(),
+          created_by: profile?.user_id,
+          metadata: {
+            credit_memo_id: activeMemo.id,
+            proposed_limit: Number(proposedLimit),
+            risk_rating: activeMemo.risk_rating,
+            memo_number: activeMemo.memo_number,
+          },
+        });
+      if (appError) throw appError;
+
+      toast.success("Credit memo submitted to committee for approval");
       await fetchMemos();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit to committee");
     }
     setSaving(false);
   };
