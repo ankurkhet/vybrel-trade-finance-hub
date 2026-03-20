@@ -1,0 +1,1 @@
+ALTER TABLE public.registry_api_configs ADD COLUMN IF NOT EXISTS client_id text DEFAULT NULL;

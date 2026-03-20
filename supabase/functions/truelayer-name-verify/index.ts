@@ -6,8 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const TRUELAYER_CLIENT_ID = "sandbox-vybre1-74baba";
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -17,18 +15,44 @@ serve(async (req) => {
     const body = await req.json();
     const { action } = body;
 
+    // Resolve client_id: prefer body param, then DB lookup, then env fallback
+    const resolveClientId = async (): Promise<string | null> => {
+      if (body.client_id) return body.client_id;
+
+      // Try to read from registry_api_configs
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const supabase = createClient(supabaseUrl, serviceRoleKey);
+        const { data } = await supabase
+          .from("registry_api_configs")
+          .select("client_id")
+          .ilike("registry_name", "%truelayer%")
+          .not("client_id", "is", null)
+          .limit(1)
+          .single();
+        if (data?.client_id) return data.client_id;
+      } catch { /* ignore */ }
+
+      return null;
+    };
+
     // ─── Health check ───────────────────────────────────────────
     if (action === "health_check") {
       const clientSecret = Deno.env.get("TRUELAYER_CLIENT_SECRET");
       if (!clientSecret) {
         return json({ status: "unhealthy", message: "TRUELAYER_CLIENT_SECRET not configured" });
       }
+      const clientId = await resolveClientId();
+      if (!clientId) {
+        return json({ status: "unhealthy", message: "TrueLayer Client ID not configured. Set it in the Registry edit modal." });
+      }
       try {
-        const token = await getAccessToken(clientSecret);
+        const token = await getAccessToken(clientId, clientSecret);
         if (token) {
           return json({ status: "healthy", message: "OAuth2 token obtained successfully" });
         }
-        return json({ status: "unhealthy", message: "Failed to obtain OAuth2 token" });
+        return json({ status: "unhealthy", message: "Failed to obtain OAuth2 token – check Client ID & Secret" });
       } catch (err) {
         return json({ status: "unhealthy", message: `Auth error: ${err.message}` });
       }
@@ -50,7 +74,12 @@ serve(async (req) => {
         return json({ error: "TRUELAYER_CLIENT_SECRET not configured" }, 500);
       }
 
-      const token = await getAccessToken(clientSecret);
+      const clientId = await resolveClientId();
+      if (!clientId) {
+        return json({ error: "TrueLayer Client ID not configured. Set it in the Registry edit modal." }, 500);
+      }
+
+      const token = await getAccessToken(clientId, clientSecret);
       if (!token) {
         return json({ error: "Failed to obtain TrueLayer access token" }, 500);
       }
@@ -151,13 +180,13 @@ serve(async (req) => {
 
 // ─── OAuth2 Client Credentials ──────────────────────────────────────
 
-async function getAccessToken(clientSecret: string): Promise<string | null> {
+async function getAccessToken(clientId: string, clientSecret: string): Promise<string | null> {
   const tokenRes = await fetch("https://auth.truelayer-sandbox.com/connect/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "client_credentials",
-      client_id: TRUELAYER_CLIENT_ID,
+      client_id: clientId,
       client_secret: clientSecret,
       scope: "verification",
     }),

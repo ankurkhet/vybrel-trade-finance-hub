@@ -1742,6 +1742,7 @@ export type Database = {
           ckan_resource_id: string | null
           ckan_search_action: string | null
           ckan_show_action: string | null
+          client_id: string | null
           country_code: string
           country_name: string
           created_at: string
@@ -1764,6 +1765,7 @@ export type Database = {
           ckan_resource_id?: string | null
           ckan_search_action?: string | null
           ckan_show_action?: string | null
+          client_id?: string | null
           country_code: string
           country_name: string
           created_at?: string
@@ -1786,6 +1788,7 @@ export type Database = {
           ckan_resource_id?: string | null
           ckan_search_action?: string | null
           ckan_show_action?: string | null
+          client_id?: string | null
           country_code?: string
           country_name?: string
           created_at?: string
