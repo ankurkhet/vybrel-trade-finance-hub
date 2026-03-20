@@ -218,37 +218,69 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
                     Risk: {activeMemo.risk_rating}
                   </Badge>
                 )}
-                {activeMemo.recommended_limit && (
-                  <span className="text-sm text-muted-foreground">
-                    Recommended Limit: <strong className="text-foreground">${Number(activeMemo.recommended_limit).toLocaleString()}</strong>
-                  </span>
-                )}
                 {activeMemo.memo_number && (
                   <span className="text-xs font-mono text-muted-foreground">{activeMemo.memo_number}</span>
                 )}
               </div>
               <div className="flex gap-2">
-                {activeMemo.status !== "approved" && (
+                {!["approved", "submitted_to_committee"].includes(activeMemo.status) && (
                   <>
                     <Button variant="outline" size="sm" onClick={handleSave} disabled={saving}>
                       {saving ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Save className="mr-1 h-3 w-3" />}
                       Save Draft
                     </Button>
-                    <Button size="sm" onClick={handleFinalize} disabled={saving}>
+                    <Button size="sm" onClick={handleSubmitToCommittee} disabled={saving}>
                       {saving ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Send className="mr-1 h-3 w-3" />}
-                      Finalize for Committee
+                      Submit to Committee
                     </Button>
                   </>
+                )}
+                {activeMemo.status === "submitted_to_committee" && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4 text-[hsl(var(--chart-4))]" />
+                    Submitted — awaiting Credit Committee decision
+                  </div>
                 )}
                 {activeMemo.status === "approved" && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <CheckCircle2 className="h-4 w-4 text-[hsl(var(--chart-2))]" />
-                    Finalized — ready for Credit Committee
+                    Approved by Credit Committee
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
+
+          {/* Proposed Credit Limit */}
+          {!["approved", "submitted_to_committee"].includes(activeMemo.status) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Proposed Credit Limit</CardTitle>
+                <CardDescription>Set the credit limit to recommend to the committee</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3">
+                  <Label htmlFor="proposed-limit" className="shrink-0">Amount ($)</Label>
+                  <Input
+                    id="proposed-limit"
+                    type="number"
+                    placeholder="e.g. 500000"
+                    value={proposedLimit}
+                    onChange={(e) => setProposedLimit(e.target.value)}
+                    className="max-w-[240px]"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {["approved", "submitted_to_committee"].includes(activeMemo.status) && activeMemo.recommended_limit && (
+            <Card>
+              <CardContent className="flex items-center gap-3 py-4">
+                <span className="text-sm text-muted-foreground">Proposed Credit Limit:</span>
+                <span className="text-lg font-bold text-foreground">${Number(activeMemo.recommended_limit).toLocaleString()}</span>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Memo Content */}
           <Tabs defaultValue="edit" className="w-full">

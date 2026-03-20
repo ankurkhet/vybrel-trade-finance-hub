@@ -61,7 +61,8 @@ export default function CreditMemos() {
   const stats = {
     total: memos.length,
     pending: memos.filter((m: any) => ["draft", "ai_generated", "under_review"].includes(m.status)).length,
-    finalized: memos.filter((m: any) => m.status === "approved").length,
+    withCommittee: memos.filter((m: any) => m.status === "submitted_to_committee").length,
+    approved: memos.filter((m: any) => m.status === "approved").length,
     rejected: memos.filter((m: any) => m.status === "rejected").length,
   };
 
