@@ -238,7 +238,9 @@ export default function RegistryApis() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="text-xs font-mono"><Key className="mr-1 h-3 w-3" />{c.api_key_secret_name}</Badge>
-                            {c.api_key_value ? (
+                            {c.api_key_secret_name === "NO_AUTH_NEEDED" ? (
+                              <Badge variant="secondary" className="text-[10px]">No auth required</Badge>
+                            ) : c.api_key_value ? (
                               <Badge variant="default" className="text-[10px]">Key set</Badge>
                             ) : (
                               <Badge variant="destructive" className="text-[10px]">No key</Badge>

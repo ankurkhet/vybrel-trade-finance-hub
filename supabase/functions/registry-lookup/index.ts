@@ -35,25 +35,28 @@ serve(async (req) => {
         });
       }
 
-      const apiKey = config.api_key_value || Deno.env.get(config.api_key_secret_name);
+      const noAuthNeeded = config.api_key_secret_name === "NO_AUTH_NEEDED" || (!config.api_key_value && !Deno.env.get(config.api_key_secret_name));
+      const apiKey = noAuthNeeded ? null : (config.api_key_value || Deno.env.get(config.api_key_secret_name));
       let healthStatus = "unhealthy";
       let healthMessage = "API key not configured";
 
-      // CKAN portals often don't need an API key
       const isCkan = config.registry_type === "ckan";
-      if (apiKey || isCkan) {
+      // Allow health check if we have an API key, it's CKAN, or no auth is needed
+      if (apiKey || isCkan || noAuthNeeded) {
         try {
           const testUrl = isCkan
             ? getCkanHealthCheckUrl(config)
-            : getHealthCheckUrl(config.country_code, config.api_base_url);
-          const testHeaders = apiKey ? (isCkan ? getCkanHeaders(apiKey) : getAuthHeaders(config.country_code, apiKey)) : {};
-          console.log(`Health check URL: ${testUrl}`);
+            : getHealthCheckUrl(config.country_code, config.api_base_url, config.registry_name);
+          const testHeaders: Record<string, string> = {};
+          if (apiKey && !noAuthNeeded) {
+            Object.assign(testHeaders, isCkan ? getCkanHeaders(apiKey) : getAuthHeaders(config.country_code, apiKey));
+          }
+          console.log(`Health check URL: ${testUrl}, noAuth: ${noAuthNeeded}`);
           const res = await fetch(testUrl, { headers: testHeaders });
           const resBody = await res.text();
           console.log(`Health check response: status=${res.status}, body=${resBody.substring(0, 500)}`);
 
           if (isCkan) {
-            // CKAN returns {"success": true} for valid endpoints
             try {
               const parsed = JSON.parse(resBody);
               if (parsed.success === true || res.ok) {
@@ -70,7 +73,7 @@ serve(async (req) => {
           } else {
             if (res.ok || res.status === 200) {
               healthStatus = "healthy";
-              healthMessage = "API responding normally";
+              healthMessage = noAuthNeeded ? "API responding (no auth required)" : "API responding normally";
             } else if (res.status === 401 || res.status === 403) {
               healthStatus = "unhealthy";
               healthMessage = `Authentication failed (${res.status}). Please verify the API key.`;
@@ -158,11 +161,12 @@ serve(async (req) => {
     const results: any[] = [];
 
     for (const registry of activeRegistries) {
-      const apiKey = registry.api_key_value || Deno.env.get(registry.api_key_secret_name);
+      const noAuth = registry.api_key_secret_name === "NO_AUTH_NEEDED";
+      const apiKey = noAuth ? null : (registry.api_key_value || Deno.env.get(registry.api_key_secret_name));
       const isCkan = registry.registry_type === "ckan";
 
-      // CKAN portals may not need API keys
-      if (!apiKey && !isCkan) {
+      // CKAN portals and no-auth APIs don't need keys
+      if (!apiKey && !isCkan && !noAuth) {
         results.push({
           registry: registry.registry_name,
           error: `API key ${registry.api_key_secret_name} not configured`,
@@ -365,7 +369,24 @@ function normalizeCkanRecords(records: any[], _registry: any): any {
 
 // ─── REST helpers (existing) ────────────────────────────────────────
 
-function getHealthCheckUrl(countryCode: string, baseUrl: string): string {
+function getHealthCheckUrl(countryCode: string, baseUrl: string, registryName?: string): string {
+  // Handle specific registries by name first
+  const name = (registryName || "").toLowerCase();
+  if (name.includes("openiban")) {
+    return `${baseUrl.replace(/\/+$/, "")}/validate/DE89370400440532013000`;
+  }
+  if (name.includes("sortcode")) {
+    // Just verify the site is reachable
+    return baseUrl.replace(/\/+$/, "");
+  }
+  if (name.includes("financial modeling") || name.includes("fmp")) {
+    // FMP requires apikey param even for health check
+    return `${baseUrl.replace(/\/+$/, "")}/stock/list?apikey=demo`;
+  }
+  if (name.includes("creditsafe")) {
+    return `${baseUrl.replace(/\/+$/, "")}/authenticate`;
+  }
+
   switch (countryCode) {
     case "GB":
       return `${baseUrl}/search/companies?q=test&items_per_page=1`;
