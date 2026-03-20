@@ -55,7 +55,7 @@ interface NameVerifyResult {
   error?: string;
 }
 
-export function ValidationResultsPanel({ borrowerData, directors }: ValidationResultsPanelProps) {
+export function ValidationResultsPanel({ borrowerData, entityData, entityType = "borrower", directors }: ValidationResultsPanelProps) {
   const [sanctionsResults, setSanctionsResults] = useState<Record<string, SanctionsResult>>({});
   const [bankResult, setBankResult] = useState<BankValidationResult | null>(null);
   const [nameVerifyResult, setNameVerifyResult] = useState<NameVerifyResult | null>(null);
@@ -63,7 +63,14 @@ export function ValidationResultsPanel({ borrowerData, directors }: ValidationRe
   const [loadingBank, setLoadingBank] = useState(false);
   const [loadingNameVerify, setLoadingNameVerify] = useState(false);
 
-  const bankDetails = borrowerData?.bank_details || {};
+  // Support both legacy borrowerData and new entityData props
+  const entity = entityData || {
+    id: borrowerData?.id,
+    name: borrowerData?.company_name || "",
+    country: borrowerData?.country,
+    bank_details: borrowerData?.bank_details,
+  };
+  const bankDetails = entity.bank_details || borrowerData?.bank_details || {};
 
   const runSanctionsCheck = async (name: string, key: string, birthDate?: string) => {
     setLoadingSanctions(key);
