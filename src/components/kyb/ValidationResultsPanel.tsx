@@ -16,7 +16,14 @@ import {
 } from "lucide-react";
 
 interface ValidationResultsPanelProps {
-  borrowerData: any;
+  borrowerData?: any;
+  entityData?: {
+    id: string;
+    name: string;
+    country?: string;
+    bank_details?: any;
+  };
+  entityType?: "borrower" | "originator" | "funder" | "counterparty" | "broker";
   directors?: any[];
 }
 
