@@ -137,8 +137,8 @@ export function ValidationResultsPanel({ borrowerData, entityData, entityType = 
     setLoadingNameVerify(false);
   };
 
-  const companyName = borrowerData?.company_name || "";
-  const companyKey = `company_${borrowerData?.id}`;
+  const companyName = entity.name || borrowerData?.company_name || "";
+  const companyKey = `${entityType}_${entity.id || borrowerData?.id}`;
   const hasBankDetails = bankDetails.iban || bankDetails.sort_code;
 
   return (
