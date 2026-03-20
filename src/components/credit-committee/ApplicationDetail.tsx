@@ -288,6 +288,24 @@ export function ApplicationDetail({ applicationId }: Props) {
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">Type</span><span className="capitalize">{(application.type || "").replace("_", " ")}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Debtor</span><span>{application.debtor_name || "—"}</span></div>
+              {(application.metadata as any)?.proposed_limit && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Proposed Credit Limit</span>
+                  <span className="font-bold text-foreground">${Number((application.metadata as any).proposed_limit).toLocaleString()}</span>
+                </div>
+              )}
+              {(application.metadata as any)?.risk_rating && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Risk Rating</span>
+                  <Badge variant="secondary" className="capitalize">{(application.metadata as any).risk_rating}</Badge>
+                </div>
+              )}
+              {(application.metadata as any)?.memo_number && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Memo #</span>
+                  <span className="font-mono text-xs">{(application.metadata as any).memo_number}</span>
+                </div>
+              )}
               <div className="flex justify-between"><span className="text-muted-foreground">Created</span><span>{new Date(application.created_at).toLocaleDateString()}</span></div>
               {application.submitted_at && <div className="flex justify-between"><span className="text-muted-foreground">Submitted</span><span>{new Date(application.submitted_at).toLocaleDateString()}</span></div>}
               {application.decision_notes && (
