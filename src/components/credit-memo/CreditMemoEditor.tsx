@@ -86,7 +86,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
       .from("credit_memos")
       .update({
         final_memo: editedText,
-        status: "finalized",
+        status: "approved",
         reviewed_by: profile?.user_id,
         reviewed_at: new Date().toISOString(),
       })
