@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { Landmark, Loader2, CheckCircle2, XCircle, Building2 } from "lucide-react";
+import { Landmark, Loader2, CheckCircle2, XCircle, Building2, UserCheck } from "lucide-react";
 
 interface BankDetails {
   account_type: "iban" | "uk_sort_code" | "";
@@ -25,6 +25,13 @@ interface ValidationResult {
   source?: string;
   messages?: string[];
   branch?: string | null;
+}
+
+interface NameVerifyResult {
+  result: "Name Matches" | "Name Does Not Match" | "Unable to Verify";
+  confidence: number;
+  verified_name?: string;
+  error?: string;
 }
 
 interface BankDetailsFormProps {
@@ -49,12 +56,18 @@ export type { BankDetails };
 export function BankDetailsForm({ value, onChange, disabled }: BankDetailsFormProps) {
   const [validating, setValidating] = useState(false);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [nameVerifying, setNameVerifying] = useState(false);
+  const [nameVerification, setNameVerification] = useState<NameVerifyResult | null>(null);
   const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [nameDebounceTimer, setNameDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   const update = (field: keyof BankDetails, val: string) => {
     const updated = { ...value, [field]: val };
     onChange(updated);
     setValidation(null);
+    if (field === "account_holder_name" || field === "iban" || field === "sort_code" || field === "account_number") {
+      setNameVerification(null);
+    }
   };
 
   // Auto-validate when IBAN or sort code changes
@@ -90,12 +103,45 @@ export function BankDetailsForm({ value, onChange, disabled }: BankDetailsFormPr
     }
   }, [onChange]);
 
+  // Auto-verify name when holder name + account details are present
+  const triggerNameVerification = useCallback(async (details: BankDetails) => {
+    if (!details.account_holder_name || details.account_holder_name.length < 2) return;
+
+    const hasIban = details.account_type === "iban" && details.iban.replace(/\s/g, "").length >= 15;
+    const hasSortCode = details.account_type === "uk_sort_code" && details.sort_code.replace(/[-\s]/g, "").length === 6 && details.account_number.length >= 6;
+
+    if (!hasIban && !hasSortCode) return;
+
+    setNameVerifying(true);
+    try {
+      const body: any = { action: "verify_name", name: details.account_holder_name };
+      if (hasIban) {
+        body.iban = details.iban;
+      } else {
+        body.sort_code = details.sort_code;
+        body.account_number = details.account_number;
+      }
+      const { data, error } = await supabase.functions.invoke("truelayer-name-verify", { body });
+      if (!error && data) {
+        setNameVerification(data);
+      }
+    } catch { /* ignore */ }
+    setNameVerifying(false);
+  }, []);
+
   useEffect(() => {
     if (debounceTimer) clearTimeout(debounceTimer);
     const timer = setTimeout(() => triggerValidation(value), 800);
     setDebounceTimer(timer);
     return () => clearTimeout(timer);
   }, [value.iban, value.sort_code, value.account_number, value.account_type]);
+
+  useEffect(() => {
+    if (nameDebounceTimer) clearTimeout(nameDebounceTimer);
+    const timer = setTimeout(() => triggerNameVerification(value), 1200);
+    setNameDebounceTimer(timer);
+    return () => clearTimeout(timer);
+  }, [value.account_holder_name, value.iban, value.sort_code, value.account_number, value.account_type]);
 
   return (
     <Card>
@@ -109,7 +155,10 @@ export function BankDetailsForm({ value, onChange, disabled }: BankDetailsFormPr
       <CardContent className="space-y-4">
         {/* Account Holder Name */}
         <div className="space-y-2">
-          <Label>Account Holder Name</Label>
+          <div className="flex items-center justify-between">
+            <Label>Account Holder Name</Label>
+            <NameVerifyBadge verifying={nameVerifying} result={nameVerification} />
+          </div>
           <Input
             value={value.account_holder_name}
             onChange={(e) => update("account_holder_name", e.target.value)}
@@ -242,6 +291,11 @@ export function BankDetailsForm({ value, onChange, disabled }: BankDetailsFormPr
             <p className="mt-1 text-xs text-muted-foreground">Source: {validation.source}</p>
           </div>
         )}
+
+        {/* Name Verification detail card */}
+        {nameVerification && (
+          <NameVerifyCard result={nameVerification} />
+        )}
       </CardContent>
     </Card>
   );
@@ -264,5 +318,73 @@ function ValidationBadge({ validating, validation }: { validating: boolean; vali
     <Badge variant="destructive" className="text-[10px] gap-1">
       <XCircle className="h-3 w-3" /> Invalid
     </Badge>
+  );
+}
+
+function NameVerifyBadge({ verifying, result }: { verifying: boolean; result: NameVerifyResult | null }) {
+  if (verifying) {
+    return (
+      <Badge variant="secondary" className="text-[10px] gap-1">
+        <Loader2 className="h-3 w-3 animate-spin" /> Verifying name…
+      </Badge>
+    );
+  }
+  if (!result) return null;
+  if (result.result === "Name Matches") {
+    return (
+      <Badge variant="default" className="text-[10px] gap-1 bg-[hsl(var(--chart-2))] hover:bg-[hsl(var(--chart-2))]/80">
+        <UserCheck className="h-3 w-3" /> Name Verified
+      </Badge>
+    );
+  }
+  if (result.result === "Name Does Not Match") {
+    return (
+      <Badge variant="destructive" className="text-[10px] gap-1">
+        <XCircle className="h-3 w-3" /> Name Mismatch
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-[10px] gap-1">
+      Unable to Verify
+    </Badge>
+  );
+}
+
+function NameVerifyCard({ result }: { result: NameVerifyResult }) {
+  const isMatch = result.result === "Name Matches";
+  const isMismatch = result.result === "Name Does Not Match";
+
+  return (
+    <div className={`rounded-lg border p-3 text-sm ${
+      isMatch ? "border-[hsl(var(--chart-2))]/30 bg-[hsl(var(--chart-2))]/5" :
+      isMismatch ? "border-destructive/30 bg-destructive/5" :
+      "border-border bg-muted/30"
+    }`}>
+      <div className="flex items-center gap-2">
+        {isMatch ? (
+          <UserCheck className="h-4 w-4 text-[hsl(var(--chart-2))]" />
+        ) : isMismatch ? (
+          <XCircle className="h-4 w-4 text-destructive" />
+        ) : (
+          <UserCheck className="h-4 w-4 text-muted-foreground" />
+        )}
+        <span className="font-medium">{result.result}</span>
+        {result.confidence > 0 && (
+          <Badge variant="secondary" className="text-[10px]">
+            {result.confidence}% confidence
+          </Badge>
+        )}
+      </div>
+      {result.verified_name && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Verified as: <span className="font-medium text-foreground">{result.verified_name}</span>
+        </p>
+      )}
+      {result.error && (
+        <p className="mt-1 text-xs text-muted-foreground">{result.error}</p>
+      )}
+      <p className="mt-1 text-xs text-muted-foreground">Source: TrueLayer Account Holder Verification</p>
+    </div>
   );
 }

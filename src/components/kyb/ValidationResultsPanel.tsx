@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   RefreshCw,
   User,
+  UserCheck,
 } from "lucide-react";
 
 interface ValidationResultsPanelProps {
@@ -40,11 +41,20 @@ interface BankValidationResult {
   error?: string;
 }
 
+interface NameVerifyResult {
+  result: "Name Matches" | "Name Does Not Match" | "Unable to Verify";
+  confidence: number;
+  verified_name?: string;
+  error?: string;
+}
+
 export function ValidationResultsPanel({ borrowerData, directors }: ValidationResultsPanelProps) {
   const [sanctionsResults, setSanctionsResults] = useState<Record<string, SanctionsResult>>({});
   const [bankResult, setBankResult] = useState<BankValidationResult | null>(null);
+  const [nameVerifyResult, setNameVerifyResult] = useState<NameVerifyResult | null>(null);
   const [loadingSanctions, setLoadingSanctions] = useState<string | null>(null);
   const [loadingBank, setLoadingBank] = useState(false);
+  const [loadingNameVerify, setLoadingNameVerify] = useState(false);
 
   const bankDetails = borrowerData?.bank_details || {};
 
@@ -88,8 +98,34 @@ export function ValidationResultsPanel({ borrowerData, directors }: ValidationRe
     setLoadingBank(false);
   };
 
+  const runNameVerification = async () => {
+    setLoadingNameVerify(true);
+    try {
+      const body: any = {
+        action: "verify_name",
+        name: bankDetails.account_holder_name || borrowerData?.company_name || "",
+      };
+      if (bankDetails.iban) {
+        body.iban = bankDetails.iban;
+      } else if (bankDetails.sort_code) {
+        body.sort_code = bankDetails.sort_code;
+        body.account_number = bankDetails.account_number;
+      }
+      const { data, error } = await supabase.functions.invoke("truelayer-name-verify", { body });
+      if (!error && data) {
+        setNameVerifyResult(data);
+      } else {
+        setNameVerifyResult({ result: "Unable to Verify", confidence: 0, error: error?.message });
+      }
+    } catch (err: any) {
+      setNameVerifyResult({ result: "Unable to Verify", confidence: 0, error: err.message });
+    }
+    setLoadingNameVerify(false);
+  };
+
   const companyName = borrowerData?.company_name || "";
   const companyKey = `company_${borrowerData?.id}`;
+  const hasBankDetails = bankDetails.iban || bankDetails.sort_code;
 
   return (
     <div className="space-y-6">
@@ -185,6 +221,77 @@ export function ValidationResultsPanel({ borrowerData, directors }: ValidationRe
         </CardContent>
       </Card>
 
+      {/* Account Name Check (TrueLayer) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <UserCheck className="h-4 w-4 text-primary" />
+            Account Name Check
+          </CardTitle>
+          <CardDescription>TrueLayer Account Holder Name Verification</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {hasBankDetails ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <p className="text-sm font-medium">
+                    {bankDetails.account_holder_name || companyName}
+                  </p>
+                  <p className="text-xs text-muted-foreground font-mono">
+                    {bankDetails.iban || `${bankDetails.sort_code} / ${bankDetails.account_number || "—"}`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {nameVerifyResult && <NameVerifyBadge result={nameVerifyResult} />}
+                  <Button variant="outline" size="sm" onClick={runNameVerification} disabled={loadingNameVerify}>
+                    {loadingNameVerify ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+              </div>
+              {nameVerifyResult && (
+                <div className={`rounded-lg border p-3 text-sm ${
+                  nameVerifyResult.result === "Name Matches"
+                    ? "border-[hsl(var(--chart-2))]/30 bg-[hsl(var(--chart-2))]/5"
+                    : nameVerifyResult.result === "Name Does Not Match"
+                    ? "border-destructive/30 bg-destructive/5"
+                    : "border-border bg-muted/30"
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {nameVerifyResult.result === "Name Matches" ? (
+                      <CheckCircle2 className="h-4 w-4 text-[hsl(var(--chart-2))]" />
+                    ) : nameVerifyResult.result === "Name Does Not Match" ? (
+                      <XCircle className="h-4 w-4 text-destructive" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="font-medium">{nameVerifyResult.result}</span>
+                    {nameVerifyResult.confidence > 0 && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {nameVerifyResult.confidence}% confidence
+                      </Badge>
+                    )}
+                  </div>
+                  {nameVerifyResult.verified_name && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Verified as: <span className="font-medium text-foreground">{nameVerifyResult.verified_name}</span>
+                    </p>
+                  )}
+                  {nameVerifyResult.error && (
+                    <p className="mt-1 text-xs text-muted-foreground">{nameVerifyResult.error}</p>
+                  )}
+                  <p className="mt-1 text-xs text-muted-foreground">Source: TrueLayer (Sandbox)</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No bank details have been provided by this borrower yet.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Bank Account Validation */}
       <Card>
         <CardHeader>
@@ -241,6 +348,28 @@ export function ValidationResultsPanel({ borrowerData, directors }: ValidationRe
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function NameVerifyBadge({ result }: { result: NameVerifyResult }) {
+  if (result.result === "Name Matches") {
+    return (
+      <Badge variant="default" className="text-[10px] gap-1 bg-[hsl(var(--chart-2))] hover:bg-[hsl(var(--chart-2))]/80">
+        <CheckCircle2 className="h-3 w-3" /> Match
+      </Badge>
+    );
+  }
+  if (result.result === "Name Does Not Match") {
+    return (
+      <Badge variant="destructive" className="text-[10px] gap-1">
+        <XCircle className="h-3 w-3" /> Mismatch
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-[10px] gap-1">
+      <AlertTriangle className="h-3 w-3" /> Unverified
+    </Badge>
   );
 }
 
