@@ -240,7 +240,7 @@ export default function BorrowerOnboarding() {
         )}
 
         {/* Step 5: Complete */}
-        {step === 4 && (
+        {step === 5 && (
           <Card>
             <CardHeader className="text-center">
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
