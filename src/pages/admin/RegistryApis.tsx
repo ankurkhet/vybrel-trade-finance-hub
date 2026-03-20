@@ -104,6 +104,7 @@ export default function RegistryApis() {
       country_code: form.country_code,
       country_name: form.country_name,
       registry_name: form.registry_name,
+      client_id: form.client_id.trim() || null,
       api_base_url: form.api_base_url,
       api_key_secret_name: form.api_key_secret_name,
       capabilities: form.capabilities,
