@@ -25,6 +25,7 @@ export default function Auth() {
   const [oauthLoading, setOauthLoading] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
