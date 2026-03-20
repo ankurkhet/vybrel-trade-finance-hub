@@ -197,7 +197,7 @@ export default function BorrowerOnboarding() {
         )}
 
         {/* Step 4: AI Review */}
-        {step === 3 && (
+        {step === 4 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
