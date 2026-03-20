@@ -199,6 +199,9 @@ export const REGISTRY_CAPABILITIES = [
   "pep_screening",
   "iban_validation",
   "sort_code_validation",
+  "financial_data",
+  "credit_scores",
+  "financial_statements",
 ] as const;
 
 export const DEFAULT_REGISTRIES: Omit<RegistryApiConfig, "id" | "last_health_check" | "health_status" | "health_message">[] = [
