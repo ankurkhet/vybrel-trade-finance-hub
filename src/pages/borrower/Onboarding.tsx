@@ -255,7 +255,7 @@ export default function BorrowerOnboarding() {
         )}
 
         {/* Navigation */}
-        {step < 4 && (
+        {step < 5 && (
           <div className="flex justify-between">
             <Button variant="outline" onClick={() => setStep(step - 1)} disabled={step === 0}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
