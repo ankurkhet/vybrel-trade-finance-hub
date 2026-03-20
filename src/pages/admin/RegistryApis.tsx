@@ -190,7 +190,7 @@ export default function RegistryApis() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Country</TableHead>
-                    <TableHead>Registry</TableHead>
+                    <TableHead>Registry / Tool</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Secret Name</TableHead>
                     <TableHead>Capabilities</TableHead>
@@ -200,65 +200,115 @@ export default function RegistryApis() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {configs.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-medium">
-                        {c.country_name}
-                        {c.country_code === "EU" && (
-                          <Badge variant="outline" className="ml-2 text-[10px]">30 countries</Badge>
+                  {(() => {
+                    const companyRegistries = configs.filter(c => 
+                      !(c.capabilities || []).some((cap: string) => ["sanctions_screening", "pep_screening", "iban_validation", "sort_code_validation"].includes(cap))
+                    );
+                    const sanctionsTools = configs.filter(c =>
+                      (c.capabilities || []).some((cap: string) => ["sanctions_screening", "pep_screening"].includes(cap))
+                    );
+                    const bankTools = configs.filter(c =>
+                      (c.capabilities || []).some((cap: string) => ["iban_validation", "sort_code_validation"].includes(cap))
+                    );
+
+                    const renderRows = (items: any[]) => items.map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell className="font-medium">
+                          {c.country_name}
+                          {c.country_code === "EU" && (
+                            <Badge variant="outline" className="ml-2 text-[10px]">30 countries</Badge>
+                          )}
+                          {c.country_code === "GLOBAL" && (
+                            <Badge variant="outline" className="ml-2 text-[10px]">Global</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm">{c.registry_name}</TableCell>
+                        <TableCell>
+                          <Badge variant={c.registry_type === "ckan" ? "secondary" : "outline"} className="text-[10px] uppercase">
+                            {c.registry_type === "ckan" ? (
+                              <><Database className="mr-1 h-3 w-3" />CKAN</>
+                            ) : (
+                              "REST"
+                            )}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs font-mono"><Key className="mr-1 h-3 w-3" />{c.api_key_secret_name}</Badge>
+                            {c.api_key_value ? (
+                              <Badge variant="default" className="text-[10px]">Key set</Badge>
+                            ) : (
+                              <Badge variant="destructive" className="text-[10px]">No key</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {(c.capabilities || []).slice(0, 3).map((cap: string) => (
+                              <Badge key={cap} variant="secondary" className="text-[10px]">{cap.replace(/_/g, " ")}</Badge>
+                            ))}
+                            {(c.capabilities || []).length > 3 && (
+                              <Badge variant="secondary" className="text-[10px]">+{c.capabilities.length - 3}</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            {healthIcon(c.health_status)}
+                            <span className="text-xs capitalize text-muted-foreground">{c.health_status}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Switch checked={c.is_active} onCheckedChange={() => toggleActive(c.id, c.is_active)} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => testApi(c)} disabled={testing === c.id}>
+                              {testing === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}>
+                              <Settings2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ));
+
+                    return (
+                      <>
+                        {companyRegistries.length > 0 && (
+                          <>
+                            <TableRow>
+                              <TableCell colSpan={8} className="bg-muted/50 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Company Registries
+                              </TableCell>
+                            </TableRow>
+                            {renderRows(companyRegistries)}
+                          </>
                         )}
-                      </TableCell>
-                      <TableCell className="text-sm">{c.registry_name}</TableCell>
-                      <TableCell>
-                        <Badge variant={c.registry_type === "ckan" ? "secondary" : "outline"} className="text-[10px] uppercase">
-                          {c.registry_type === "ckan" ? (
-                            <><Database className="mr-1 h-3 w-3" />CKAN</>
-                          ) : (
-                            "REST"
-                          )}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs font-mono"><Key className="mr-1 h-3 w-3" />{c.api_key_secret_name}</Badge>
-                          {c.api_key_value ? (
-                            <Badge variant="default" className="text-[10px]">Key set</Badge>
-                          ) : (
-                            <Badge variant="destructive" className="text-[10px]">No key</Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {(c.capabilities || []).slice(0, 3).map((cap: string) => (
-                            <Badge key={cap} variant="secondary" className="text-[10px]">{cap.replace(/_/g, " ")}</Badge>
-                          ))}
-                          {(c.capabilities || []).length > 3 && (
-                            <Badge variant="secondary" className="text-[10px]">+{c.capabilities.length - 3}</Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          {healthIcon(c.health_status)}
-                          <span className="text-xs capitalize text-muted-foreground">{c.health_status}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Switch checked={c.is_active} onCheckedChange={() => toggleActive(c.id, c.is_active)} />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => testApi(c)} disabled={testing === c.id}>
-                            {testing === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}>
-                            <Settings2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        {sanctionsTools.length > 0 && (
+                          <>
+                            <TableRow>
+                              <TableCell colSpan={8} className="bg-muted/50 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Sanctions Screening
+                              </TableCell>
+                            </TableRow>
+                            {renderRows(sanctionsTools)}
+                          </>
+                        )}
+                        {bankTools.length > 0 && (
+                          <>
+                            <TableRow>
+                              <TableCell colSpan={8} className="bg-muted/50 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Bank Account Validation
+                              </TableCell>
+                            </TableRow>
+                            {renderRows(bankTools)}
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </TableBody>
               </Table>
             )}
