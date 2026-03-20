@@ -33,6 +33,7 @@ import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 const STEPS = [
   { id: "company", label: "Company Info", icon: Building2 },
   { id: "directors", label: "Directors & Signatories", icon: User },
+  { id: "bank", label: "Bank Details", icon: Landmark },
   { id: "documents", label: "Upload Documents", icon: Upload },
   { id: "review", label: "AI Review", icon: Brain },
   { id: "complete", label: "Complete", icon: FileCheck },
