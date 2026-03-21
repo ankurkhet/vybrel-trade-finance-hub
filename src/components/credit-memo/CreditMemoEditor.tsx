@@ -27,6 +27,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
   const [activeMemo, setActiveMemo] = useState<any>(null);
   const [editedText, setEditedText] = useState("");
   const [proposedLimit, setProposedLimit] = useState("");
+  const [proposedCurrency, setProposedCurrency] = useState<CurrencyCode>("GBP");
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
