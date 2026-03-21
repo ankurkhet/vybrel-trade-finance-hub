@@ -178,16 +178,19 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleGenerate} disabled={generating} variant={memos.length > 0 ? "outline" : "default"}>
-            {generating ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : memos.length > 0 ? (
-              <RotateCcw className="mr-2 h-4 w-4" />
-            ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
-            )}
-            {memos.length > 0 ? "Regenerate" : "Generate Credit Memo"}
-          </Button>
+          {/* Block regeneration when submitted to committee or approved */}
+          {!activeMemo || !["submitted_to_committee", "approved"].includes(activeMemo?.status) ? (
+            <Button onClick={handleGenerate} disabled={generating || docsNotVerified} variant={memos.length > 0 ? "outline" : "default"}>
+              {generating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : memos.length > 0 ? (
+                <RotateCcw className="mr-2 h-4 w-4" />
+              ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+              )}
+              {memos.length > 0 ? "Regenerate" : "Generate Credit Memo"}
+            </Button>
+          ) : null}
         </div>
       </div>
 
