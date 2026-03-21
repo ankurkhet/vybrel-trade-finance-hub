@@ -136,7 +136,7 @@ export function DirectorsStep({ directors, onChange, disabled }: DirectorsStepPr
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
+                         <Calendar
                           mode="single"
                           selected={dir.date_of_birth ? new Date(dir.date_of_birth) : undefined}
                           onSelect={(d) => updateDirector(idx, "date_of_birth", d ? d.toISOString().split("T")[0] : "")}
@@ -145,6 +145,7 @@ export function DirectorsStep({ directors, onChange, disabled }: DirectorsStepPr
                           captionLayout="dropdown-buttons"
                           fromYear={1920}
                           toYear={new Date().getFullYear()}
+                          className="p-3 pointer-events-auto"
                         />
                       </PopoverContent>
                     </Popover>
