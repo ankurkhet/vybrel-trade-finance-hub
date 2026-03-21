@@ -43,7 +43,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { user, profile, roles, signOut, isAdmin, isOriginatorAdmin, isBorrower, isFunder, isBroker } = useAuth();
+  const { user, profile, roles, signOut, isAdmin, isOriginatorAdmin, isBorrower, isFunder, isBroker, isAccountManager } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -61,7 +61,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", show: true },
     { icon: MessageSquare, label: "Messages", path: "/messages", show: true },
     // Admin
-    { icon: Building2, label: "Organizations", path: "/admin/organizations", show: isAdmin },
+    { icon: Building2, label: "Originators", path: "/admin/organizations", show: isAdmin },
     { icon: Users, label: "All Users", path: "/admin/users", show: isAdmin },
     { icon: BarChart3, label: "Platform Reports", path: "/admin/reports", show: isAdmin },
     { icon: Package, label: "Products", path: "/admin/products", show: isAdmin },
@@ -84,6 +84,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: FileText, label: "Credit Memos", path: "/originator/credit-memos", show: isOriginatorAdmin },
     { icon: Gavel, label: "Credit Committee", path: "/originator/credit-committee", show: isOriginatorAdmin },
     { icon: Gavel, label: "Committee Config", path: "/originator/credit-committee/config", show: isOriginatorAdmin },
+    // Account Manager
+    { icon: Users, label: "Borrowers", path: "/originator/borrowers", show: isAccountManager && !isOriginatorAdmin },
+    { icon: FileText, label: "Contracts", path: "/originator/contracts", show: isAccountManager && !isOriginatorAdmin },
+    { icon: CreditCard, label: "Invoices", path: "/originator/invoices", show: isAccountManager && !isOriginatorAdmin },
+    { icon: Upload, label: "KYC/KYB Docs", path: "/originator/documents", show: isAccountManager && !isOriginatorAdmin },
     // Broker
     { icon: Users, label: "Borrowers", path: "/broker/borrowers", show: isBroker },
     { icon: FileText, label: "Contracts", path: "/broker/contracts", show: isBroker },

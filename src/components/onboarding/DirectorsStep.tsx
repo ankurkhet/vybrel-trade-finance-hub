@@ -102,8 +102,8 @@ export function DirectorsStep({ directors, onChange, disabled }: DirectorsStepPr
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="director">Director</SelectItem>
-                      <SelectItem value="authorized_signatory">Authorized Signatory</SelectItem>
-                      <SelectItem value="both">Director & Authorized Signatory</SelectItem>
+                      <SelectItem value="authorized_signatory">Authorised Signatory</SelectItem>
+                      <SelectItem value="both">Director & Authorised Signatory</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -136,7 +136,7 @@ export function DirectorsStep({ directors, onChange, disabled }: DirectorsStepPr
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
+                         <Calendar
                           mode="single"
                           selected={dir.date_of_birth ? new Date(dir.date_of_birth) : undefined}
                           onSelect={(d) => updateDirector(idx, "date_of_birth", d ? d.toISOString().split("T")[0] : "")}
@@ -145,6 +145,7 @@ export function DirectorsStep({ directors, onChange, disabled }: DirectorsStepPr
                           captionLayout="dropdown-buttons"
                           fromYear={1920}
                           toYear={new Date().getFullYear()}
+                          className="p-3 pointer-events-auto"
                         />
                       </PopoverContent>
                     </Popover>
@@ -185,9 +186,16 @@ export function DirectorsStep({ directors, onChange, disabled }: DirectorsStepPr
           </div>
         ))}
 
-        <Button type="button" variant="outline" className="w-full" onClick={addDirector} disabled={disabled}>
-          <Plus className="mr-2 h-4 w-4" /> Add Director / Signatory
-        </Button>
+        <div className="flex gap-3">
+          <Button type="button" variant="outline" className="flex-1" onClick={addDirector} disabled={disabled}>
+            <Plus className="mr-2 h-4 w-4" /> Add Director / Signatory
+          </Button>
+          {directors.length > 0 && (
+            <Button type="button" variant="default" disabled={disabled} onClick={() => { /* save handled by parent */ }}>
+              Save Directors
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

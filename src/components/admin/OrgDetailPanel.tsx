@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   ArrowLeft, Users, FileText, Upload, CheckCircle2, XCircle, Clock,
-  Loader2, Copy, Eye, Shield, AlertTriangle, Trash2, PauseCircle, RotateCcw, Brain
+  Loader2, Copy, Eye, Shield, AlertTriangle, Trash2, PauseCircle, RotateCcw, Brain, Plus
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -55,6 +55,11 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
   const [reviewNotes, setReviewNotes] = useState("");
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [activeTab, setActiveTab] = useState("contacts");
+  
+  // Contact management
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<any>(null);
+  const [contactForm, setContactForm] = useState({ full_name: "", email: "", designation: "", is_primary: false });
 
   // Upload state with preview
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -247,6 +252,31 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
     toast.success("Invitation link copied to clipboard");
   };
 
+  const handleSaveContact = async () => {
+    const payload = {
+      full_name: contactForm.full_name,
+      email: contactForm.email,
+      designation: contactForm.designation,
+      is_primary: contactForm.is_primary,
+      organization_id: orgId,
+    };
+    if (editingContact) {
+      await supabase.from("org_contacts" as any).update(payload).eq("id", editingContact.id);
+      toast.success("Contact updated");
+    } else {
+      await supabase.from("org_contacts" as any).insert(payload);
+      toast.success("Contact added");
+    }
+    setContactDialogOpen(false);
+    fetchAll();
+  };
+
+  const handleDeleteContact = async (contactId: string) => {
+    await supabase.from("org_contacts" as any).delete().eq("id", contactId);
+    toast.success("Contact removed");
+    fetchAll();
+  };
+
   const docStatusIcon = (status: string) => {
     switch (status) {
       case "approved": return <CheckCircle2 className="h-4 w-4 text-green-600" />;
@@ -296,7 +326,12 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
         <TabsContent value="contacts" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Contact Persons</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Contact Persons</CardTitle>
+                <Button variant="outline" size="sm" onClick={() => { setEditingContact(null); setContactForm({ full_name: "", email: "", designation: "", is_primary: false }); setContactDialogOpen(true); }}>
+                  <Plus className="mr-1.5 h-3 w-3" /> Add Contact
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {contacts.length === 0 ? (
@@ -310,7 +345,19 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
                     </p>
                     <p className="text-xs text-muted-foreground">{c.designation} · {c.email}</p>
                   </div>
-                  {c.invited_at && <Badge variant="outline" className="text-xs">Invited</Badge>}
+                  <div className="flex items-center gap-2">
+                    {c.invited_at && <Badge variant="outline" className="text-xs">Invited</Badge>}
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      setEditingContact(c);
+                      setContactForm({ full_name: c.full_name, email: c.email, designation: c.designation, is_primary: c.is_primary });
+                      setContactDialogOpen(true);
+                    }}>
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteContact(c.id)}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </CardContent>
@@ -698,6 +745,39 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
             )}
             <Button onClick={() => confirmUpload()}>
               Upload As-Is
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contact Add/Edit Dialog */}
+      <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingContact ? "Edit Contact" : "Add Contact"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Full Name</Label>
+              <Input value={contactForm.full_name} onChange={(e) => setContactForm(p => ({ ...p, full_name: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input type="email" value={contactForm.email} onChange={(e) => setContactForm(p => ({ ...p, email: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Designation</Label>
+              <Input value={contactForm.designation} onChange={(e) => setContactForm(p => ({ ...p, designation: e.target.value }))} />
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={contactForm.is_primary} onChange={(e) => setContactForm(p => ({ ...p, is_primary: e.target.checked }))} />
+              <Label>Primary Contact</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setContactDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveContact} disabled={!contactForm.full_name || !contactForm.email || !contactForm.designation}>
+              {editingContact ? "Update" : "Add"} Contact
             </Button>
           </DialogFooter>
         </DialogContent>

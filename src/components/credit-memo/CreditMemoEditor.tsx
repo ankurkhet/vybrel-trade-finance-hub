@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Sparkles, Save, Send, FileText, AlertTriangle, CheckCircle2, RotateCcw, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { generateCreditMemo } from "@/lib/ai-services";
+import { CurrencyInput, formatCurrency, type CurrencyCode } from "@/components/ui/currency-input";
 
 interface CreditMemoEditorProps {
   borrowerId: string;
@@ -26,13 +27,31 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
   const [activeMemo, setActiveMemo] = useState<any>(null);
   const [editedText, setEditedText] = useState("");
   const [proposedLimit, setProposedLimit] = useState("");
+  const [proposedCurrency, setProposedCurrency] = useState<CurrencyCode>("GBP");
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [docsNotVerified, setDocsNotVerified] = useState(false);
 
   useEffect(() => {
     fetchMemos();
+    checkDocsVerified();
   }, [borrowerId]);
+
+  const checkDocsVerified = async () => {
+    // Check if all KYC/KYB documents are uploaded and verified
+    const { data: docs } = await supabase
+      .from("documents")
+      .select("id, status")
+      .eq("borrower_id", borrowerId)
+      .eq("is_deleted", false);
+    if (!docs || docs.length === 0) {
+      setDocsNotVerified(true);
+      return;
+    }
+    const allApproved = docs.every((d: any) => d.status === "approved");
+    setDocsNotVerified(!allApproved);
+  };
 
   const fetchMemos = async () => {
     setLoading(true);
@@ -178,18 +197,32 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleGenerate} disabled={generating} variant={memos.length > 0 ? "outline" : "default"}>
-            {generating ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : memos.length > 0 ? (
-              <RotateCcw className="mr-2 h-4 w-4" />
-            ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
-            )}
-            {memos.length > 0 ? "Regenerate" : "Generate Credit Memo"}
-          </Button>
+          {/* Block regeneration when submitted to committee or approved */}
+          {!activeMemo || !["submitted_to_committee", "approved"].includes(activeMemo?.status) ? (
+            <Button onClick={handleGenerate} disabled={generating || docsNotVerified} variant={memos.length > 0 ? "outline" : "default"}>
+              {generating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : memos.length > 0 ? (
+                <RotateCcw className="mr-2 h-4 w-4" />
+              ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+              )}
+              {memos.length > 0 ? "Regenerate" : "Generate Credit Memo"}
+            </Button>
+          ) : null}
         </div>
       </div>
+
+      {docsNotVerified && (
+        <Card>
+          <CardContent className="flex items-center gap-3 py-4">
+            <AlertTriangle className="h-5 w-5 text-[hsl(var(--chart-4))]" />
+            <p className="text-sm text-muted-foreground">
+              All KYC/KYB documents must be uploaded and verified before a credit memo can be generated.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {!activeMemo ? (
         <Card>
@@ -199,7 +232,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
               No credit memo yet. Click "Generate Credit Memo" to create an AI-powered analysis.
             </p>
             <p className="text-xs text-muted-foreground text-center max-w-md">
-              The AI will analyze filing data from connected registries, financial APIs, and public sources to create a comprehensive credit memo.
+              The AI will analyse filing data from connected registries, financial APIs, and public sources to create a comprehensive credit memo.
             </p>
           </CardContent>
         </Card>
@@ -260,14 +293,12 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-3">
-                  <Label htmlFor="proposed-limit" className="shrink-0">Amount ($)</Label>
-                  <Input
-                    id="proposed-limit"
-                    type="number"
-                    placeholder="e.g. 500000"
+                  <Label htmlFor="proposed-limit" className="shrink-0">Amount</Label>
+                  <CurrencyInput
                     value={proposedLimit}
-                    onChange={(e) => setProposedLimit(e.target.value)}
-                    className="max-w-[240px]"
+                    currency={proposedCurrency}
+                    onValueChange={setProposedLimit}
+                    onCurrencyChange={setProposedCurrency}
                   />
                 </div>
               </CardContent>
@@ -277,7 +308,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
             <Card>
               <CardContent className="flex items-center gap-3 py-4">
                 <span className="text-sm text-muted-foreground">Proposed Credit Limit:</span>
-                <span className="text-lg font-bold text-foreground">${Number(activeMemo.recommended_limit).toLocaleString()}</span>
+                <span className="text-lg font-bold text-foreground">{formatCurrency(Number(activeMemo.recommended_limit), proposedCurrency)}</span>
               </CardContent>
             </Card>
           )}

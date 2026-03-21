@@ -260,7 +260,7 @@ export function ApplicationDetail({ applicationId }: Props) {
   if (isLoading) return <p className="text-muted-foreground">Loading...</p>;
   if (!application) return <p className="text-destructive">Application not found.</p>;
 
-  const canVote = isCommitteeMember && ["submitted", "under_review"].includes(application.status) && !myVote;
+  const canVote = isCommitteeMember && ["submitted", "under_review", "reopened"].includes(application.status) && !myVote;
   const canSubmit = application.status === "draft" && application.created_by === user?.id;
   const canReRaise = ["approved", "rejected"].includes(application.status);
   const isCreator = application.created_by === user?.id;
@@ -291,7 +291,7 @@ export function ApplicationDetail({ applicationId }: Props) {
               {(application.metadata as any)?.proposed_limit && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Proposed Credit Limit</span>
-                  <span className="font-bold text-foreground">${Number((application.metadata as any).proposed_limit).toLocaleString()}</span>
+                  <span className="font-bold text-foreground">£{Number((application.metadata as any).proposed_limit).toLocaleString()}</span>
                 </div>
               )}
               {(application.metadata as any)?.risk_rating && (
@@ -431,6 +431,28 @@ export function ApplicationDetail({ applicationId }: Props) {
             </CardContent>
           </Card>
 
+          {/* Committee Members & Votes */}
+          <Card>
+            <CardHeader><CardTitle className="text-sm">Committee Members</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {votes.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No votes cast yet.</p>
+              ) : (
+                votes.map((v: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between text-sm rounded-lg border p-2">
+                    <span className="text-xs text-muted-foreground font-mono truncate max-w-[120px]">{v.user_id?.slice(0, 8)}...</span>
+                    <Badge
+                      variant={v.vote === "approve" ? "default" : v.vote === "reject" ? "destructive" : "secondary"}
+                      className="capitalize text-xs"
+                    >
+                      {(v.vote || "").replace(/_/g, " ")}
+                    </Badge>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
           <div className="space-y-2">
             {canSubmit && (
               <Button className="w-full" onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
@@ -444,7 +466,7 @@ export function ApplicationDetail({ applicationId }: Props) {
               </Button>
             )}
 
-            {isCommitteeMember && ["submitted", "under_review"].includes(application.status) && (
+            {isCommitteeMember && ["submitted", "under_review", "reopened"].includes(application.status) && (
               <Dialog open={infoDialogOpen} onOpenChange={setInfoDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="w-full">

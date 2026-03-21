@@ -21,6 +21,7 @@ interface AuthContextType {
   isBorrower: boolean;
   isFunder: boolean;
   isBroker: boolean;
+  isAccountManager: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -130,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isBorrower: hasRole("borrower"),
         isFunder: hasRole("funder"),
         isBroker: hasRole("broker_admin"),
+        isAccountManager: hasRole("account_manager"),
       }}
     >
       {children}
