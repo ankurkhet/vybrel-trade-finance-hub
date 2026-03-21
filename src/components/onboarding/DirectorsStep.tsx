@@ -185,9 +185,16 @@ export function DirectorsStep({ directors, onChange, disabled }: DirectorsStepPr
           </div>
         ))}
 
-        <Button type="button" variant="outline" className="w-full" onClick={addDirector} disabled={disabled}>
-          <Plus className="mr-2 h-4 w-4" /> Add Director / Signatory
-        </Button>
+        <div className="flex gap-3">
+          <Button type="button" variant="outline" className="flex-1" onClick={addDirector} disabled={disabled}>
+            <Plus className="mr-2 h-4 w-4" /> Add Director / Signatory
+          </Button>
+          {directors.length > 0 && (
+            <Button type="button" variant="default" disabled={disabled} onClick={() => { /* save handled by parent */ }}>
+              Save Directors
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
