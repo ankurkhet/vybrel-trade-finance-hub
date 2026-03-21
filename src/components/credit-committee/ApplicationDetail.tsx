@@ -444,7 +444,7 @@ export function ApplicationDetail({ applicationId }: Props) {
               </Button>
             )}
 
-            {isCommitteeMember && ["submitted", "under_review"].includes(application.status) && (
+            {isCommitteeMember && ["submitted", "under_review", "reopened"].includes(application.status) && (
               <Dialog open={infoDialogOpen} onOpenChange={setInfoDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="w-full">
