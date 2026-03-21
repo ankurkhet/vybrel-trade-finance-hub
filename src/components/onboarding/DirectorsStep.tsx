@@ -102,8 +102,8 @@ export function DirectorsStep({ directors, onChange, disabled }: DirectorsStepPr
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="director">Director</SelectItem>
-                      <SelectItem value="authorized_signatory">Authorized Signatory</SelectItem>
-                      <SelectItem value="both">Director & Authorized Signatory</SelectItem>
+                      <SelectItem value="authorized_signatory">Authorised Signatory</SelectItem>
+                      <SelectItem value="both">Director & Authorised Signatory</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

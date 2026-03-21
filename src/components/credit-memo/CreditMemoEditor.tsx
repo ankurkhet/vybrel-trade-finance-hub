@@ -308,7 +308,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
             <Card>
               <CardContent className="flex items-center gap-3 py-4">
                 <span className="text-sm text-muted-foreground">Proposed Credit Limit:</span>
-                <span className="text-lg font-bold text-foreground">${Number(activeMemo.recommended_limit).toLocaleString()}</span>
+                <span className="text-lg font-bold text-foreground">{formatCurrency(Number(activeMemo.recommended_limit), proposedCurrency)}</span>
               </CardContent>
             </Card>
           )}

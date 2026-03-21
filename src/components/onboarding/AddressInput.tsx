@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { MapPin, Search, X, Loader2 } from "lucide-react";
 import type { AddressData } from "@/lib/onboarding-types";
 

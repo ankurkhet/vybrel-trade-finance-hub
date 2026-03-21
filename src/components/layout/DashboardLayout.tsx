@@ -61,7 +61,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", show: true },
     { icon: MessageSquare, label: "Messages", path: "/messages", show: true },
     // Admin
-    { icon: Building2, label: "Organizations", path: "/admin/organizations", show: isAdmin },
+    { icon: Building2, label: "Originators", path: "/admin/organizations", show: isAdmin },
     { icon: Users, label: "All Users", path: "/admin/users", show: isAdmin },
     { icon: BarChart3, label: "Platform Reports", path: "/admin/reports", show: isAdmin },
     { icon: Package, label: "Products", path: "/admin/products", show: isAdmin },
