@@ -749,6 +749,39 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Contact Add/Edit Dialog */}
+      <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingContact ? "Edit Contact" : "Add Contact"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Full Name</Label>
+              <Input value={contactForm.full_name} onChange={(e) => setContactForm(p => ({ ...p, full_name: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input type="email" value={contactForm.email} onChange={(e) => setContactForm(p => ({ ...p, email: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Designation</Label>
+              <Input value={contactForm.designation} onChange={(e) => setContactForm(p => ({ ...p, designation: e.target.value }))} />
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={contactForm.is_primary} onChange={(e) => setContactForm(p => ({ ...p, is_primary: e.target.checked }))} />
+              <Label>Primary Contact</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setContactDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveContact} disabled={!contactForm.full_name || !contactForm.email || !contactForm.designation}>
+              {editingContact ? "Update" : "Add"} Contact
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
