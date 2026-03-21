@@ -291,14 +291,12 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-3">
-                  <Label htmlFor="proposed-limit" className="shrink-0">Amount ($)</Label>
-                  <Input
-                    id="proposed-limit"
-                    type="number"
-                    placeholder="e.g. 500000"
+                  <Label htmlFor="proposed-limit" className="shrink-0">Amount</Label>
+                  <CurrencyInput
                     value={proposedLimit}
-                    onChange={(e) => setProposedLimit(e.target.value)}
-                    className="max-w-[240px]"
+                    currency={proposedCurrency}
+                    onValueChange={setProposedLimit}
+                    onCurrencyChange={setProposedCurrency}
                   />
                 </div>
               </CardContent>
