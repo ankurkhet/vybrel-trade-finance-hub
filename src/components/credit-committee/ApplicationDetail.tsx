@@ -291,7 +291,7 @@ export function ApplicationDetail({ applicationId }: Props) {
               {(application.metadata as any)?.proposed_limit && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Proposed Credit Limit</span>
-                  <span className="font-bold text-foreground">${Number((application.metadata as any).proposed_limit).toLocaleString()}</span>
+                  <span className="font-bold text-foreground">£{Number((application.metadata as any).proposed_limit).toLocaleString()}</span>
                 </div>
               )}
               {(application.metadata as any)?.risk_rating && (
