@@ -4,7 +4,6 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { MapPin, Search, X, Loader2 } from "lucide-react";
 import type { AddressData } from "@/lib/onboarding-types";
-import type { AddressData } from "@/lib/onboarding-types";
 
 interface AddressInputProps {
   value: AddressData;
