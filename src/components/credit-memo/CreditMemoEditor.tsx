@@ -211,6 +211,17 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
         </div>
       </div>
 
+      {docsNotVerified && (
+        <Card>
+          <CardContent className="flex items-center gap-3 py-4">
+            <AlertTriangle className="h-5 w-5 text-[hsl(var(--chart-4))]" />
+            <p className="text-sm text-muted-foreground">
+              All KYC/KYB documents must be uploaded and verified before a credit memo can be generated.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {!activeMemo ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-4 py-16">
@@ -219,7 +230,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
               No credit memo yet. Click "Generate Credit Memo" to create an AI-powered analysis.
             </p>
             <p className="text-xs text-muted-foreground text-center max-w-md">
-              The AI will analyze filing data from connected registries, financial APIs, and public sources to create a comprehensive credit memo.
+              The AI will analyse filing data from connected registries, financial APIs, and public sources to create a comprehensive credit memo.
             </p>
           </CardContent>
         </Card>
