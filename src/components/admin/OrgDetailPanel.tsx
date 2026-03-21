@@ -252,6 +252,31 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
     toast.success("Invitation link copied to clipboard");
   };
 
+  const handleSaveContact = async () => {
+    const payload = {
+      full_name: contactForm.full_name,
+      email: contactForm.email,
+      designation: contactForm.designation,
+      is_primary: contactForm.is_primary,
+      organization_id: orgId,
+    };
+    if (editingContact) {
+      await supabase.from("org_contacts" as any).update(payload).eq("id", editingContact.id);
+      toast.success("Contact updated");
+    } else {
+      await supabase.from("org_contacts" as any).insert(payload);
+      toast.success("Contact added");
+    }
+    setContactDialogOpen(false);
+    fetchAll();
+  };
+
+  const handleDeleteContact = async (contactId: string) => {
+    await supabase.from("org_contacts" as any).delete().eq("id", contactId);
+    toast.success("Contact removed");
+    fetchAll();
+  };
+
   const docStatusIcon = (status: string) => {
     switch (status) {
       case "approved": return <CheckCircle2 className="h-4 w-4 text-green-600" />;
