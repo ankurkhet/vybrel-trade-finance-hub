@@ -21,6 +21,7 @@ interface AuthContextType {
   isBorrower: boolean;
   isFunder: boolean;
   isBroker: boolean;
+  isAccountManager: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
