@@ -296,7 +296,12 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
         <TabsContent value="contacts" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Contact Persons</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Contact Persons</CardTitle>
+                <Button variant="outline" size="sm" onClick={() => { setEditingContact(null); setContactForm({ full_name: "", email: "", designation: "", is_primary: false }); setContactDialogOpen(true); }}>
+                  <Plus className="mr-1.5 h-3 w-3" /> Add Contact
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {contacts.length === 0 ? (
@@ -310,7 +315,19 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
                     </p>
                     <p className="text-xs text-muted-foreground">{c.designation} · {c.email}</p>
                   </div>
-                  {c.invited_at && <Badge variant="outline" className="text-xs">Invited</Badge>}
+                  <div className="flex items-center gap-2">
+                    {c.invited_at && <Badge variant="outline" className="text-xs">Invited</Badge>}
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      setEditingContact(c);
+                      setContactForm({ full_name: c.full_name, email: c.email, designation: c.designation, is_primary: c.is_primary });
+                      setContactDialogOpen(true);
+                    }}>
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteContact(c.id)}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </CardContent>
