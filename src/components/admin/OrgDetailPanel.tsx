@@ -55,6 +55,11 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
   const [reviewNotes, setReviewNotes] = useState("");
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [activeTab, setActiveTab] = useState("contacts");
+  
+  // Contact management
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<any>(null);
+  const [contactForm, setContactForm] = useState({ full_name: "", email: "", designation: "", is_primary: false });
 
   // Upload state with preview
   const fileInputRef = useRef<HTMLInputElement>(null);
