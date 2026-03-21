@@ -29,10 +29,27 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [docsNotVerified, setDocsNotVerified] = useState(false);
 
   useEffect(() => {
     fetchMemos();
+    checkDocsVerified();
   }, [borrowerId]);
+
+  const checkDocsVerified = async () => {
+    // Check if all KYC/KYB documents are uploaded and verified
+    const { data: docs } = await supabase
+      .from("documents")
+      .select("id, status")
+      .eq("borrower_id", borrowerId)
+      .eq("is_deleted", false);
+    if (!docs || docs.length === 0) {
+      setDocsNotVerified(true);
+      return;
+    }
+    const allApproved = docs.every((d: any) => d.status === "approved");
+    setDocsNotVerified(!allApproved);
+  };
 
   const fetchMemos = async () => {
     setLoading(true);
