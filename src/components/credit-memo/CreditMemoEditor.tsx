@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Sparkles, Save, Send, FileText, AlertTriangle, CheckCircle2, RotateCcw, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { generateCreditMemo } from "@/lib/ai-services";
+import { CurrencyInput, formatCurrency, type CurrencyCode } from "@/components/ui/currency-input";
 
 interface CreditMemoEditorProps {
   borrowerId: string;
