@@ -185,8 +185,14 @@ export function AddressInput({ value, onChange, label, required, disabled }: Add
             <Input placeholder="State / Region" value={value.state} onChange={(e) => updateField("state", e.target.value)} disabled={disabled} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input placeholder="Postal / ZIP code" value={value.postal_code} onChange={(e) => updateField("postal_code", e.target.value)} disabled={disabled} />
-            <Input placeholder="Country" value={value.country} onChange={(e) => updateField("country", e.target.value)} disabled={disabled} />
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Postcode / ZIP / PIN</Label>
+              <Input placeholder="e.g. SW1A 1AA" value={value.postal_code} onChange={(e) => updateField("postal_code", e.target.value)} disabled={disabled} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Country</Label>
+              <Input placeholder="Country" value={value.country} onChange={(e) => updateField("country", e.target.value)} disabled={disabled} />
+            </div>
           </div>
         </div>
       )}
