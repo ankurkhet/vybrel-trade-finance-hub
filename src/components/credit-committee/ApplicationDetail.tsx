@@ -260,7 +260,7 @@ export function ApplicationDetail({ applicationId }: Props) {
   if (isLoading) return <p className="text-muted-foreground">Loading...</p>;
   if (!application) return <p className="text-destructive">Application not found.</p>;
 
-  const canVote = isCommitteeMember && ["submitted", "under_review"].includes(application.status) && !myVote;
+  const canVote = isCommitteeMember && ["submitted", "under_review", "reopened"].includes(application.status) && !myVote;
   const canSubmit = application.status === "draft" && application.created_by === user?.id;
   const canReRaise = ["approved", "rejected"].includes(application.status);
   const isCreator = application.created_by === user?.id;
