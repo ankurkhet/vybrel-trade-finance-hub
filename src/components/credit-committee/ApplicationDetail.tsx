@@ -273,7 +273,7 @@ export function ApplicationDetail({ applicationId }: Props) {
         </Button>
         <div className="flex-1">
           <h2 className="text-xl font-bold text-foreground">{application.application_number}</h2>
-          <p className="text-sm text-muted-foreground capitalize">{(application.type || "").replace("_", " ")} — {application.debtor_name || "N/A"}</p>
+          <p className="text-sm text-muted-foreground capitalize">{(application.type || "").replace(/_/g, " ")} — {application.debtor_name || "N/A"}</p>
         </div>
         <Badge variant={application.status === "approved" ? "default" : application.status === "rejected" ? "destructive" : "secondary"}>
           {application.status.replace("_", " ")}
