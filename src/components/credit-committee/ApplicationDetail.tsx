@@ -18,6 +18,58 @@ interface Props {
   applicationId: string;
 }
 
+function CommitteeMembersCard({ votes, organizationId }: { votes: any[]; organizationId: string }) {
+  const { data: members = [] } = useQuery({
+    queryKey: ["cc-members-profiles", organizationId],
+    queryFn: async () => {
+      const { data: ccMembers } = await supabase
+        .from("credit_committee_members")
+        .select("user_id, is_active")
+        .eq("organization_id", organizationId)
+        .eq("is_active", true);
+      if (!ccMembers || ccMembers.length === 0) return [];
+      const userIds = ccMembers.map((m: any) => m.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, email")
+        .in("user_id", userIds);
+      return ccMembers.map((m: any) => {
+        const p = profiles?.find((pr: any) => pr.user_id === m.user_id);
+        const vote = votes.find((v: any) => v.user_id === m.user_id);
+        return { ...m, full_name: p?.full_name || p?.email || "Unknown", vote };
+      });
+    },
+    enabled: !!organizationId,
+  });
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-sm">Committee Members</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        {members.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No active members configured.</p>
+        ) : (
+          members.map((m: any, i: number) => (
+            <div key={i} className="flex items-center justify-between text-sm rounded-lg border p-2">
+              <span className="text-xs text-foreground truncate max-w-[150px]">{m.full_name}</span>
+              {m.vote ? (
+                <Badge
+                  variant={m.vote.vote === "approve" ? "default" : m.vote.vote === "reject" ? "destructive" : "secondary"}
+                  className="capitalize text-xs"
+                >
+                  {(m.vote.vote || "").replace(/_/g, " ")}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs">Pending</Badge>
+              )}
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ApplicationDetail({ applicationId }: Props) {
   const { user, profile, hasRole } = useAuth();
   const navigate = useNavigate();
