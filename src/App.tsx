@@ -101,14 +101,14 @@ const App = () => (
               <Route path="/admin/registry-apis" element={<ProtectedRoute requiredRoles={["admin"]}><RegistryApis /></ProtectedRoute>} />
 
               {/* Originator */}
-              <Route path="/originator/borrowers" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorBorrowers /></ProtectedRoute>} />
-              <Route path="/originator/borrowers/:id" element={<ProtectedRoute requiredRoles={["originator_admin"]}><BorrowerDetail /></ProtectedRoute>} />
-              <Route path="/originator/contracts" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorContracts /></ProtectedRoute>} />
-              <Route path="/originator/invoices" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorInvoices /></ProtectedRoute>} />
+              <Route path="/originator/borrowers" element={<ProtectedRoute requiredRoles={["originator_admin", "account_manager"]}><OriginatorBorrowers /></ProtectedRoute>} />
+              <Route path="/originator/borrowers/:id" element={<ProtectedRoute requiredRoles={["originator_admin", "account_manager"]}><BorrowerDetail /></ProtectedRoute>} />
+              <Route path="/originator/contracts" element={<ProtectedRoute requiredRoles={["originator_admin", "account_manager"]}><OriginatorContracts /></ProtectedRoute>} />
+              <Route path="/originator/invoices" element={<ProtectedRoute requiredRoles={["originator_admin", "account_manager"]}><OriginatorInvoices /></ProtectedRoute>} />
               <Route path="/originator/reports" element={<ProtectedRoute requiredRoles={["originator_admin", "originator_user"]}><OriginatorReports /></ProtectedRoute>} />
               <Route path="/originator/branding" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorBranding /></ProtectedRoute>} />
               <Route path="/originator/ai-insights" element={<ProtectedRoute requiredRoles={["originator_admin", "originator_user"]}><AIInsightsPage /></ProtectedRoute>} />
-              <Route path="/originator/documents" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorDocuments /></ProtectedRoute>} />
+              <Route path="/originator/documents" element={<ProtectedRoute requiredRoles={["originator_admin", "account_manager"]}><OriginatorDocuments /></ProtectedRoute>} />
               <Route path="/originator/collections" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorCollections /></ProtectedRoute>} />
               <Route path="/originator/fee-config" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorFeeConfig /></ProtectedRoute>} />
               <Route path="/originator/counterparties" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorCounterparties /></ProtectedRoute>} />
