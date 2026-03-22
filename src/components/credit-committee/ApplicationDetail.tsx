@@ -286,7 +286,7 @@ export function ApplicationDetail({ applicationId }: Props) {
           <Card>
             <CardHeader><CardTitle className="text-sm">Details</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Type</span><span className="capitalize">{(application.type || "").replace("_", " ")}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Type</span><span className="capitalize">{(application.type || "").replace(/_/g, " ")}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Debtor</span><span>{application.debtor_name || "—"}</span></div>
               {(application.metadata as any)?.proposed_limit && (
                 <div className="flex justify-between">
