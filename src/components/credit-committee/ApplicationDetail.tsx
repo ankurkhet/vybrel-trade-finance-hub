@@ -331,7 +331,7 @@ export function ApplicationDetail({ applicationId }: Props) {
                       onClick={() => setVoteChoice(v)}
                       className="capitalize"
                     >
-                      {v.replace("_", " ")}
+                      {v.replace(/_/g, " ")}
                     </Button>
                   ))}
                 </div>
