@@ -86,7 +86,7 @@ export default function SettlementAdvices({ role }: { role: "borrower" | "funder
               </div>
               <div>
                 <p className="text-2xl font-bold">
-                  {advices[0]?.currency || "USD"} {totalNet.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {advices[0]?.currency || "GBP"} {totalNet.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground">Total Net Amount</p>
               </div>

@@ -100,7 +100,7 @@ export function CreditCommitteeDashboard() {
                       {new Date(app.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <Badge variant={statusVariant(app.status) as any}>{app.status.replace("_", " ")}</Badge>
+                  <Badge variant={statusVariant(app.status) as any}>{app.status.replace(/_/g, " ")}</Badge>
                 </div>
               ))}
             </div>

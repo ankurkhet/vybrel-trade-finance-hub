@@ -350,7 +350,7 @@ export function ApplicationDetail({ applicationId }: Props) {
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">
-                  You voted: <span className="font-medium capitalize text-foreground">{myVote.vote.replace("_", " ")}</span>
+                  You voted: <span className="font-medium capitalize text-foreground">{myVote.vote.replace(/_/g, " ")}</span>
                   {myVote.notes && ` — "${myVote.notes}"`}
                 </p>
               </CardContent>
