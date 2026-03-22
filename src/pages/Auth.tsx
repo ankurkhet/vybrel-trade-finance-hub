@@ -13,6 +13,7 @@ import { toast } from "sonner";
 const roles = [
   { key: "admin", label: "Vybrel Admin", icon: Shield, desc: "Platform governance" },
   { key: "originator", label: "Originator", icon: Building2, desc: "Manage borrowers & invoices" },
+  { key: "broker", label: "Broker", icon: Users, desc: "Introduce & manage borrowers" },
   { key: "borrower", label: "Borrower", icon: Users, desc: "Submit documents & financing" },
   { key: "funder", label: "Lender / Funder", icon: BarChart3, desc: "Portfolio & deals" },
   { key: "counterparty", label: "Counterparty", icon: FileCheck, desc: "Invoice verification" },

@@ -18,6 +18,58 @@ interface Props {
   applicationId: string;
 }
 
+function CommitteeMembersCard({ votes, organizationId }: { votes: any[]; organizationId: string }) {
+  const { data: members = [] } = useQuery({
+    queryKey: ["cc-members-profiles", organizationId],
+    queryFn: async () => {
+      const { data: ccMembers } = await supabase
+        .from("credit_committee_members")
+        .select("user_id, is_active")
+        .eq("organization_id", organizationId)
+        .eq("is_active", true);
+      if (!ccMembers || ccMembers.length === 0) return [];
+      const userIds = ccMembers.map((m: any) => m.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, email")
+        .in("user_id", userIds);
+      return ccMembers.map((m: any) => {
+        const p = profiles?.find((pr: any) => pr.user_id === m.user_id);
+        const vote = votes.find((v: any) => v.user_id === m.user_id);
+        return { ...m, full_name: p?.full_name || p?.email || "Unknown", vote };
+      });
+    },
+    enabled: !!organizationId,
+  });
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-sm">Committee Members</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        {members.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No active members configured.</p>
+        ) : (
+          members.map((m: any, i: number) => (
+            <div key={i} className="flex items-center justify-between text-sm rounded-lg border p-2">
+              <span className="text-xs text-foreground truncate max-w-[150px]">{m.full_name}</span>
+              {m.vote ? (
+                <Badge
+                  variant={m.vote.vote === "approve" ? "default" : m.vote.vote === "reject" ? "destructive" : "secondary"}
+                  className="capitalize text-xs"
+                >
+                  {(m.vote.vote || "").replace(/_/g, " ")}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs">Pending</Badge>
+              )}
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ApplicationDetail({ applicationId }: Props) {
   const { user, profile, hasRole } = useAuth();
   const navigate = useNavigate();
@@ -273,10 +325,10 @@ export function ApplicationDetail({ applicationId }: Props) {
         </Button>
         <div className="flex-1">
           <h2 className="text-xl font-bold text-foreground">{application.application_number}</h2>
-          <p className="text-sm text-muted-foreground capitalize">{(application.type || "").replace("_", " ")} — {application.debtor_name || "N/A"}</p>
+          <p className="text-sm text-muted-foreground capitalize">{(application.type || "").replace(/_/g, " ")} — {application.debtor_name || "N/A"}</p>
         </div>
         <Badge variant={application.status === "approved" ? "default" : application.status === "rejected" ? "destructive" : "secondary"}>
-          {application.status.replace("_", " ")}
+          {application.status.replace(/_/g, " ")}
         </Badge>
       </div>
 
@@ -286,7 +338,7 @@ export function ApplicationDetail({ applicationId }: Props) {
           <Card>
             <CardHeader><CardTitle className="text-sm">Details</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Type</span><span className="capitalize">{(application.type || "").replace("_", " ")}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Type</span><span className="capitalize">{(application.type || "").replace(/_/g, " ")}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Debtor</span><span>{application.debtor_name || "—"}</span></div>
               {(application.metadata as any)?.proposed_limit && (
                 <div className="flex justify-between">
@@ -331,7 +383,7 @@ export function ApplicationDetail({ applicationId }: Props) {
                       onClick={() => setVoteChoice(v)}
                       className="capitalize"
                     >
-                      {v.replace("_", " ")}
+                      {v.replace(/_/g, " ")}
                     </Button>
                   ))}
                 </div>
@@ -350,7 +402,7 @@ export function ApplicationDetail({ applicationId }: Props) {
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">
-                  You voted: <span className="font-medium capitalize text-foreground">{myVote.vote.replace("_", " ")}</span>
+                  You voted: <span className="font-medium capitalize text-foreground">{myVote.vote.replace(/_/g, " ")}</span>
                   {myVote.notes && ` — "${myVote.notes}"`}
                 </p>
               </CardContent>
@@ -432,26 +484,7 @@ export function ApplicationDetail({ applicationId }: Props) {
           </Card>
 
           {/* Committee Members & Votes */}
-          <Card>
-            <CardHeader><CardTitle className="text-sm">Committee Members</CardTitle></CardHeader>
-            <CardContent className="space-y-2">
-              {votes.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No votes cast yet.</p>
-              ) : (
-                votes.map((v: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between text-sm rounded-lg border p-2">
-                    <span className="text-xs text-muted-foreground font-mono truncate max-w-[120px]">{v.user_id?.slice(0, 8)}...</span>
-                    <Badge
-                      variant={v.vote === "approve" ? "default" : v.vote === "reject" ? "destructive" : "secondary"}
-                      className="capitalize text-xs"
-                    >
-                      {(v.vote || "").replace(/_/g, " ")}
-                    </Badge>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+          <CommitteeMembersCard votes={votes} organizationId={application.organization_id} />
 
           <div className="space-y-2">
             {canSubmit && (

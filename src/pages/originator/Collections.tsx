@@ -99,7 +99,7 @@ export default function Collections() {
         organization_id: profile!.organization_id,
         invoice_id: selectedInvoice.id,
         collected_amount: parseFloat(collectedAmount),
-        currency: selectedInvoice.currency || "USD",
+        currency: selectedInvoice.currency || "GBP",
         collection_date: collectionDate,
         payment_reference: paymentRef || null,
         debtor_name: selectedInvoice.debtor_name,

@@ -206,7 +206,7 @@ export default function CreditMemos() {
                         </TableCell>
                         <TableCell>
                           {memo.recommended_limit
-                            ? `$${Number(memo.recommended_limit).toLocaleString()}`
+                            ? `£${Number(memo.recommended_limit).toLocaleString()}`
                             : "—"}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs">

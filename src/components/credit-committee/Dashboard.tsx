@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileCheck, Clock, XCircle, RotateCcw, AlertCircle } from "lucide-react";
 
 export function CreditCommitteeDashboard() {
+  const navigate = useNavigate();
   const { profile } = useAuth();
 
   const { data: applications = [] } = useQuery({
@@ -90,7 +92,7 @@ export function CreditCommitteeDashboard() {
                 <div
                   key={app.id}
                   className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => window.location.href = `/originator/credit-committee/applications/${app.id}`}
+                  onClick={() => navigate(`/originator/credit-committee/applications/${app.id}`)}
                 >
                   <div>
                     <p className="text-sm font-medium text-foreground">{typeLabels[app.type] || app.type}</p>
@@ -98,7 +100,7 @@ export function CreditCommitteeDashboard() {
                       {new Date(app.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <Badge variant={statusVariant(app.status) as any}>{app.status.replace("_", " ")}</Badge>
+                  <Badge variant={statusVariant(app.status) as any}>{app.status.replace(/_/g, " ")}</Badge>
                 </div>
               ))}
             </div>
