@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.truelayer-name-verify]
 verify_jwt = false
+
+[functions.address-lookup]
+verify_jwt = false

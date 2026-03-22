@@ -58,8 +58,9 @@ export function AddressInput({ value, onChange, label, required, disabled }: Add
     }
     setSearching(true);
     try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const res = await fetch(
-        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`
+        `${supabaseUrl}/functions/v1/address-lookup?q=${encodeURIComponent(query)}&limit=5`
       );
       const data = await res.json();
       setSuggestions((data.features as PhotonFeature[]) || []);
