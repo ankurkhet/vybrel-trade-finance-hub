@@ -92,7 +92,7 @@ export function CreditCommitteeDashboard() {
                 <div
                   key={app.id}
                   className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => window.location.href = `/originator/credit-committee/applications/${app.id}`}
+                  onClick={() => navigate(`/originator/credit-committee/applications/${app.id}`)}
                 >
                   <div>
                     <p className="text-sm font-medium text-foreground">{typeLabels[app.type] || app.type}</p>
