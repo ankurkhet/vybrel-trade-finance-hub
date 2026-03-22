@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileCheck, Clock, XCircle, RotateCcw, AlertCircle } from "lucide-react";
 
 export function CreditCommitteeDashboard() {
+  const navigate = useNavigate();
   const { profile } = useAuth();
 
   const { data: applications = [] } = useQuery({
