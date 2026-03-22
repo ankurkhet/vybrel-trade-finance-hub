@@ -276,7 +276,7 @@ export function ApplicationDetail({ applicationId }: Props) {
           <p className="text-sm text-muted-foreground capitalize">{(application.type || "").replace(/_/g, " ")} — {application.debtor_name || "N/A"}</p>
         </div>
         <Badge variant={application.status === "approved" ? "default" : application.status === "rejected" ? "destructive" : "secondary"}>
-          {application.status.replace("_", " ")}
+          {application.status.replace(/_/g, " ")}
         </Badge>
       </div>
 
