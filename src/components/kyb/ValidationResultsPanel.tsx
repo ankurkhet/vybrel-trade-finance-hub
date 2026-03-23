@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Shield,
@@ -13,6 +14,7 @@ import {
   RefreshCw,
   User,
   UserCheck,
+  ExternalLink,
 } from "lucide-react";
 
 interface ValidationResultsPanelProps {
@@ -63,7 +65,6 @@ export function ValidationResultsPanel({ borrowerData, entityData, entityType = 
   const [loadingBank, setLoadingBank] = useState(false);
   const [loadingNameVerify, setLoadingNameVerify] = useState(false);
 
-  // Support both legacy borrowerData and new entityData props
   const entity = entityData || {
     id: borrowerData?.id,
     name: borrowerData?.company_name || "",
@@ -143,79 +144,91 @@ export function ValidationResultsPanel({ borrowerData, entityData, entityType = 
 
   return (
     <div className="space-y-6">
-      {/* Sanctions & PEP Screening */}
+      {/* ── Sanctions & PEP Screening ── */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Shield className="h-4 w-4 text-primary" />
-            Sanctions & PEP Screening
-          </CardTitle>
-          <CardDescription>OpenSanctions global AML/CFT and PEP checks</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Company check */}
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                <Shield className="h-4 w-4 text-primary" />
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-[10px] font-normal gap-1">
+                  <ExternalLink className="h-2.5 w-2.5" />
+                  OpenSanctions
+                </Badge>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  Sanctions & PEP Screening
+                </CardTitle>
               </div>
-              <div>
-                <p className="text-sm font-medium">{companyName}</p>
-                <p className="text-xs text-muted-foreground">Company entity</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <SanctionsBadge result={sanctionsResults[companyKey]} />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => runSanctionsCheck(companyName, companyKey)}
-                disabled={loadingSanctions === companyKey}
-              >
-                {loadingSanctions === companyKey ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-3.5 w-3.5" />
-                )}
-              </Button>
+              <CardDescription>Global AML/CFT sanctions list and Politically Exposed Persons checks</CardDescription>
             </div>
           </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Company check row */}
+          <SanctionsCheckRow
+            name={companyName}
+            subtitle="Company Entity"
+            icon={<Shield className="h-4 w-4 text-primary" />}
+            iconBg="bg-primary/10"
+            result={sanctionsResults[companyKey]}
+            loading={loadingSanctions === companyKey}
+            onRun={() => runSanctionsCheck(companyName, companyKey)}
+          />
 
-          {/* Director checks */}
+          {/* Director check rows */}
           {(directors || []).map((dir: any, idx: number) => {
             const dirName = `${dir.first_name} ${dir.last_name}`;
             const dirKey = `director_${dir.id || idx}`;
             return (
-              <div key={dirKey} className="flex items-center justify-between rounded-lg border p-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{dirName}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{dir.role || "Director"}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <SanctionsBadge result={sanctionsResults[dirKey]} />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => runSanctionsCheck(dirName, dirKey, dir.date_of_birth)}
-                    disabled={loadingSanctions === dirKey}
-                  >
-                    {loadingSanctions === dirKey ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                </div>
-              </div>
+              <SanctionsCheckRow
+                key={dirKey}
+                name={dirName}
+                subtitle={`${(dir.role || "Director").replace(/\b\w/g, (c: string) => c.toUpperCase())} · Individual`}
+                icon={<User className="h-4 w-4 text-muted-foreground" />}
+                iconBg="bg-muted"
+                result={sanctionsResults[dirKey]}
+                loading={loadingSanctions === dirKey}
+                onRun={() => runSanctionsCheck(dirName, dirKey, dir.date_of_birth)}
+              />
             );
           })}
 
-          {/* Run All button */}
+          {/* Expanded results table */}
+          {Object.entries(sanctionsResults).some(([, r]) => r.matches && r.matches.length > 0) && (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 space-y-3 mt-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <p className="text-sm font-semibold text-foreground">Screening Hits Detail</p>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Entity Screened</TableHead>
+                    <TableHead className="text-xs">Match Name</TableHead>
+                    <TableHead className="text-xs">Type</TableHead>
+                    <TableHead className="text-xs">Score</TableHead>
+                    <TableHead className="text-xs">Datasets</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.entries(sanctionsResults).flatMap(([key, r]) =>
+                    (r.matches || []).map((m: any, i: number) => (
+                      <TableRow key={`${key}-${i}`}>
+                        <TableCell className="text-xs font-medium">
+                          {key.startsWith("director_") ? "Individual" : "Company"}
+                        </TableCell>
+                        <TableCell className="text-xs">{m.name || m.caption || "—"}</TableCell>
+                        <TableCell className="text-xs capitalize">{m.schema || m.type || "—"}</TableCell>
+                        <TableCell className="text-xs">{m.score ? `${(m.score * 100).toFixed(0)}%` : "—"}</TableCell>
+                        <TableCell className="text-xs">{(m.datasets || []).join(", ") || "—"}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
           <Button
             variant="secondary"
             className="w-full"
@@ -235,14 +248,20 @@ export function ValidationResultsPanel({ borrowerData, entityData, entityType = 
         </CardContent>
       </Card>
 
-      {/* Account Name Check (TrueLayer) */}
+      {/* ── Account Name Verification ── */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <UserCheck className="h-4 w-4 text-primary" />
-            Account Name Check
-          </CardTitle>
-          <CardDescription>TrueLayer Account Holder Name Verification</CardDescription>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-[10px] font-normal gap-1">
+              <ExternalLink className="h-2.5 w-2.5" />
+              TrueLayer
+            </Badge>
+            <CardTitle className="text-base flex items-center gap-2">
+              <UserCheck className="h-4 w-4 text-primary" />
+              Account Holder Name Verification
+            </CardTitle>
+          </div>
+          <CardDescription>Verifies bank account holder name matches the entity on file</CardDescription>
         </CardHeader>
         <CardContent>
           {hasBankDetails ? (
@@ -264,57 +283,78 @@ export function ValidationResultsPanel({ borrowerData, entityData, entityType = 
                 </div>
               </div>
               {nameVerifyResult && (
-                <div className={`rounded-lg border p-3 text-sm ${
-                  nameVerifyResult.result === "Name Matches"
-                    ? "border-[hsl(var(--chart-2))]/30 bg-[hsl(var(--chart-2))]/5"
-                    : nameVerifyResult.result === "Name Does Not Match"
-                    ? "border-destructive/30 bg-destructive/5"
-                    : "border-border bg-muted/30"
-                }`}>
-                  <div className="flex items-center gap-2">
-                    {nameVerifyResult.result === "Name Matches" ? (
-                      <CheckCircle2 className="h-4 w-4 text-[hsl(var(--chart-2))]" />
-                    ) : nameVerifyResult.result === "Name Does Not Match" ? (
-                      <XCircle className="h-4 w-4 text-destructive" />
-                    ) : (
-                      <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <span className="font-medium">{nameVerifyResult.result}</span>
-                    {nameVerifyResult.confidence > 0 && (
-                      <Badge variant="secondary" className="text-[10px]">
-                        {nameVerifyResult.confidence}% confidence
-                      </Badge>
-                    )}
-                  </div>
-                  {nameVerifyResult.verified_name && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Verified as: <span className="font-medium text-foreground">{nameVerifyResult.verified_name}</span>
-                    </p>
-                  )}
-                  {nameVerifyResult.error && (
-                    <p className="mt-1 text-xs text-muted-foreground">{nameVerifyResult.error}</p>
-                  )}
-                  <p className="mt-1 text-xs text-muted-foreground">Source: TrueLayer (Sandbox)</p>
+                <div className="rounded-lg border overflow-hidden">
+                  <Table>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="text-xs text-muted-foreground font-medium w-[40%] py-2">Result</TableCell>
+                        <TableCell className="text-xs py-2">
+                          <div className="flex items-center gap-2">
+                            {nameVerifyResult.result === "Name Matches" ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-[hsl(var(--chart-2))]" />
+                            ) : nameVerifyResult.result === "Name Does Not Match" ? (
+                              <XCircle className="h-3.5 w-3.5 text-destructive" />
+                            ) : (
+                              <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                            <span className="font-medium">{nameVerifyResult.result}</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {nameVerifyResult.confidence > 0 && (
+                        <TableRow>
+                          <TableCell className="text-xs text-muted-foreground font-medium py-2">Confidence</TableCell>
+                          <TableCell className="text-xs py-2">{nameVerifyResult.confidence}%</TableCell>
+                        </TableRow>
+                      )}
+                      {nameVerifyResult.verified_name && (
+                        <TableRow>
+                          <TableCell className="text-xs text-muted-foreground font-medium py-2">Verified Name</TableCell>
+                          <TableCell className="text-xs py-2 font-medium">{nameVerifyResult.verified_name}</TableCell>
+                        </TableRow>
+                      )}
+                      <TableRow>
+                        <TableCell className="text-xs text-muted-foreground font-medium py-2">Provider</TableCell>
+                        <TableCell className="text-xs py-2">TrueLayer (Sandbox)</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="text-xs text-muted-foreground font-medium py-2">Check Type</TableCell>
+                        <TableCell className="text-xs py-2">Account Holder Name Verification</TableCell>
+                      </TableRow>
+                      {nameVerifyResult.error && (
+                        <TableRow>
+                          <TableCell className="text-xs text-muted-foreground font-medium py-2">Error</TableCell>
+                          <TableCell className="text-xs py-2 text-destructive">{nameVerifyResult.error}</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground py-4 text-center">
-               No bank details have been provided yet.
+              No bank details have been provided yet.
             </p>
           )}
         </CardContent>
       </Card>
 
-      {/* Bank Account Validation */}
+      {/* ── Bank Account Validation ── */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Landmark className="h-4 w-4 text-primary" />
-            Bank Account Validation
-          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-[10px] font-normal gap-1">
+              <ExternalLink className="h-2.5 w-2.5" />
+              {bankDetails.iban ? "OpenIBAN" : bankDetails.sort_code ? "Sortcode.co.uk" : "Bank Validator"}
+            </Badge>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Landmark className="h-4 w-4 text-primary" />
+              Bank Account Validation
+            </CardTitle>
+          </div>
           <CardDescription>
-            {bankDetails.iban ? "OpenIBAN validation" : bankDetails.sort_code ? "UK sort code validation" : "No bank details on file"}
+            {bankDetails.iban ? "IBAN structure and bank code validation" : bankDetails.sort_code ? "UK sort code and account number validation" : "No bank details on file"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -347,11 +387,47 @@ export function ValidationResultsPanel({ borrowerData, entityData, entityType = 
                   </Button>
                 </div>
               </div>
-              {bankResult?.bank_name && (
-                <p className="text-xs text-muted-foreground">
-                  Detected bank: <span className="font-medium text-foreground">{bankResult.bank_name}</span>
-                  {" · Source: "}{bankResult.source}
-                </p>
+              {bankResult && (
+                <div className="rounded-lg border overflow-hidden">
+                  <Table>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="text-xs text-muted-foreground font-medium w-[40%] py-2">Status</TableCell>
+                        <TableCell className="text-xs py-2">
+                          <span className={bankResult.valid ? "text-[hsl(var(--chart-2))]" : "text-destructive"}>
+                            {bankResult.valid ? "Valid" : "Invalid"}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                      {bankResult.bank_name && (
+                        <TableRow>
+                          <TableCell className="text-xs text-muted-foreground font-medium py-2">Bank Name</TableCell>
+                          <TableCell className="text-xs py-2 font-medium">{bankResult.bank_name}</TableCell>
+                        </TableRow>
+                      )}
+                      {bankResult.confidence && (
+                        <TableRow>
+                          <TableCell className="text-xs text-muted-foreground font-medium py-2">Confidence</TableCell>
+                          <TableCell className="text-xs py-2">{bankResult.confidence}%</TableCell>
+                        </TableRow>
+                      )}
+                      <TableRow>
+                        <TableCell className="text-xs text-muted-foreground font-medium py-2">Provider</TableCell>
+                        <TableCell className="text-xs py-2">{bankResult.source || (bankDetails.iban ? "OpenIBAN" : "Sortcode.co.uk")}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="text-xs text-muted-foreground font-medium py-2">Check Type</TableCell>
+                        <TableCell className="text-xs py-2">{bankDetails.iban ? "IBAN Validation" : "Sort Code Validation"}</TableCell>
+                      </TableRow>
+                      {bankResult.error && (
+                        <TableRow>
+                          <TableCell className="text-xs text-muted-foreground font-medium py-2">Error</TableCell>
+                          <TableCell className="text-xs py-2 text-destructive">{bankResult.error}</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </div>
           ) : (
@@ -361,6 +437,46 @@ export function ValidationResultsPanel({ borrowerData, entityData, entityType = 
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+/* ── Sub-components ── */
+
+function SanctionsCheckRow({
+  name,
+  subtitle,
+  icon,
+  iconBg,
+  result,
+  loading,
+  onRun,
+}: {
+  name: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  iconBg: string;
+  result?: SanctionsResult;
+  loading: boolean;
+  onRun: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border p-3">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-8 w-8 items-center justify-center rounded-full ${iconBg}`}>
+          {icon}
+        </div>
+        <div>
+          <p className="text-sm font-medium">{name}</p>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <SanctionsBadge result={result} />
+        <Button variant="outline" size="sm" onClick={onRun} disabled={loading}>
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+        </Button>
+      </div>
     </div>
   );
 }
