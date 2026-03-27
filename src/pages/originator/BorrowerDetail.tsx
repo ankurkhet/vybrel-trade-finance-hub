@@ -576,15 +576,10 @@ export default function BorrowerDetail() {
                       {documents.map((doc) => (
                         <TableRow key={doc.id}>
                           <TableCell className="capitalize text-sm">{doc.document_type.replace(/_/g, " ")}</TableCell>
-                          <TableCell>
+                         <TableCell>
                             <button
                               className="text-sm text-primary underline hover:text-primary/80 text-left"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                const { data } = await supabase.storage.from("documents").createSignedUrl(doc.file_path, 300);
-                                if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-                                else toast.error("Could not open file");
-                              }}
+                              onClick={() => openPreview(doc.file_path, doc.file_name, doc.mime_type)}
                             >
                               {doc.file_name}
                             </button>
@@ -598,11 +593,7 @@ export default function BorrowerDetail() {
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={async (e) => {
-                                e.stopPropagation();
-                                const { data } = await supabase.storage.from("documents").createSignedUrl(doc.file_path, 300);
-                                if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-                              }}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openPreview(doc.file_path, doc.file_name, doc.mime_type)}>
                                 <Eye className="h-4 w-4" />
                               </Button>
                               {doc.status === "pending" && (
