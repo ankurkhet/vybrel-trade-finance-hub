@@ -105,8 +105,8 @@ export default function BorrowerOnboarding() {
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
   const [docNotes, setDocNotes] = useState<Record<string, string>>({});
 
-  const isReadOnly = !["draft", "documents_requested"].includes(onboardingStatus);
-  const isSubmitted = ["submitted", "under_review", "approved", "onboarded"].includes(onboardingStatus);
+  const isReadOnly = !["draft", "documents_requested", "documents_pending", "registered"].includes(onboardingStatus);
+  const isSubmitted = ["documents_submitted", "under_review", "approved", "onboarded"].includes(onboardingStatus);
 
   // Load existing borrower data
   useEffect(() => {
