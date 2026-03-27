@@ -458,6 +458,44 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
                 </Select>
               </div>
 
+              {/* Facility Selection */}
+              {approvedFacilities.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Select Approved Facility *</Label>
+                  <Select value={selectedFacilityId} onValueChange={setSelectedFacilityId}>
+                    <SelectTrigger><SelectValue placeholder="Choose a facility..." /></SelectTrigger>
+                    <SelectContent>
+                      {approvedFacilities.map(f => (
+                        <SelectItem key={f.id} value={f.id}>
+                          {f.facility_type?.replace(/_/g, " ")} — {f.currency} {Number(f.approved_amount || f.amount_requested || 0).toLocaleString()}
+                          {f.approved_tenor_months && ` (${f.approved_tenor_months}m)`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedFacilityId && totalAmount && (() => {
+                    const fac = approvedFacilities.find(f => f.id === selectedFacilityId);
+                    const invoiceVal = parseFloat(totalAmount);
+                    if (fac && invoiceVal > 0 && invoiceVal > Number(fac.approved_amount || fac.amount_requested || 0)) {
+                      return (
+                        <p className="text-xs text-destructive flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          Funding amount cannot exceed the facility limit ({fac.currency} {Number(fac.approved_amount || fac.amount_requested).toLocaleString()})
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              )}
+              {approvedFacilities.length === 0 && (
+                <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-3">
+                  <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" /> No approved facilities found. You need an approved facility before submitting invoices.
+                  </p>
+                </div>
+              )}
+
               {/* Extracted Invoice Details */}
               <Card>
                 <CardHeader className="pb-3">
