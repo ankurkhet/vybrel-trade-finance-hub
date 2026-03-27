@@ -326,6 +326,9 @@ export default function BorrowerDetail() {
             <Button variant="outline" size="sm" onClick={() => { setNewStatus(borrower.onboarding_status); setStatusDialog(true); }}>
               <AlertTriangle className="mr-2 h-4 w-4" /> Change Status
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setRequestUpdateDialog(true)}>
+              <MessageSquare className="mr-2 h-4 w-4" /> Request Update
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setQueryDialog(true)}>
               <Send className="mr-2 h-4 w-4" /> Query Borrower
             </Button>
