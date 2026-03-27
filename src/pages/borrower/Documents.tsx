@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Upload, Loader2, CheckCircle2, XCircle, Clock, FileText, AlertCircle, ChevronDown, ChevronRight, History } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, XCircle, Clock, FileText, AlertCircle, ChevronDown, ChevronRight, History, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { DocumentPreviewModal, useDocumentPreview } from "@/components/ui/document-preview-modal";
 
 const DOC_TYPES = [
   { value: "kyc", label: "KYC Document" },
