@@ -30,7 +30,7 @@ import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 export default function BorrowerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [borrower, setBorrower] = useState<any>(null);
   const [directors, setDirectors] = useState<DirectorData[]>([]);
   const [facilities, setFacilities] = useState<any[]>([]);
