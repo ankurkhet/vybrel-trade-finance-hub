@@ -246,6 +246,25 @@ Deno.serve(async (req) => {
         });
       }
 
+      case 'link_borrower_entity': {
+        const { user_id, borrower_id } = body;
+        if (!user_id) throw new Error('Missing user_id');
+
+        // Unlink any existing borrower linked to this user
+        await supabaseAdmin.from('borrowers').update({ user_id: null }).eq('user_id', user_id);
+
+        // Link new borrower entity if provided
+        if (borrower_id) {
+          await supabaseAdmin.from('borrowers').update({ user_id }).eq('id', borrower_id);
+        }
+
+        await logAudit('admin.link_borrower_entity', 'user', user_id, { borrower_id });
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }
