@@ -150,11 +150,28 @@ export const emptyLender: LenderData = {
   repayment_schedule: "",
 };
 
+export const FACILITY_CATEGORIES = [
+  {
+    category: "Funding",
+    types: [
+      "Receivables / Invoice Financing",
+      "Inventory Financing",
+      "Payable Financing",
+      "Whole Turnover Financing",
+    ],
+  },
+  {
+    category: "Payment / Automation of Receivables",
+    types: [] as string[], // No sub-options needed
+  },
+] as const;
+
 export const FACILITY_TYPES = [
-  "Receivables Financing",
+  "Receivables / Invoice Financing",
   "Inventory Financing",
   "Payable Financing",
   "Whole Turnover Financing",
+  "Payment / Automation of Receivables",
   "Dynamic Discounting",
   "Other Short-Term Credit",
 ] as const;
