@@ -29,6 +29,16 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
     onChange({ ...data, [field]: value });
   };
 
+  // Auto-map SIC codes to industry
+  useEffect(() => {
+    if (data.sic_codes) {
+      const mapped = sicToIndustry(data.sic_codes);
+      if (mapped && mapped !== data.industry) {
+        onChange({ ...data, industry: mapped });
+      }
+    }
+  }, [data.sic_codes]);
+
   return (
     <Card>
       <CardHeader>
