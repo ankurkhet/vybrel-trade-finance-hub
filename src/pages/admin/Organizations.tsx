@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Plus, Loader2, UserPlus, Trash2, Upload, CheckCircle2, XCircle, Clock, FileText, Eye, Users, CreditCard, Landmark, Receipt } from "lucide-react";
+import { Building2, Plus, Loader2, UserPlus, Trash2, Upload, CheckCircle2, XCircle, Clock, FileText, Eye, Users, CreditCard, Landmark, Receipt, GitBranch } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -45,6 +45,9 @@ export default function Organizations() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [displayCurrency, setDisplayCurrency] = useState<CurrencyCode>("GBP");
+  const [showTree, setShowTree] = useState(false);
+  const [treeData, setTreeData] = useState<Record<string, { name: string; borrowers: { id: string; company_name: string; onboarding_status: string }[] }>>({});
+  const [treeLoading, setTreeLoading] = useState(false);
 
   // Create form
   const [newName, setNewName] = useState("");
@@ -58,6 +61,18 @@ export default function Organizations() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => { fetchOrgs(); }, []);
+
+  const fetchTree = async () => {
+    setTreeLoading(true);
+    const { data: allOrgs } = await supabase.from("organizations").select("id, name").order("name");
+    const { data: allBorrowers } = await supabase.from("borrowers").select("id, company_name, onboarding_status, organization_id");
+    const tree: typeof treeData = {};
+    (allOrgs || []).forEach(org => {
+      tree[org.id] = { name: org.name, borrowers: (allBorrowers || []).filter(b => b.organization_id === org.id) };
+    });
+    setTreeData(tree);
+    setTreeLoading(false);
+  };
 
   const fetchOrgs = async () => {
     setLoading(true);
@@ -268,6 +283,9 @@ export default function Organizations() {
                 ))}
               </SelectContent>
             </Select>
+            <Button variant={showTree ? "default" : "outline"} size="sm" onClick={() => { setShowTree(!showTree); if (!showTree) fetchTree(); }}>
+              <GitBranch className="mr-2 h-4 w-4" /> {showTree ? "Hide Tree" : "Borrower Tree"}
+            </Button>
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger asChild>
                 <Button><Plus className="mr-2 h-4 w-4" />Onboard New Originator</Button>
@@ -382,6 +400,51 @@ export default function Organizations() {
             </Dialog>
           </div>
         </div>
+
+        {/* Borrower-Originator Tree View */}
+        {showTree && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <GitBranch className="h-4 w-4 text-primary" /> Borrower–Originator Tree
+              </CardTitle>
+              <CardDescription className="text-xs">Each borrower is linked to exactly one originator</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {treeLoading ? (
+                <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+              ) : (
+                <div className="space-y-3">
+                  {Object.entries(treeData).map(([orgId, { name, borrowers: brs }]) => (
+                    <div key={orgId} className="rounded-lg border p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Building2 className="h-4 w-4 text-primary" />
+                        <span className="font-medium text-sm text-foreground">{name}</span>
+                        <Badge variant="secondary" className="text-[10px]">{brs.length} borrower{brs.length !== 1 ? "s" : ""}</Badge>
+                      </div>
+                      {brs.length > 0 ? (
+                        <div className="ml-6 space-y-1">
+                          {brs.map(b => (
+                            <div key={b.id} className="flex items-center gap-2 text-sm">
+                              <div className="h-px w-4 bg-border" />
+                              <Users className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-foreground">{b.company_name}</span>
+                              <Badge variant={b.onboarding_status === "approved" ? "default" : "outline"} className="text-[10px] capitalize">
+                                {b.onboarding_status.replace(/_/g, " ")}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="ml-6 text-xs text-muted-foreground">No borrowers linked</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>

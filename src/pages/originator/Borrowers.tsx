@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Plus, Loader2, Search, Eye } from "lucide-react";
+import { Users, Plus, Loader2, Search, Eye, Send, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -25,6 +25,43 @@ export default function Borrowers() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [companyData, setCompanyData] = useState<CompanyFormData>({ ...emptyCompanyForm });
+  const [lookingUp, setLookingUp] = useState(false);
+
+  const handleRegistryLookup = async () => {
+    if (!companyData.registration_number || !companyData.country) {
+      toast.error("Enter a registration number and select a country first");
+      return;
+    }
+    setLookingUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("registry-lookup", {
+        body: {
+          country_code: companyData.country,
+          registration_number: companyData.registration_number,
+          company_name: companyData.company_name || undefined,
+        },
+      });
+      if (error) throw error;
+      if (data?.company) {
+        const c = data.company;
+        setCompanyData(prev => ({
+          ...prev,
+          company_name: c.company_name || prev.company_name,
+          registered_address: c.registered_address || prev.registered_address,
+          incorporation_date: c.incorporation_date || prev.incorporation_date,
+          sic_codes: (c.sic_codes || []).join(", ") || prev.sic_codes,
+          vat_tax_id: c.vat_tax_id || prev.vat_tax_id,
+          trading_name: c.trading_name || prev.trading_name,
+        }));
+        toast.success("Company details pre-filled from registry");
+      } else {
+        toast.info("No match found in registry");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Registry lookup failed");
+    }
+    setLookingUp(false);
+  };
 
   useEffect(() => {
     if (profile?.organization_id) fetchBorrowers();
@@ -109,9 +146,17 @@ export default function Borrowers() {
             <h1 className="text-2xl font-bold text-foreground">Borrowers</h1>
             <p className="text-sm text-muted-foreground">Manage borrower relationships and onboarding</p>
           </div>
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Add Borrower
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => {
+              // Generate invite link for a new borrower
+              toast.info("Use 'Add Borrower' to create a borrower record, then send them an invitation from their detail page.");
+            }}>
+              <Send className="mr-2 h-4 w-4" /> Invite Borrower
+            </Button>
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Add Borrower
+            </Button>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -197,6 +242,16 @@ export default function Borrowers() {
           <DialogHeader>
             <DialogTitle>Add New Borrower</DialogTitle>
           </DialogHeader>
+          <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">Auto-fill from Registry</p>
+              <p className="text-xs text-muted-foreground">Enter a registration number &amp; country above, then click lookup to pre-fill company details.</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleRegistryLookup} disabled={lookingUp || !companyData.registration_number}>
+              {lookingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Globe className="mr-2 h-4 w-4" />}
+              Lookup
+            </Button>
+          </div>
           <CompanyInfoStep data={companyData} onChange={setCompanyData} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>

@@ -13,7 +13,8 @@ import { COUNTRIES, INDUSTRIES } from "@/lib/onboarding-types";
 import type { CompanyFormData, AddressData } from "@/lib/onboarding-types";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { sicToIndustry } from "@/lib/sic-industry-map";
 
 interface CompanyInfoStepProps {
   data: CompanyFormData;
@@ -27,6 +28,16 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
   const update = (field: keyof CompanyFormData, value: any) => {
     onChange({ ...data, [field]: value });
   };
+
+  // Auto-map SIC codes to industry
+  useEffect(() => {
+    if (data.sic_codes) {
+      const mapped = sicToIndustry(data.sic_codes);
+      if (mapped && mapped !== data.industry) {
+        onChange({ ...data, industry: mapped });
+      }
+    }
+  }, [data.sic_codes]);
 
   return (
     <Card>
@@ -111,6 +122,13 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
           </div>
         </div>
 
+        {/* SIC Code(s) — moved before Industry */}
+        <div className="space-y-2">
+          <Label>SIC Code(s)</Label>
+          <Input value={data.sic_codes} onChange={(e) => update("sic_codes", e.target.value)} placeholder="e.g. 64992 – Factoring, 82920 – Packaging" disabled={disabled} />
+          <p className="text-xs text-muted-foreground">Industry will auto-select based on SIC code</p>
+        </div>
+
         {/* Industry */}
         <div className="space-y-2">
           <Label>Industry / Sector <span className="text-destructive">*</span></Label>
@@ -178,10 +196,6 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>SIC Code(s)</Label>
-              <Input value={data.sic_codes} onChange={(e) => update("sic_codes", e.target.value)} placeholder="e.g. 64992 – Factoring, 82920 – Packaging" disabled={disabled} />
-            </div>
 
             {/* Group company */}
             <div className="flex items-center space-x-3">

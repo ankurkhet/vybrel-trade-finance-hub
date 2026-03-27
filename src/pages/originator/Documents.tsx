@@ -322,22 +322,41 @@ export default function OriginatorDocuments() {
                         {docs.map(doc => (
                           <TableRow key={doc.id}>
                             <TableCell className="capitalize text-xs">{doc.document_type.replace(/_/g, " ")}</TableCell>
-                            <TableCell className="text-sm">{doc.file_name}</TableCell>
+                            <TableCell>
+                              <button
+                                className="text-sm text-primary underline hover:text-primary/80 text-left"
+                                onClick={async () => {
+                                  const { data } = await supabase.storage.from("documents").createSignedUrl(doc.file_path, 300);
+                                  if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                                  else toast.error("Could not open file");
+                                }}
+                              >
+                                {doc.file_name}
+                              </button>
+                            </TableCell>
                             <TableCell className="text-xs">v{doc.version}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">{new Date(doc.created_at).toLocaleDateString()}</TableCell>
                             <TableCell>
                               <Badge variant={statusBadgeVariant(doc.status)} className="capitalize text-xs">{doc.status}</Badge>
                             </TableCell>
                             <TableCell>
-                              {doc.status === "pending" && (
-                                <Button variant="outline" size="sm" className="text-xs" onClick={() => {
-                                  setDocReviewDialog(doc);
-                                  setDocAction("approved");
-                                  setDocRejectionReason("");
+                              <div className="flex gap-1">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={async () => {
+                                  const { data } = await supabase.storage.from("documents").createSignedUrl(doc.file_path, 300);
+                                  if (data?.signedUrl) window.open(data.signedUrl, "_blank");
                                 }}>
-                                  Review
+                                  <Eye className="h-4 w-4" />
                                 </Button>
-                              )}
+                                {doc.status === "pending" && (
+                                  <Button variant="outline" size="sm" className="text-xs" onClick={() => {
+                                    setDocReviewDialog(doc);
+                                    setDocAction("approved");
+                                    setDocRejectionReason("");
+                                  }}>
+                                    Review
+                                  </Button>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -436,11 +455,16 @@ export default function OriginatorDocuments() {
                                   <span className="text-xs font-medium text-muted-foreground">Upload History</span>
                                 </div>
                                 {typeDocs.map(doc => (
-                                  <div key={doc.id} className="flex items-center justify-between rounded-lg border p-3">
+                                  <div key={doc.id} className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:bg-accent/30 transition-colors"
+                                    onClick={async () => {
+                                      const { data } = await supabase.storage.from("org-documents").createSignedUrl(doc.file_path, 300);
+                                      if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                                      else toast.error("Could not open file");
+                                    }}>
                                     <div className="flex items-center gap-3">
                                       {statusIcon(doc.status)}
                                       <div>
-                                        <p className="text-sm font-medium text-foreground">{doc.file_name}</p>
+                                        <p className="text-sm font-medium text-primary underline">{doc.file_name}</p>
                                         <p className="text-xs text-muted-foreground">
                                           v{doc.version} · {new Date(doc.created_at).toLocaleDateString()}
                                           {doc.notes && ` · ${doc.notes}`}

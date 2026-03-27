@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import {
   Loader2, ArrowLeft, Building2, Users, FileCheck, Shield, Save, Send,
   ShieldCheck, FileText, CreditCard, Landmark, UserCheck, CheckCircle2,
-  XCircle, AlertTriangle, Eye, Download,
+  XCircle, AlertTriangle, Eye, Download, Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
@@ -30,7 +30,7 @@ import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 export default function BorrowerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [borrower, setBorrower] = useState<any>(null);
   const [directors, setDirectors] = useState<DirectorData[]>([]);
   const [facilities, setFacilities] = useState<any[]>([]);
@@ -51,6 +51,35 @@ export default function BorrowerDetail() {
   const [docReviewDialog, setDocReviewDialog] = useState<any>(null);
   const [docAction, setDocAction] = useState<"approved" | "rejected">("approved");
   const [docRejectionReason, setDocRejectionReason] = useState("");
+  const [uploadDocType, setUploadDocType] = useState("");
+  const [docUploading, setDocUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadDocType || !profile?.organization_id || !id) return;
+    setDocUploading(true);
+    const filePath = `${profile.organization_id}/${id}/${Date.now()}_${file.name}`;
+    const { error: uploadErr } = await supabase.storage.from("documents").upload(filePath, file);
+    if (uploadErr) { toast.error(uploadErr.message); setDocUploading(false); return; }
+    const { error } = await supabase.from("documents").insert({
+      organization_id: profile.organization_id,
+      borrower_id: id,
+      document_type: uploadDocType as any,
+      file_name: file.name,
+      file_path: filePath,
+      file_size: file.size,
+      mime_type: file.type,
+      uploaded_by: user?.id || null,
+      status: "pending",
+    });
+    if (error) toast.error(error.message);
+    else toast.success(`"${file.name}" uploaded`);
+    setDocUploading(false);
+    setUploadDocType("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    loadAll();
+  };
 
   useEffect(() => {
     if (id) loadAll();
@@ -489,9 +518,39 @@ export default function BorrowerDetail() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><FileCheck className="h-5 w-5 text-primary" /> Uploaded Documents</CardTitle>
-                <CardDescription>Review, approve, or reject borrower documents</CardDescription>
+                <CardDescription>Review, approve, or reject borrower documents. Upload documents on behalf of the borrower.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                {/* Upload section */}
+                <div className="rounded-lg border border-dashed border-border p-4 space-y-3">
+                  <p className="text-sm font-medium text-foreground">Upload Document for Borrower</p>
+                  <div className="flex gap-3 items-end flex-wrap">
+                    <div className="space-y-1 flex-1 min-w-[180px]">
+                      <Label className="text-xs">Document Type</Label>
+                      <Select value={uploadDocType} onValueChange={setUploadDocType}>
+                        <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                        <SelectContent>
+                          {["kyc","financial_statement","incorporation","invoice","contract","bank_statement","board_resolution","tax_certificate","other"].map(t => (
+                            <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        onChange={handleDocUpload}
+                      />
+                      <Button variant="outline" size="sm" disabled={!uploadDocType || docUploading} onClick={() => fileInputRef.current?.click()}>
+                        {docUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                        Choose File
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
                 {documents.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4">No documents uploaded yet.</p>
                 ) : (
@@ -510,7 +569,19 @@ export default function BorrowerDetail() {
                       {documents.map((doc) => (
                         <TableRow key={doc.id}>
                           <TableCell className="capitalize text-sm">{doc.document_type.replace(/_/g, " ")}</TableCell>
-                          <TableCell className="text-sm">{doc.file_name}</TableCell>
+                          <TableCell>
+                            <button
+                              className="text-sm text-primary underline hover:text-primary/80 text-left"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const { data } = await supabase.storage.from("documents").createSignedUrl(doc.file_path, 300);
+                                if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                                else toast.error("Could not open file");
+                              }}
+                            >
+                              {doc.file_name}
+                            </button>
+                          </TableCell>
                           <TableCell>v{doc.version}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{new Date(doc.created_at).toLocaleDateString()}</TableCell>
                           <TableCell>
@@ -520,6 +591,13 @@ export default function BorrowerDetail() {
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={async (e) => {
+                                e.stopPropagation();
+                                const { data } = await supabase.storage.from("documents").createSignedUrl(doc.file_path, 300);
+                                if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                              }}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
                               {doc.status === "pending" && (
                                 <Button variant="outline" size="sm" className="text-xs" onClick={() => {
                                   setDocReviewDialog(doc);

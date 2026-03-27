@@ -43,8 +43,12 @@ const ALL_WIDGETS: WidgetDef[] = [
   { id: "admin_ai", title: "AI Analyses", icon: Brain, subtitle: "Completed", role: "admin", supportsChart: true },
   // Originator / Broker
   { id: "orig_borrowers", title: "Borrowers", icon: Users, subtitle: "Active borrowers", role: "originator", navigateTo: "/originator/borrowers", supportsChart: true },
+  { id: "orig_counterparties", title: "Counterparties", icon: Building2, subtitle: "Linked counterparties", role: "originator", navigateTo: "/originator/counterparties", supportsChart: false },
   { id: "orig_contracts", title: "Contracts", icon: FileText, subtitle: "Active contracts", role: "originator", navigateTo: "/originator/contracts", supportsChart: true },
   { id: "orig_invoices", title: "Invoices", icon: CreditCard, subtitle: "Pending invoices", role: "originator", navigateTo: "/originator/invoices", supportsChart: true },
+  { id: "orig_limits", title: "Total Limits", icon: Shield, subtitle: "Aggregate credit limits", role: "originator", supportsChart: false },
+  { id: "orig_outstanding", title: "Total Outstanding", icon: Receipt, subtitle: "Unpaid invoices", role: "originator", supportsChart: false },
+  { id: "orig_overdue", title: "Total Overdue", icon: BarChart3, subtitle: "Past due date", role: "originator", supportsChart: false },
   { id: "orig_memos", title: "Credit Memos", icon: Brain, subtitle: "Drafts pending review", role: "originator", supportsChart: false },
   // Borrower
   { id: "borr_docs", title: "Documents", icon: Upload, subtitle: "Uploaded documents", role: "borrower", navigateTo: "/borrower/documents", supportsChart: false },
@@ -181,12 +185,18 @@ export default function Dashboard() {
     }
 
     if (isOriginatorAdmin || isBroker) {
-      supabase.from("borrowers").select("id, onboarding_status").then(({ data }) => {
+      supabase.from("borrowers").select("id, onboarding_status, credit_limit").then(({ data }) => {
         set("orig_borrowers", String(data?.length ?? 0), [
           { name: "Approved", value: data?.filter((b) => b.onboarding_status === "approved").length ?? 0 },
           { name: "Under Review", value: data?.filter((b) => b.onboarding_status === "under_review").length ?? 0 },
           { name: "Invited", value: data?.filter((b) => b.onboarding_status === "invited").length ?? 0 },
         ]);
+        // Total Limits (aggregate)
+        const totalLimits = (data || []).reduce((sum, b) => sum + (Number(b.credit_limit) || 0), 0);
+        set("orig_limits", totalLimits > 0 ? `£${(totalLimits / 1000).toFixed(0)}K` : "£0");
+      });
+      supabase.from("counterparties").select("id", { count: "exact", head: true }).then(({ count }) => {
+        set("orig_counterparties", String(count ?? 0));
       });
       supabase.from("contracts").select("id, status").then(({ data }) => {
         const active = data?.filter((c) => c.status === "active").length ?? 0;
@@ -196,7 +206,7 @@ export default function Dashboard() {
           { name: "Draft", value: data?.filter((c) => c.status === "draft").length ?? 0 },
         ]);
       });
-      supabase.from("invoices").select("id, status, amount").then(({ data }) => {
+      supabase.from("invoices").select("id, status, amount, due_date").then(({ data }) => {
         const pending = data?.filter((i) => i.status === "pending").length ?? 0;
         set("orig_invoices", String(pending), [
           { name: "Pending", value: pending },
@@ -204,6 +214,17 @@ export default function Dashboard() {
           { name: "Funded", value: data?.filter((i) => i.status === "funded").length ?? 0 },
           { name: "Rejected", value: data?.filter((i) => i.status === "rejected").length ?? 0 },
         ]);
+        // Outstanding = not settled/rejected
+        const outstanding = (data || [])
+          .filter((i) => i.status !== "settled" && i.status !== "rejected")
+          .reduce((sum, i) => sum + Number(i.amount), 0);
+        set("orig_outstanding", outstanding > 0 ? `£${(outstanding / 1000).toFixed(0)}K` : "£0");
+        // Overdue = past due_date and not settled
+        const now = new Date();
+        const overdue = (data || [])
+          .filter((i) => i.status !== "settled" && i.status !== "rejected" && i.due_date && new Date(i.due_date) < now)
+          .reduce((sum, i) => sum + Number(i.amount), 0);
+        set("orig_overdue", overdue > 0 ? `£${(overdue / 1000).toFixed(0)}K` : "£0");
       });
       supabase.from("credit_memos").select("id", { count: "exact", head: true }).eq("status", "draft").then(({ count }) => {
         set("orig_memos", String(count ?? 0));
