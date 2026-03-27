@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Plus, Loader2, UserPlus, Trash2, Upload, CheckCircle2, XCircle, Clock, FileText, Eye, Users, CreditCard, Landmark, Receipt } from "lucide-react";
+import { Building2, Plus, Loader2, UserPlus, Trash2, Upload, CheckCircle2, XCircle, Clock, FileText, Eye, Users, CreditCard, Landmark, Receipt, GitBranch } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
