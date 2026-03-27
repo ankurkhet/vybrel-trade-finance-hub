@@ -628,6 +628,7 @@ export default function BorrowerOnboarding() {
           <DocumentChecklistStep
             uploadedDocs={uploadedDocs}
             onUpload={(doc) => setUploadedDocs(prev => [...prev, doc])}
+            onDelete={(index) => setUploadedDocs(prev => prev.filter((_, i) => i !== index))}
             notes={docNotes}
             onNoteChange={(type, note) => setDocNotes(prev => ({ ...prev, [type]: note }))}
             disabled={isReadOnly}
