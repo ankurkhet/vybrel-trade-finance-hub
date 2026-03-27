@@ -61,6 +61,14 @@ export interface CompanyFormData {
   vat_tax_id: string;
   num_employees: string;
   annual_turnover: string;
+  // New fields from flowchart
+  is_part_of_group: boolean;
+  parent_company_name: string;
+  parent_shareholding_pct: string;
+  sic_codes: string;
+  has_credit_facilities: boolean;
+  other_invoice_facilities: string;
+  turnover_currency: string;
 }
 
 export const emptyCompanyForm: CompanyFormData = {
@@ -79,7 +87,115 @@ export const emptyCompanyForm: CompanyFormData = {
   vat_tax_id: "",
   num_employees: "",
   annual_turnover: "",
+  is_part_of_group: false,
+  parent_company_name: "",
+  parent_shareholding_pct: "",
+  sic_codes: "",
+  has_credit_facilities: false,
+  other_invoice_facilities: "",
+  turnover_currency: "GBP",
 };
+
+export interface SignatoryFormData {
+  full_name: string;
+  dob: string;
+  designation: string;
+  is_director: boolean | null;
+  director_name: string;
+  director_email: string;
+}
+
+export const emptySignatoryForm: SignatoryFormData = {
+  full_name: "",
+  dob: "",
+  designation: "",
+  is_director: null,
+  director_name: "",
+  director_email: "",
+};
+
+export interface FacilityRequestData {
+  facility_type: string;
+  amount: string;
+  currency: string;
+  tenor_months: string;
+  pricing_notes: string;
+}
+
+export const emptyFacilityRequest: FacilityRequestData = {
+  facility_type: "",
+  amount: "",
+  currency: "GBP",
+  tenor_months: "",
+  pricing_notes: "",
+};
+
+export interface LenderData {
+  lender_name: string;
+  has_facilities: boolean;
+  facility_nature: string;
+  facility_amount: string;
+  currency: string;
+  is_secured: boolean;
+  repayment_schedule: string;
+}
+
+export const emptyLender: LenderData = {
+  lender_name: "",
+  has_facilities: false,
+  facility_nature: "",
+  facility_amount: "",
+  currency: "GBP",
+  is_secured: false,
+  repayment_schedule: "",
+};
+
+export const FACILITY_TYPES = [
+  "Receivables Financing",
+  "Inventory Financing",
+  "Payable Financing",
+  "Whole Turnover Financing",
+  "Dynamic Discounting",
+  "Other Short-Term Credit",
+] as const;
+
+export const ONBOARDING_DOCUMENT_TYPES = [
+  { type: "incorporation_certificate", label: "Incorporation Certificate", required: true },
+  { type: "vat_ein_certificate", label: "VAT/EIN/Tax Certificate", required: true },
+  { type: "company_address_proof", label: "Company - Address Proof", required: false },
+  { type: "company_utility_statement", label: "Company - Utility Statement (not older than 2 months)", required: false },
+  { type: "company_bank_statement", label: "Company - Bank Statement (not older than 2 months)", required: false },
+  { type: "company_rent_agreement", label: "Company - Rent Agreement", required: false },
+  { type: "company_property_papers", label: "Company - Property Papers", required: false },
+  { type: "individual_passport", label: "Individual - Copy of Passport", required: false },
+  { type: "individual_driving_license", label: "Individual - Driving License", required: false },
+  { type: "individual_address_proof", label: "Individual - Address Proof", required: false },
+  { type: "individual_utility_statement", label: "Individual - Utility Statement (not older than 2 months)", required: false },
+  { type: "individual_bank_statement", label: "Individual - Bank Statement (not older than 2 months)", required: false },
+  { type: "individual_rent_agreement", label: "Individual - Rent Agreement", required: false },
+  { type: "individual_property_papers", label: "Individual - Property Papers", required: false },
+  { type: "annual_report", label: "Last Annual Report / Audited Financial Statement", required: true },
+  { type: "provisional_financials", label: "Provisional Financial Statements (YTD)", required: false },
+  { type: "projections", label: "Projections for next 2 years", required: false },
+  { type: "company_presentation", label: "Company Presentation", required: false },
+  { type: "customer_list", label: "List of Customers", required: false },
+  { type: "supplier_list", label: "List of Suppliers", required: false },
+  { type: "bank_statements_6m", label: "Bank Account Statements for last 6 months", required: true },
+  { type: "customer_agreements", label: "Copy(ies) of latest Agreements with Customer(s)", required: false },
+  { type: "supplier_agreements", label: "Copy(ies) of latest Agreements with Supplier(s)", required: false },
+  { type: "board_resolution", label: "Relevant Board Resolution", required: false },
+  { type: "nda_signed", label: "Signed NDA", required: true },
+] as const;
+
+export const ONBOARDING_STATUSES = [
+  { key: "draft", label: "Draft", color: "outline" },
+  { key: "submitted", label: "Submitted for Review", color: "secondary" },
+  { key: "documents_requested", label: "Documents Requested", color: "outline" },
+  { key: "under_review", label: "Under KYB Review", color: "default" },
+  { key: "approved", label: "Approved", color: "default" },
+  { key: "rejected", label: "Rejected", color: "destructive" },
+  { key: "onboarded", label: "Onboarded", color: "default" },
+] as const;
 
 export const INDUSTRIES = [
   "Agriculture & Farming",
