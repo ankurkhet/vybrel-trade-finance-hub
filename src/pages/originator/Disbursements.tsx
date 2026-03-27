@@ -198,9 +198,12 @@ export default function Disbursements() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Disbursement Memos</h1>
-          <p className="text-sm text-muted-foreground">Review and approve funding disbursements</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Disbursement Memos</h1>
+            <p className="text-sm text-muted-foreground">Create, review and approve funding disbursements</p>
+          </div>
+          <Button onClick={openCreateDialog}><Plus className="mr-2 h-4 w-4" /> Create Disbursement</Button>
         </div>
 
         {/* Stats */}
