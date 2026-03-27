@@ -418,7 +418,7 @@ export default function BorrowerDetail() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {f.status === "pending" && (
+                            {(f.status === "pending" || f.status === "requested") && (
                               <Button variant="outline" size="sm" onClick={() => {
                                 setFacilityDialog(f);
                                 setFacilityApproval({
