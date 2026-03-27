@@ -74,7 +74,7 @@ export default function Borrowers() {
       vat_tax_id: companyData.vat_tax_id || null,
       num_employees: companyData.num_employees ? parseInt(companyData.num_employees) : null,
       annual_turnover: companyData.annual_turnover ? parseFloat(companyData.annual_turnover) : null,
-      onboarding_status: "invited",
+      onboarding_status: "invited" as const,
     });
 
     if (error) toast.error(error.message);

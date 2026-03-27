@@ -189,7 +189,10 @@ export const ONBOARDING_DOCUMENT_TYPES = [
 
 export const ONBOARDING_STATUSES = [
   { key: "draft", label: "Draft", color: "outline" },
-  { key: "submitted", label: "Submitted for Review", color: "secondary" },
+  { key: "invited", label: "Invited", color: "outline" },
+  { key: "registered", label: "Registered", color: "secondary" },
+  { key: "documents_pending", label: "Documents Pending", color: "outline" },
+  { key: "documents_submitted", label: "Submitted for Review", color: "secondary" },
   { key: "documents_requested", label: "Documents Requested", color: "outline" },
   { key: "under_review", label: "Under KYB Review", color: "default" },
   { key: "approved", label: "Approved", color: "default" },

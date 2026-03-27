@@ -105,8 +105,8 @@ export default function BorrowerOnboarding() {
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
   const [docNotes, setDocNotes] = useState<Record<string, string>>({});
 
-  const isReadOnly = !["draft", "documents_requested"].includes(onboardingStatus);
-  const isSubmitted = ["submitted", "under_review", "approved", "onboarded"].includes(onboardingStatus);
+  const isReadOnly = !["draft", "documents_requested", "documents_pending", "registered"].includes(onboardingStatus);
+  const isSubmitted = ["documents_submitted", "under_review", "approved", "onboarded"].includes(onboardingStatus);
 
   // Load existing borrower data
   useEffect(() => {
@@ -225,7 +225,7 @@ export default function BorrowerOnboarding() {
         if (meta.uploadedDocs) setUploadedDocs(meta.uploadedDocs);
 
         // If already submitted, start at review step
-        if (["submitted", "under_review", "approved", "onboarded"].includes(borrower.onboarding_status)) {
+        if (["documents_submitted", "under_review", "approved", "onboarded"].includes(borrower.onboarding_status)) {
           setStep(7); // review step
         }
       }
@@ -242,15 +242,15 @@ export default function BorrowerOnboarding() {
       const orgId = profile.organization_id;
       if (!orgId) throw new Error("No organization found");
 
-      const borrowerPayload: any = {
-        company_name: companyData.company_name || "Unnamed Company",
+      const borrowerPayload = {
+      company_name: companyData.company_name || "Unnamed Company",
         trading_name: companyData.trading_name,
         registration_number: companyData.registration_number,
         country: companyData.country,
         incorporation_date: companyData.incorporation_date || null,
         industry: companyData.industry,
-        registered_address: companyData.registered_address,
-        trading_address: companyData.trading_address,
+        registered_address: companyData.registered_address as any,
+        trading_address: companyData.trading_address as any,
         phone: companyData.phone,
         website: companyData.website,
         contact_email: companyData.contact_email || profile.email,
@@ -269,12 +269,12 @@ export default function BorrowerOnboarding() {
         signatory_dob: signatoryData.dob,
         signatory_is_director: signatoryData.is_director,
         signatory_email: signatoryData.is_director === false ? signatoryData.director_email : null,
-        metadata: {
+        metadata: JSON.parse(JSON.stringify({
           signatory: signatoryData,
           bankDetails,
           uploadedDocs,
           docNotes,
-        },
+        })),
         organization_id: orgId,
         user_id: profile.user_id,
       };
@@ -284,13 +284,13 @@ export default function BorrowerOnboarding() {
       if (borrowerId) {
         const { error } = await supabase
           .from("borrowers")
-          .update(borrowerPayload)
+          .update(borrowerPayload as any)
           .eq("id", borrowerId);
         if (error) throw error;
       } else {
         const { data: newBorrower, error } = await supabase
           .from("borrowers")
-          .insert(borrowerPayload)
+          .insert(borrowerPayload as any)
           .select("id")
           .single();
         if (error) throw error;
@@ -366,13 +366,13 @@ export default function BorrowerOnboarding() {
     if (!borrowerId) return;
     const { error } = await supabase
       .from("borrowers")
-      .update({ onboarding_status: "documents_submitted" as any })
+      .update({ onboarding_status: "documents_submitted" })
       .eq("id", borrowerId);
     if (error) {
       toast.error("Submit failed: " + error.message);
       return;
     }
-    setOnboardingStatus("submitted");
+    setOnboardingStatus("documents_submitted");
     setStep(8); // complete
     toast.success("Application submitted for review!");
 
@@ -487,7 +487,7 @@ export default function BorrowerOnboarding() {
         </div>
 
         {/* Originator comments (if any) */}
-        {isReadOnly && onboardingStatus === "documents_requested" && (
+        {onboardingStatus === "documents_requested" && (
           <Card className="border-[hsl(var(--chart-4))]">
             <CardContent className="flex items-start gap-3 py-4">
               <AlertTriangle className="h-5 w-5 text-[hsl(var(--chart-4))] shrink-0 mt-0.5" />
