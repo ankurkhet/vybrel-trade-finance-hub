@@ -362,6 +362,8 @@ export default function BorrowerDetail() {
             })}
           </div>
         </div>
+        {/* Change Tracker */}
+        <ChangeTracker borrowerId={id!} />
 
         {/* Tabs */}
         <Tabs defaultValue="company" className="w-full">
