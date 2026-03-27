@@ -13,7 +13,8 @@ import { COUNTRIES, INDUSTRIES } from "@/lib/onboarding-types";
 import type { CompanyFormData, AddressData } from "@/lib/onboarding-types";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { sicToIndustry } from "@/lib/sic-industry-map";
 
 interface CompanyInfoStepProps {
   data: CompanyFormData;
