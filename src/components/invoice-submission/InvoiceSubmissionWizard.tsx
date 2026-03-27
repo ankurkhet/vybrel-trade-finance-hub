@@ -105,6 +105,20 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
   const [documentComments, setDocumentComments] = useState<Record<number, string>>({});
   const [overallComment, setOverallComment] = useState("");
 
+  // Load approved facilities when wizard opens
+  const loadFacilities = useCallback(async () => {
+    const { data } = await supabase
+      .from("facility_requests")
+      .select("*")
+      .eq("borrower_id", borrower.id)
+      .eq("status", "approved")
+      .order("created_at");
+    setApprovedFacilities(data || []);
+  }, [borrower.id]);
+
+  // Load on open
+  useState(() => { if (open) loadFacilities(); });
+
   const resetWizard = () => {
     setStep("upload");
     setFiles([]);
@@ -122,10 +136,12 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
     setProductType("receivables_purchase");
     setRequiresAcceptance(true); setCounterpartyEmail(""); setCounterpartyName("");
     setObservationComments({}); setDocumentComments({}); setOverallComment("");
+    setSelectedFacilityId("");
   };
 
   const handleClose = (val: boolean) => {
     if (!val) resetWizard();
+    else loadFacilities();
     onOpenChange(val);
   };
 
