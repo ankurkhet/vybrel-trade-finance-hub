@@ -45,6 +45,9 @@ export default function Organizations() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [displayCurrency, setDisplayCurrency] = useState<CurrencyCode>("GBP");
+  const [showTree, setShowTree] = useState(false);
+  const [treeData, setTreeData] = useState<Record<string, { name: string; borrowers: { id: string; company_name: string; onboarding_status: string }[] }>>({});
+  const [treeLoading, setTreeLoading] = useState(false);
 
   // Create form
   const [newName, setNewName] = useState("");
