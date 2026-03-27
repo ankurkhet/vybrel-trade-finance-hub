@@ -55,6 +55,12 @@ export default function BorrowerDetail() {
   const [uploadDocType, setUploadDocType] = useState("");
   const [docUploading, setDocUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { preview, openPreview, closePreview } = useDocumentPreview();
+
+  // Request Update dialog
+  const [requestUpdateDialog, setRequestUpdateDialog] = useState(false);
+  const [requestUpdateSection, setRequestUpdateSection] = useState("");
+  const [requestUpdateMessage, setRequestUpdateMessage] = useState("");
 
   const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
