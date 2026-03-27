@@ -264,6 +264,66 @@ export type Database = {
           },
         ]
       }
+      borrower_lenders: {
+        Row: {
+          borrower_id: string
+          created_at: string
+          currency: string
+          facility_amount: number | null
+          facility_nature: string | null
+          id: string
+          is_secured: boolean | null
+          lender_name: string
+          notes: string | null
+          organization_id: string
+          repayment_schedule: string | null
+          updated_at: string
+        }
+        Insert: {
+          borrower_id: string
+          created_at?: string
+          currency?: string
+          facility_amount?: number | null
+          facility_nature?: string | null
+          id?: string
+          is_secured?: boolean | null
+          lender_name: string
+          notes?: string | null
+          organization_id: string
+          repayment_schedule?: string | null
+          updated_at?: string
+        }
+        Update: {
+          borrower_id?: string
+          created_at?: string
+          currency?: string
+          facility_amount?: number | null
+          facility_nature?: string | null
+          id?: string
+          is_secured?: boolean | null
+          lender_name?: string
+          notes?: string | null
+          organization_id?: string
+          repayment_schedule?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "borrower_lenders_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "borrower_lenders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       borrowers: {
         Row: {
           aml_cleared: boolean
@@ -277,17 +337,34 @@ export type Database = {
           country: string | null
           created_at: string
           credit_limit: number | null
+          funding_status: string | null
+          has_credit_facilities: boolean | null
           id: string
           incorporation_date: string | null
           industry: string | null
+          is_part_of_group: boolean | null
+          kyb_status: string | null
           kyc_completed: boolean
+          linkedin_url: string | null
           metadata: Json | null
+          nda_document_id: string | null
+          nda_signed: boolean | null
+          nda_signed_at: string | null
           num_employees: number | null
           onboarding_status: Database["public"]["Enums"]["onboarding_status"]
           organization_id: string
+          other_invoice_facilities: string | null
+          parent_company_name: string | null
+          parent_shareholding_pct: number | null
           phone: string | null
           registered_address: Json | null
           registration_number: string | null
+          sic_codes: string[] | null
+          signatory_designation: string | null
+          signatory_dob: string | null
+          signatory_email: string | null
+          signatory_is_director: boolean | null
+          signatory_name: string | null
           trading_address: Json | null
           trading_name: string | null
           updated_at: string
@@ -307,17 +384,34 @@ export type Database = {
           country?: string | null
           created_at?: string
           credit_limit?: number | null
+          funding_status?: string | null
+          has_credit_facilities?: boolean | null
           id?: string
           incorporation_date?: string | null
           industry?: string | null
+          is_part_of_group?: boolean | null
+          kyb_status?: string | null
           kyc_completed?: boolean
+          linkedin_url?: string | null
           metadata?: Json | null
+          nda_document_id?: string | null
+          nda_signed?: boolean | null
+          nda_signed_at?: string | null
           num_employees?: number | null
           onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
           organization_id: string
+          other_invoice_facilities?: string | null
+          parent_company_name?: string | null
+          parent_shareholding_pct?: number | null
           phone?: string | null
           registered_address?: Json | null
           registration_number?: string | null
+          sic_codes?: string[] | null
+          signatory_designation?: string | null
+          signatory_dob?: string | null
+          signatory_email?: string | null
+          signatory_is_director?: boolean | null
+          signatory_name?: string | null
           trading_address?: Json | null
           trading_name?: string | null
           updated_at?: string
@@ -337,17 +431,34 @@ export type Database = {
           country?: string | null
           created_at?: string
           credit_limit?: number | null
+          funding_status?: string | null
+          has_credit_facilities?: boolean | null
           id?: string
           incorporation_date?: string | null
           industry?: string | null
+          is_part_of_group?: boolean | null
+          kyb_status?: string | null
           kyc_completed?: boolean
+          linkedin_url?: string | null
           metadata?: Json | null
+          nda_document_id?: string | null
+          nda_signed?: boolean | null
+          nda_signed_at?: string | null
           num_employees?: number | null
           onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
           organization_id?: string
+          other_invoice_facilities?: string | null
+          parent_company_name?: string | null
+          parent_shareholding_pct?: number | null
           phone?: string | null
           registered_address?: Json | null
           registration_number?: string | null
+          sic_codes?: string[] | null
+          signatory_designation?: string | null
+          signatory_dob?: string | null
+          signatory_email?: string | null
+          signatory_is_director?: boolean | null
+          signatory_name?: string | null
           trading_address?: Json | null
           trading_name?: string | null
           updated_at?: string
@@ -971,6 +1082,128 @@ export type Database = {
         }
         Relationships: []
       }
+      disbursement_memos: {
+        Row: {
+          advance_amount: number
+          advance_rate: number | null
+          approved_at: string | null
+          approved_by: string | null
+          borrower_id: string
+          counterparty_name: string | null
+          created_at: string
+          disbursed_at: string | null
+          disbursement_amount: number
+          facility_request_id: string | null
+          funder_fee: number | null
+          funder_name: string | null
+          id: string
+          invoice_date: string | null
+          invoice_due_date: string | null
+          invoice_id: string
+          invoice_number: string | null
+          invoice_value: number
+          memo_number: string | null
+          metadata: Json | null
+          organization_id: string
+          originator_fee: number | null
+          payment_date: string | null
+          payment_reference: string | null
+          retained_amount: number
+          status: string
+          total_fee: number | null
+          updated_at: string
+        }
+        Insert: {
+          advance_amount: number
+          advance_rate?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          borrower_id: string
+          counterparty_name?: string | null
+          created_at?: string
+          disbursed_at?: string | null
+          disbursement_amount: number
+          facility_request_id?: string | null
+          funder_fee?: number | null
+          funder_name?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_due_date?: string | null
+          invoice_id: string
+          invoice_number?: string | null
+          invoice_value: number
+          memo_number?: string | null
+          metadata?: Json | null
+          organization_id: string
+          originator_fee?: number | null
+          payment_date?: string | null
+          payment_reference?: string | null
+          retained_amount: number
+          status?: string
+          total_fee?: number | null
+          updated_at?: string
+        }
+        Update: {
+          advance_amount?: number
+          advance_rate?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          borrower_id?: string
+          counterparty_name?: string | null
+          created_at?: string
+          disbursed_at?: string | null
+          disbursement_amount?: number
+          facility_request_id?: string | null
+          funder_fee?: number | null
+          funder_name?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_due_date?: string | null
+          invoice_id?: string
+          invoice_number?: string | null
+          invoice_value?: number
+          memo_number?: string | null
+          metadata?: Json | null
+          organization_id?: string
+          originator_fee?: number | null
+          payment_date?: string | null
+          payment_reference?: string | null
+          retained_amount?: number
+          status?: string
+          total_fee?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disbursement_memos_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disbursement_memos_facility_request_id_fkey"
+            columns: ["facility_request_id"]
+            isOneToOne: false
+            referencedRelation: "facility_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disbursement_memos_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disbursement_memos_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           borrower_id: string | null
@@ -1064,6 +1297,81 @@ export type Database = {
             columns: ["parent_document_id"]
             isOneToOne: false
             referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facility_requests: {
+        Row: {
+          amount_requested: number | null
+          approved_amount: number | null
+          approved_at: string | null
+          approved_by: string | null
+          approved_tenor_months: number | null
+          borrower_id: string
+          created_at: string
+          currency: string
+          facility_type: string
+          id: string
+          metadata: Json | null
+          organization_id: string
+          pricing_notes: string | null
+          rejection_reason: string | null
+          status: string
+          tenor_months: number | null
+          updated_at: string
+        }
+        Insert: {
+          amount_requested?: number | null
+          approved_amount?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_tenor_months?: number | null
+          borrower_id: string
+          created_at?: string
+          currency?: string
+          facility_type: string
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+          pricing_notes?: string | null
+          rejection_reason?: string | null
+          status?: string
+          tenor_months?: number | null
+          updated_at?: string
+        }
+        Update: {
+          amount_requested?: number | null
+          approved_amount?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_tenor_months?: number | null
+          borrower_id?: string
+          created_at?: string
+          currency?: string
+          facility_type?: string
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+          pricing_notes?: string | null
+          rejection_reason?: string | null
+          status?: string
+          tenor_months?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facility_requests_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facility_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -1982,6 +2290,134 @@ export type Database = {
             columns: ["registry_api_id"]
             isOneToOne: false
             referencedRelation: "registry_api_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      repayment_memos: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          balance_due: number | null
+          borrower_id: string
+          counterparty_name: string | null
+          created_at: string
+          disbursement_amount: number
+          disbursement_memo_id: string
+          funder_fee: number | null
+          funder_name: string | null
+          funding_amount: number
+          id: string
+          invoice_date: string | null
+          invoice_due_date: string | null
+          invoice_id: string
+          invoice_number: string | null
+          invoice_value: number
+          memo_number: string | null
+          metadata: Json | null
+          organization_id: string
+          originator_fee: number | null
+          overdue_fee: number | null
+          payment_confirmed_at: string | null
+          payment_reference: string | null
+          repayment_date: string | null
+          retained_reimbursement: number | null
+          status: string
+          total_fee: number | null
+          total_repayment: number
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          balance_due?: number | null
+          borrower_id: string
+          counterparty_name?: string | null
+          created_at?: string
+          disbursement_amount: number
+          disbursement_memo_id: string
+          funder_fee?: number | null
+          funder_name?: string | null
+          funding_amount: number
+          id?: string
+          invoice_date?: string | null
+          invoice_due_date?: string | null
+          invoice_id: string
+          invoice_number?: string | null
+          invoice_value: number
+          memo_number?: string | null
+          metadata?: Json | null
+          organization_id: string
+          originator_fee?: number | null
+          overdue_fee?: number | null
+          payment_confirmed_at?: string | null
+          payment_reference?: string | null
+          repayment_date?: string | null
+          retained_reimbursement?: number | null
+          status?: string
+          total_fee?: number | null
+          total_repayment: number
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          balance_due?: number | null
+          borrower_id?: string
+          counterparty_name?: string | null
+          created_at?: string
+          disbursement_amount?: number
+          disbursement_memo_id?: string
+          funder_fee?: number | null
+          funder_name?: string | null
+          funding_amount?: number
+          id?: string
+          invoice_date?: string | null
+          invoice_due_date?: string | null
+          invoice_id?: string
+          invoice_number?: string | null
+          invoice_value?: number
+          memo_number?: string | null
+          metadata?: Json | null
+          organization_id?: string
+          originator_fee?: number | null
+          overdue_fee?: number | null
+          payment_confirmed_at?: string | null
+          payment_reference?: string | null
+          repayment_date?: string | null
+          retained_reimbursement?: number | null
+          status?: string
+          total_fee?: number | null
+          total_repayment?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repayment_memos_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repayment_memos_disbursement_memo_id_fkey"
+            columns: ["disbursement_memo_id"]
+            isOneToOne: false
+            referencedRelation: "disbursement_memos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repayment_memos_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repayment_memos_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
