@@ -196,9 +196,17 @@ export default function OriginatorDocuments() {
     }
   };
 
-  // Filter borrower docs
+  // Auto-select first borrower if none selected
+  useEffect(() => {
+    if (!selectedBorrower && borrowers.length > 0) {
+      setSelectedBorrower(borrowers[0].id);
+    }
+  }, [borrowers, selectedBorrower]);
+
+  // Filter borrower docs — only show selected borrower
   const filteredBorrowerDocs = borrowerDocs.filter(d => {
-    const matchBorrower = selectedBorrower === "all" || d.borrower_id === selectedBorrower;
+    if (!selectedBorrower) return false;
+    const matchBorrower = d.borrower_id === selectedBorrower;
     const matchSearch = !searchQuery || d.file_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       d.document_type.toLowerCase().includes(searchQuery.toLowerCase());
     return matchBorrower && matchSearch;
