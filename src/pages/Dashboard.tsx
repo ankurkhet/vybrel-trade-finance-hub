@@ -43,8 +43,12 @@ const ALL_WIDGETS: WidgetDef[] = [
   { id: "admin_ai", title: "AI Analyses", icon: Brain, subtitle: "Completed", role: "admin", supportsChart: true },
   // Originator / Broker
   { id: "orig_borrowers", title: "Borrowers", icon: Users, subtitle: "Active borrowers", role: "originator", navigateTo: "/originator/borrowers", supportsChart: true },
+  { id: "orig_counterparties", title: "Counterparties", icon: Building2, subtitle: "Linked counterparties", role: "originator", navigateTo: "/originator/counterparties", supportsChart: false },
   { id: "orig_contracts", title: "Contracts", icon: FileText, subtitle: "Active contracts", role: "originator", navigateTo: "/originator/contracts", supportsChart: true },
   { id: "orig_invoices", title: "Invoices", icon: CreditCard, subtitle: "Pending invoices", role: "originator", navigateTo: "/originator/invoices", supportsChart: true },
+  { id: "orig_limits", title: "Total Limits", icon: Shield, subtitle: "Aggregate credit limits", role: "originator", supportsChart: false },
+  { id: "orig_outstanding", title: "Total Outstanding", icon: Receipt, subtitle: "Unpaid invoices", role: "originator", supportsChart: false },
+  { id: "orig_overdue", title: "Total Overdue", icon: BarChart3, subtitle: "Past due date", role: "originator", supportsChart: false },
   { id: "orig_memos", title: "Credit Memos", icon: Brain, subtitle: "Drafts pending review", role: "originator", supportsChart: false },
   // Borrower
   { id: "borr_docs", title: "Documents", icon: Upload, subtitle: "Uploaded documents", role: "borrower", navigateTo: "/borrower/documents", supportsChart: false },
