@@ -258,10 +258,9 @@ export default function OriginatorDocuments() {
             <div className="flex gap-3 items-center flex-wrap">
               <Select value={selectedBorrower} onValueChange={setSelectedBorrower}>
                 <SelectTrigger className="w-[250px]">
-                  <SelectValue placeholder="Filter by borrower" />
+                  <SelectValue placeholder="Select a borrower" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Borrowers</SelectItem>
                   {borrowers.map(b => (
                     <SelectItem key={b.id} value={b.id}>{b.company_name}</SelectItem>
                   ))}
