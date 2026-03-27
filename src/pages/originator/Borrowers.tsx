@@ -25,6 +25,43 @@ export default function Borrowers() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [companyData, setCompanyData] = useState<CompanyFormData>({ ...emptyCompanyForm });
+  const [lookingUp, setLookingUp] = useState(false);
+
+  const handleRegistryLookup = async () => {
+    if (!companyData.registration_number || !companyData.country) {
+      toast.error("Enter a registration number and select a country first");
+      return;
+    }
+    setLookingUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("registry-lookup", {
+        body: {
+          country_code: companyData.country,
+          registration_number: companyData.registration_number,
+          company_name: companyData.company_name || undefined,
+        },
+      });
+      if (error) throw error;
+      if (data?.company) {
+        const c = data.company;
+        setCompanyData(prev => ({
+          ...prev,
+          company_name: c.company_name || prev.company_name,
+          registered_address: c.registered_address || prev.registered_address,
+          incorporation_date: c.incorporation_date || prev.incorporation_date,
+          sic_codes: (c.sic_codes || []).join(", ") || prev.sic_codes,
+          vat_tax_id: c.vat_tax_id || prev.vat_tax_id,
+          trading_name: c.trading_name || prev.trading_name,
+        }));
+        toast.success("Company details pre-filled from registry");
+      } else {
+        toast.info("No match found in registry");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Registry lookup failed");
+    }
+    setLookingUp(false);
+  };
 
   useEffect(() => {
     if (profile?.organization_id) fetchBorrowers();
