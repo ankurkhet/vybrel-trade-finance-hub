@@ -290,7 +290,7 @@ export default function BorrowerOnboarding() {
       } else {
         const { data: newBorrower, error } = await supabase
           .from("borrowers")
-          .insert(borrowerPayload)
+          .insert(borrowerPayload as any)
           .select("id")
           .single();
         if (error) throw error;
