@@ -537,9 +537,57 @@ export default function BorrowerOnboarding() {
           </div>
         )}
 
-        {/* Step 0: Signatory Info */}
+        {/* Step 0: Signatory Info + NDA Gate */}
         {step === 0 && (
-          <SignatoryInfoStep data={signatoryData} onChange={setSignatoryData} disabled={isReadOnly} />
+          <>
+            <SignatoryInfoStep data={signatoryData} onChange={setSignatoryData} disabled={isReadOnly} />
+            {/* NDA Acceptance Gate */}
+            <Card className="border-primary/30">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <FileCheck className="h-4 w-4 text-primary" />
+                  Non-Disclosure Agreement (NDA)
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  You must accept the NDA before proceeding with onboarding
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="rounded-lg border bg-muted/30 p-4 text-xs text-muted-foreground max-h-40 overflow-y-auto">
+                  <p className="font-medium text-foreground mb-2">Confidentiality Agreement</p>
+                  <p>By accepting this NDA, you agree to keep all information exchanged during the onboarding and financing process strictly confidential. This includes, but is not limited to, financial data, business strategies, customer information, and any proprietary materials shared between the parties.</p>
+                  <p className="mt-2">This obligation of confidentiality shall survive the termination of any business relationship between the parties for a period of two (2) years.</p>
+                  <p className="mt-2">Breach of this agreement may result in legal action and financial penalties as permitted by applicable law.</p>
+                </div>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={ndaAccepted}
+                    onChange={(e) => {
+                      setNdaAccepted(e.target.checked);
+                      if (e.target.checked && borrowerId) {
+                        // Mark NDA as signed on the borrower record
+                        supabase.from("borrowers").update({
+                          nda_signed: true,
+                          nda_signed_at: new Date().toISOString(),
+                        }).eq("id", borrowerId).then(() => {});
+                      }
+                    }}
+                    disabled={isReadOnly}
+                    className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm">
+                    I, <strong>{signatoryData.full_name || "the undersigned"}</strong>, have read and accept the terms of the Non-Disclosure Agreement on behalf of the company.
+                  </span>
+                </label>
+                {ndaAccepted && (
+                  <Badge className="bg-green-600 text-xs">
+                    <CheckCircle2 className="mr-1 h-3 w-3" /> NDA Accepted
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+          </>
         )}
 
         {/* Step 1: Company Info */}
