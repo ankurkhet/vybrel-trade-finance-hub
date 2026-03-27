@@ -487,7 +487,7 @@ export default function BorrowerOnboarding() {
         </div>
 
         {/* Originator comments (if any) */}
-        {isReadOnly && onboardingStatus === "documents_requested" && (
+        {onboardingStatus === "documents_requested" && (
           <Card className="border-[hsl(var(--chart-4))]">
             <CardContent className="flex items-start gap-3 py-4">
               <AlertTriangle className="h-5 w-5 text-[hsl(var(--chart-4))] shrink-0 mt-0.5" />
