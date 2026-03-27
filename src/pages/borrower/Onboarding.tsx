@@ -366,13 +366,13 @@ export default function BorrowerOnboarding() {
     if (!borrowerId) return;
     const { error } = await supabase
       .from("borrowers")
-      .update({ onboarding_status: "documents_submitted" as any })
+      .update({ onboarding_status: "documents_submitted" })
       .eq("id", borrowerId);
     if (error) {
       toast.error("Submit failed: " + error.message);
       return;
     }
-    setOnboardingStatus("submitted");
+    setOnboardingStatus("documents_submitted");
     setStep(8); // complete
     toast.success("Application submitted for review!");
 
