@@ -44,6 +44,7 @@ import BorrowerOnboarding from "./pages/borrower/Onboarding";
 import BorrowerDocuments from "./pages/borrower/Documents";
 import BorrowerInvoices from "./pages/borrower/Invoices";
 import BorrowerSettlements from "./pages/borrower/Settlements";
+import BorrowerMyProfile from "./pages/borrower/MyProfile";
 import FunderReports from "./pages/funder/Reports";
 import FunderMarketplace from "./pages/funder/Marketplace";
 import FunderPortfolio from "./pages/funder/Portfolio";
@@ -140,6 +141,7 @@ const App = () => (
               <Route path="/borrower/reports" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerReports /></ProtectedRoute>} />
               <Route path="/borrower/onboarding" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerOnboarding /></ProtectedRoute>} />
               <Route path="/borrower/settlements" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerSettlements /></ProtectedRoute>} />
+              <Route path="/borrower/profile" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerMyProfile /></ProtectedRoute>} />
 
               {/* Funder */}
               <Route path="/funder/marketplace" element={<ProtectedRoute requiredRoles={["funder"]}><FunderMarketplace /></ProtectedRoute>} />

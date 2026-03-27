@@ -4,11 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, CreditCard } from "lucide-react";
-import { FACILITY_TYPES, emptyFacilityRequest } from "@/lib/onboarding-types";
+import { FACILITY_CATEGORIES, FACILITY_TYPES, emptyFacilityRequest } from "@/lib/onboarding-types";
 import type { FacilityRequestData } from "@/lib/onboarding-types";
 
 const CURRENCIES = ["GBP", "USD", "EUR", "AED", "CHF", "SGD", "HKD", "AUD", "CAD", "INR"];
+
+const FUNDING_TYPES = FACILITY_CATEGORIES[0].types;
 
 interface FacilityRequirementsStepProps {
   facilities: FacilityRequestData[];
@@ -29,6 +32,14 @@ export function FacilityRequirementsStep({ facilities, onChange, otherInvoiceFac
     onChange(updated);
   };
 
+  const isFundingType = (type: string) => {
+    return FUNDING_TYPES.some(t => t.toLowerCase().replace(/[\s\/]+/g, "_") === type);
+  };
+
+  const isPaymentAutomation = (type: string) => {
+    return type === "payment_/_automation_of_receivables";
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -36,7 +47,9 @@ export function FacilityRequirementsStep({ facilities, onChange, otherInvoiceFac
           <CreditCard className="h-5 w-5 text-primary" />
           Facility Requirements
         </CardTitle>
-        <CardDescription>Select one or more types of facility you are seeking. You can request multiple facilities.</CardDescription>
+        <CardDescription>
+          Choose between <strong>Funding</strong> (with specific sub-types requiring amount & tenor) or <strong>Payment / Automation of Receivables</strong> (no additional details needed).
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {facilities.length === 0 && (
@@ -62,37 +75,57 @@ export function FacilityRequirementsStep({ facilities, onChange, otherInvoiceFac
               <Select value={fac.facility_type} onValueChange={(v) => updateFacility(idx, "facility_type", v)} disabled={disabled}>
                 <SelectTrigger><SelectValue placeholder="Select facility type" /></SelectTrigger>
                 <SelectContent>
-                  {FACILITY_TYPES.map((t) => (
-                    <SelectItem key={t} value={t.toLowerCase().replace(/\s+/g, "_")}>{t}</SelectItem>
+                  <SelectItem disabled value="__funding_header" className="font-semibold text-xs text-muted-foreground">
+                    — Funding —
+                  </SelectItem>
+                  {FUNDING_TYPES.map((t) => (
+                    <SelectItem key={t} value={t.toLowerCase().replace(/[\s\/]+/g, "_")}>{t}</SelectItem>
                   ))}
+                  <SelectItem disabled value="__payment_header" className="font-semibold text-xs text-muted-foreground">
+                    — Other —
+                  </SelectItem>
+                  <SelectItem value="payment_/_automation_of_receivables">Payment / Automation of Receivables</SelectItem>
+                  <SelectItem value="dynamic_discounting">Dynamic Discounting</SelectItem>
+                  <SelectItem value="other_short-term_credit">Other Short-Term Credit</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Amount Required <span className="text-destructive">*</span></Label>
-                <Input type="number" value={fac.amount} onChange={(e) => updateFacility(idx, "amount", e.target.value)} placeholder="2,500,000" disabled={disabled} />
+            {/* Show amount/tenor only for Funding types */}
+            {fac.facility_type && !isPaymentAutomation(fac.facility_type) && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Amount Required <span className="text-destructive">*</span></Label>
+                  <Input type="number" value={fac.amount} onChange={(e) => updateFacility(idx, "amount", e.target.value)} placeholder="2,500,000" disabled={disabled} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Currency</Label>
+                  <Select value={fac.currency} onValueChange={(v) => updateFacility(idx, "currency", v)} disabled={disabled}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tenor (months) <span className="text-destructive">*</span></Label>
+                  <Input type="number" value={fac.tenor_months} onChange={(e) => updateFacility(idx, "tenor_months", e.target.value)} placeholder="12" disabled={disabled} />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Currency</Label>
-                <Select value={fac.currency} onValueChange={(v) => updateFacility(idx, "currency", v)} disabled={disabled}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Tenor (months)</Label>
-                <Input type="number" value={fac.tenor_months} onChange={(e) => updateFacility(idx, "tenor_months", e.target.value)} placeholder="12" disabled={disabled} />
-              </div>
-            </div>
+            )}
 
-            <div className="space-y-2">
-              <Label>Pricing Notes</Label>
-              <Textarea value={fac.pricing_notes} onChange={(e) => updateFacility(idx, "pricing_notes", e.target.value)} placeholder="Any pricing expectations or notes..." rows={2} disabled={disabled} />
-            </div>
+            {isPaymentAutomation(fac.facility_type) && (
+              <div className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
+                No additional details required for Payment / Automation of Receivables at this stage.
+              </div>
+            )}
+
+            {fac.facility_type && !isPaymentAutomation(fac.facility_type) && (
+              <div className="space-y-2">
+                <Label>Pricing Notes</Label>
+                <Textarea value={fac.pricing_notes} onChange={(e) => updateFacility(idx, "pricing_notes", e.target.value)} placeholder="Any pricing expectations or notes..." rows={2} disabled={disabled} />
+              </div>
+            )}
           </div>
         ))}
 
