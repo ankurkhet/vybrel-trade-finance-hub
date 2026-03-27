@@ -121,6 +121,8 @@ const App = () => (
               <Route path="/originator/credit-committee/applications/:id" element={<ProtectedRoute requiredRoles={["originator_admin", "credit_committee_member"]}><CreditCommitteeApplicationDetail /></ProtectedRoute>} />
               <Route path="/originator/credit-memos" element={<ProtectedRoute requiredRoles={["originator_admin"]}><CreditMemos /></ProtectedRoute>} />
               <Route path="/originator/credit-memos/:id" element={<ProtectedRoute requiredRoles={["originator_admin"]}><CreditMemoDetail /></ProtectedRoute>} />
+              <Route path="/originator/disbursements" element={<ProtectedRoute requiredRoles={["originator_admin"]}><Disbursements /></ProtectedRoute>} />
+              <Route path="/originator/repayments" element={<ProtectedRoute requiredRoles={["originator_admin"]}><Repayments /></ProtectedRoute>} />
 
               {/* Broker (reuses originator components with read-only fee config) */}
               <Route path="/broker/borrowers" element={<ProtectedRoute requiredRoles={["broker_admin"]}><OriginatorBorrowers /></ProtectedRoute>} />
