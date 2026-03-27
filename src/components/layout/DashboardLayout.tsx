@@ -84,6 +84,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: FileText, label: "Credit Memos", path: "/originator/credit-memos", show: isOriginatorAdmin },
     { icon: Gavel, label: "Credit Committee", path: "/originator/credit-committee", show: isOriginatorAdmin },
     { icon: Gavel, label: "Committee Config", path: "/originator/credit-committee/config", show: isOriginatorAdmin },
+    { icon: Banknote, label: "Disbursements", path: "/originator/disbursements", show: isOriginatorAdmin },
+    { icon: ArrowDownUp, label: "Repayments", path: "/originator/repayments", show: isOriginatorAdmin },
     // Account Manager
     { icon: Users, label: "Borrowers", path: "/originator/borrowers", show: isAccountManager && !isOriginatorAdmin },
     { icon: FileText, label: "Contracts", path: "/originator/contracts", show: isAccountManager && !isOriginatorAdmin },
