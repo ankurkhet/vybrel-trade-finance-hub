@@ -831,8 +831,8 @@ export default function BorrowerDetail() {
                   return;
                 }
                 // Change status to documents_requested so borrower can edit
-                const allowed = VALID_TRANSITIONS[borrower.onboarding_status] || [];
-                if (allowed.includes("documents_requested")) {
+                // Always allow this transition when originator explicitly requests update
+                if (borrower.onboarding_status !== "documents_requested") {
                   await supabase.from("borrowers")
                     .update({ onboarding_status: "documents_requested" as any })
                     .eq("id", id!);
