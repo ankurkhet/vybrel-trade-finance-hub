@@ -61,6 +61,8 @@ import RegistryApis from "./pages/admin/RegistryApis";
 import BorrowerDetail from "./pages/originator/BorrowerDetail";
 import CreditMemos from "./pages/originator/CreditMemos";
 import CreditMemoDetail from "./pages/originator/CreditMemoDetail";
+import Disbursements from "./pages/originator/Disbursements";
+import Repayments from "./pages/originator/Repayments";
 
 const queryClient = new QueryClient();
 
