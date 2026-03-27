@@ -27,6 +27,7 @@ import { CreditMemoEditor } from "@/components/credit-memo/CreditMemoEditor";
 import { DocumentPreviewModal, useDocumentPreview } from "@/components/ui/document-preview-modal";
 import { emptyCompanyForm, COUNTRIES, FACILITY_TYPES, ONBOARDING_STATUSES } from "@/lib/onboarding-types";
 import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
+import { ChangeTracker } from "@/components/onboarding/ChangeTracker";
 
 export default function BorrowerDetail() {
   const { id } = useParams<{ id: string }>();
