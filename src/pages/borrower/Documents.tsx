@@ -257,9 +257,19 @@ export default function BorrowerDocuments() {
                                     )}
                                   </div>
                                 </div>
-                                <Badge variant={statusBadgeVariant(doc.status)} className="text-xs capitalize">
-                                  {doc.status}
-                                </Badge>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => openPreview(doc.file_path, doc.file_name, doc.mime_type)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Badge variant={statusBadgeVariant(doc.status)} className="text-xs capitalize">
+                                    {doc.status}
+                                  </Badge>
+                                </div>
                               </div>
                             ))}
                           </div>
