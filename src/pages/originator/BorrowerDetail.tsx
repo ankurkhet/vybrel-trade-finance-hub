@@ -152,8 +152,28 @@ export default function BorrowerDetail() {
     loadAll();
   };
 
+  // Valid status transitions
+  const VALID_TRANSITIONS: Record<string, string[]> = {
+    draft: ["invited", "registered", "rejected"],
+    invited: ["registered", "rejected"],
+    registered: ["documents_pending", "rejected"],
+    documents_pending: ["documents_submitted", "rejected"],
+    documents_submitted: ["under_review", "documents_requested", "rejected"],
+    documents_requested: ["documents_submitted", "rejected"],
+    under_review: ["approved", "documents_requested", "rejected"],
+    approved: ["onboarded", "rejected"],
+    rejected: ["draft", "invited"],
+    onboarded: [],
+  };
+
   const handleStatusChange = async () => {
     if (!newStatus) return;
+    // Validate transition
+    const allowed = VALID_TRANSITIONS[borrower.onboarding_status] || [];
+    if (!allowed.includes(newStatus)) {
+      toast.error(`Cannot transition from "${borrower.onboarding_status.replace(/_/g, " ")}" to "${newStatus.replace(/_/g, " ")}"`);
+      return;
+    }
     const { error } = await supabase.from("borrowers")
       .update({ onboarding_status: newStatus as any })
       .eq("id", id!);
