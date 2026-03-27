@@ -455,11 +455,16 @@ export default function OriginatorDocuments() {
                                   <span className="text-xs font-medium text-muted-foreground">Upload History</span>
                                 </div>
                                 {typeDocs.map(doc => (
-                                  <div key={doc.id} className="flex items-center justify-between rounded-lg border p-3">
+                                  <div key={doc.id} className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:bg-accent/30 transition-colors"
+                                    onClick={async () => {
+                                      const { data } = await supabase.storage.from("org-documents").createSignedUrl(doc.file_path, 300);
+                                      if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                                      else toast.error("Could not open file");
+                                    }}>
                                     <div className="flex items-center gap-3">
                                       {statusIcon(doc.status)}
                                       <div>
-                                        <p className="text-sm font-medium text-foreground">{doc.file_name}</p>
+                                        <p className="text-sm font-medium text-primary underline">{doc.file_name}</p>
                                         <p className="text-xs text-muted-foreground">
                                           v{doc.version} · {new Date(doc.created_at).toLocaleDateString()}
                                           {doc.notes && ` · ${doc.notes}`}
