@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Search, Receipt, Inbox, CheckCircle2, XCircle, Eye, ArrowDownUp, Plus, Banknote } from "lucide-react";
+import { Loader2, Search, Inbox, CheckCircle2, XCircle, Eye, ArrowDownUp, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -24,16 +24,14 @@ export default function Repayments() {
   const [detailMemo, setDetailMemo] = useState<any>(null);
   const [approving, setApproving] = useState(false);
 
-  // Create repayment dialog
   const [createDialog, setCreateDialog] = useState(false);
   const [disbursements, setDisbursements] = useState<any[]>([]);
   const [selectedDisbursement, setSelectedDisbursement] = useState("");
   const [repaymentForm, setRepaymentForm] = useState({
     repayment_date: new Date().toISOString().split("T")[0],
-    total_repayment_amount: "",
+    total_repayment: "",
     overdue_fee: "0",
     payment_reference: "",
-    notes: "",
   });
 
   useEffect(() => {
@@ -44,7 +42,7 @@ export default function Repayments() {
     setLoading(true);
     const { data } = await supabase
       .from("repayment_memos")
-      .select("*, borrowers(company_name), disbursement_memos(memo_number, invoice_number, counterparty_name, funder_name, invoice_value, advance_amount, retained_amount, total_fee, disbursement_amount, originator_fee, funder_fee)")
+      .select("*, borrowers(company_name)")
       .eq("organization_id", profile!.organization_id!)
       .order("created_at", { ascending: false });
     setMemos(data || []);
@@ -67,10 +65,10 @@ export default function Repayments() {
     const disb = disbursements.find(d => d.id === selectedDisbursement);
     if (!disb) return;
 
-    const repaymentAmount = Number(repaymentForm.total_repayment_amount) || 0;
-    const overdueFeeBorrower = Number(repaymentForm.overdue_fee) || 0;
-    const balanceDue = Number(disb.advance_amount) - repaymentAmount;
-    const retainedReimbursement = Math.max(0, Number(disb.retained_amount) - Math.max(0, balanceDue) - overdueFeeBorrower);
+    const repaymentAmount = Number(repaymentForm.total_repayment) || 0;
+    const overdueF = Number(repaymentForm.overdue_fee) || 0;
+    const balanceDue = Math.max(0, Number(disb.advance_amount) - repaymentAmount);
+    const retainedReimb = Math.max(0, Number(disb.retained_amount) - balanceDue - overdueF);
 
     const { error } = await supabase.from("repayment_memos").insert({
       organization_id: profile!.organization_id!,
@@ -83,21 +81,19 @@ export default function Repayments() {
       invoice_due_date: disb.invoice_due_date,
       counterparty_name: disb.counterparty_name,
       funder_name: disb.funder_name,
-      total_funding_amount: disb.advance_amount,
-      total_fee_amount: disb.total_fee,
+      funding_amount: disb.advance_amount,
+      total_fee: disb.total_fee,
       originator_fee: disb.originator_fee,
       funder_fee: disb.funder_fee,
-      total_disbursement_amount: disb.disbursement_amount,
+      disbursement_amount: disb.disbursement_amount,
       repayment_date: repaymentForm.repayment_date,
-      total_repayment_amount: repaymentAmount,
-      balance_amount_due: Math.max(0, balanceDue),
-      total_overdue_fee: overdueFeeBorrower,
-      retained_amount_original: disb.retained_amount,
-      retained_amount_reimbursed: retainedReimbursement,
+      total_repayment: repaymentAmount,
+      balance_due: balanceDue,
+      overdue_fee: overdueF,
+      retained_reimbursement: retainedReimb,
       payment_reference: repaymentForm.payment_reference || null,
-      notes: repaymentForm.notes || null,
       status: "pending",
-    });
+    } as any);
 
     if (error) toast.error(error.message);
     else {
@@ -110,7 +106,7 @@ export default function Repayments() {
     }
     setCreateDialog(false);
     setSelectedDisbursement("");
-    setRepaymentForm({ repayment_date: new Date().toISOString().split("T")[0], total_repayment_amount: "", overdue_fee: "0", payment_reference: "", notes: "" });
+    setRepaymentForm({ repayment_date: new Date().toISOString().split("T")[0], total_repayment: "", overdue_fee: "0", payment_reference: "" });
     fetchMemos();
   };
 
@@ -121,7 +117,7 @@ export default function Repayments() {
     }).eq("id", memo.id);
     if (error) toast.error(error.message);
     else {
-      toast.success("Repayment memo approved — confirmation sent to borrower");
+      toast.success("Repayment memo approved");
       await supabase.from("audit_logs").insert({
         user_id: profile?.user_id, user_email: profile?.email,
         action: "repayment_approved", resource_type: "repayment_memo", resource_id: memo.id,
@@ -133,9 +129,8 @@ export default function Repayments() {
   };
 
   const handleReject = async (memo: any) => {
-    const { error } = await supabase.from("repayment_memos").update({ status: "rejected" }).eq("id", memo.id);
-    if (error) toast.error(error.message);
-    else toast.success("Repayment memo rejected");
+    await supabase.from("repayment_memos").update({ status: "rejected" }).eq("id", memo.id);
+    toast.success("Repayment memo rejected");
     setDetailMemo(null);
     fetchMemos();
   };
@@ -144,8 +139,7 @@ export default function Repayments() {
     const matchSearch = (m.invoice_number || "").toLowerCase().includes(search.toLowerCase()) ||
       ((m.borrowers as any)?.company_name || "").toLowerCase().includes(search.toLowerCase()) ||
       (m.counterparty_name || "").toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "all" || m.status === statusFilter;
-    return matchSearch && matchStatus;
+    return (statusFilter === "all" || m.status === statusFilter) && matchSearch;
   });
 
   const statusBadge = (status: string) => {
@@ -167,7 +161,6 @@ export default function Repayments() {
           <Button onClick={openCreateDialog}><Plus className="mr-2 h-4 w-4" /> Create Repayment</Button>
         </div>
 
-        {/* Filters */}
         <div className="flex gap-3 items-center flex-wrap">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -184,7 +177,6 @@ export default function Repayments() {
           </Select>
         </div>
 
-        {/* Table */}
         <Card>
           <CardContent className="p-0">
             {loading ? (
@@ -198,11 +190,11 @@ export default function Repayments() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Memo #</TableHead>
                     <TableHead>Borrower</TableHead>
                     <TableHead>Counterparty</TableHead>
                     <TableHead>Invoice</TableHead>
-                    <TableHead>Repayment Date</TableHead>
-                    <TableHead>Repayment Amt</TableHead>
+                    <TableHead>Repayment</TableHead>
                     <TableHead>Balance Due</TableHead>
                     <TableHead>Retained Reimb.</TableHead>
                     <TableHead>Status</TableHead>
@@ -212,18 +204,16 @@ export default function Repayments() {
                 <TableBody>
                   {filtered.map((m) => (
                     <TableRow key={m.id}>
+                      <TableCell className="font-medium text-xs">{m.memo_number || "—"}</TableCell>
                       <TableCell className="text-sm">{(m.borrowers as any)?.company_name || "—"}</TableCell>
                       <TableCell className="text-sm">{m.counterparty_name || "—"}</TableCell>
                       <TableCell className="text-xs">{m.invoice_number || "—"}</TableCell>
-                      <TableCell className="text-xs">{m.repayment_date ? new Date(m.repayment_date).toLocaleDateString() : "—"}</TableCell>
-                      <TableCell className="font-medium text-sm">{Number(m.total_repayment_amount || 0).toLocaleString()}</TableCell>
-                      <TableCell className="text-sm">{Number(m.balance_amount_due || 0).toLocaleString()}</TableCell>
-                      <TableCell className="text-sm">{Number(m.retained_amount_reimbursed || 0).toLocaleString()}</TableCell>
+                      <TableCell className="font-medium text-sm">{Number(m.total_repayment || 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-sm">{Number(m.balance_due || 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-sm">{Number(m.retained_reimbursement || 0).toLocaleString()}</TableCell>
                       <TableCell>{statusBadge(m.status)}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailMemo(m)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailMemo(m)}><Eye className="h-4 w-4" /></Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -234,48 +224,42 @@ export default function Repayments() {
         </Card>
       </div>
 
-      {/* Detail Dialog */}
+      {/* Detail */}
       <Dialog open={!!detailMemo} onOpenChange={() => setDetailMemo(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><ArrowDownUp className="h-5 w-5 text-primary" /> Repayment Memo</DialogTitle>
+            <DialogDescription>{detailMemo?.memo_number}</DialogDescription>
           </DialogHeader>
           {detailMemo && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <MemoField label="Funder / Lender" value={detailMemo.funder_name} />
-                <MemoField label="Borrower" value={(detailMemo.borrowers as any)?.company_name} />
-                <MemoField label="Counterparty" value={detailMemo.counterparty_name} />
-                <MemoField label="Invoice #" value={detailMemo.invoice_number} />
-                <MemoField label="Invoice Date" value={detailMemo.invoice_date ? new Date(detailMemo.invoice_date).toLocaleDateString() : undefined} />
-                <MemoField label="Due Date" value={detailMemo.invoice_due_date ? new Date(detailMemo.invoice_due_date).toLocaleDateString() : undefined} />
-                <MemoField label="Repayment Date" value={detailMemo.repayment_date ? new Date(detailMemo.repayment_date).toLocaleDateString() : undefined} />
+                <MF label="Funder" value={detailMemo.funder_name} />
+                <MF label="Borrower" value={(detailMemo.borrowers as any)?.company_name} />
+                <MF label="Counterparty" value={detailMemo.counterparty_name} />
+                <MF label="Invoice" value={detailMemo.invoice_number} />
+                <MF label="Invoice Date" value={detailMemo.invoice_date ? new Date(detailMemo.invoice_date).toLocaleDateString() : undefined} />
+                <MF label="Due Date" value={detailMemo.invoice_due_date ? new Date(detailMemo.invoice_due_date).toLocaleDateString() : undefined} />
+                <MF label="Repayment Date" value={detailMemo.repayment_date ? new Date(detailMemo.repayment_date).toLocaleDateString() : undefined} />
               </div>
               <Separator />
-              <div className="space-y-2">
-                <h4 className="text-sm font-semibold">Financial Breakdown</h4>
-                <div className="rounded-lg border divide-y">
-                  <MemoRow label="Invoice Value" value={Number(detailMemo.invoice_value || 0).toLocaleString()} />
-                  <MemoRow label="Total Funding Amount" value={Number(detailMemo.total_funding_amount || 0).toLocaleString()} />
-                  <MemoRow label="Total Fee (Originator)" value={Number(detailMemo.originator_fee || 0).toLocaleString()} />
-                  <MemoRow label="Total Fee (Funder)" value={Number(detailMemo.funder_fee || 0).toLocaleString()} />
-                  <MemoRow label="Total Disbursement Amount" value={Number(detailMemo.total_disbursement_amount || 0).toLocaleString()} />
-                  <MemoRow label="Total Repayment Amount" value={Number(detailMemo.total_repayment_amount || 0).toLocaleString()} bold />
-                  <MemoRow label="Balance Amount Due" value={Number(detailMemo.balance_amount_due || 0).toLocaleString()} />
-                  <MemoRow label="Total Overdue Fee" value={Number(detailMemo.total_overdue_fee || 0).toLocaleString()} />
-                  <MemoRow label="Original Retained Amount" value={Number(detailMemo.retained_amount_original || 0).toLocaleString()} />
-                  <MemoRow label="Retained Amount Reimbursed" value={Number(detailMemo.retained_amount_reimbursed || 0).toLocaleString()} bold />
-                </div>
-                <p className="text-xs text-muted-foreground italic">
-                  Retained Reimbursement = Original Retained − Balance Due − Overdue Fee
-                </p>
+              <div className="rounded-lg border divide-y">
+                <MR label="Invoice Value" value={Number(detailMemo.invoice_value || 0).toLocaleString()} />
+                <MR label="Funding Amount" value={Number(detailMemo.funding_amount || 0).toLocaleString()} />
+                <MR label="Fee (Originator)" value={Number(detailMemo.originator_fee || 0).toLocaleString()} />
+                <MR label="Fee (Funder)" value={Number(detailMemo.funder_fee || 0).toLocaleString()} />
+                <MR label="Disbursement" value={Number(detailMemo.disbursement_amount || 0).toLocaleString()} />
+                <MR label="Repayment Amount" value={Number(detailMemo.total_repayment || 0).toLocaleString()} bold />
+                <MR label="Balance Due" value={Number(detailMemo.balance_due || 0).toLocaleString()} />
+                <MR label="Overdue Fee" value={Number(detailMemo.overdue_fee || 0).toLocaleString()} />
+                <MR label="Retained Reimbursed" value={Number(detailMemo.retained_reimbursement || 0).toLocaleString()} bold />
               </div>
+              <p className="text-xs text-muted-foreground italic">Retained Reimb. = Original Retained − Balance Due − Overdue Fee</p>
 
               {detailMemo.status === "pending" && (
                 <div className="flex gap-2 pt-2">
                   <Button className="flex-1" onClick={() => handleApprove(detailMemo)} disabled={approving}>
-                    {approving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                    Approve
+                    {approving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Approve
                   </Button>
                   <Button variant="destructive" className="flex-1" onClick={() => handleReject(detailMemo)}>
                     <XCircle className="mr-2 h-4 w-4" /> Reject
@@ -287,18 +271,18 @@ export default function Repayments() {
         </DialogContent>
       </Dialog>
 
-      {/* Create Repayment Dialog */}
+      {/* Create */}
       <Dialog open={createDialog} onOpenChange={setCreateDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Create Repayment Memo</DialogTitle>
-            <DialogDescription>Select a disbursed funding to create a repayment memo against</DialogDescription>
+            <DialogDescription>Select a disbursed funding to create a repayment against</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Disbursement</Label>
               <Select value={selectedDisbursement} onValueChange={setSelectedDisbursement}>
-                <SelectTrigger><SelectValue placeholder="Select disbursement..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                 <SelectContent>
                   {disbursements.map(d => (
                     <SelectItem key={d.id} value={d.id}>
@@ -311,31 +295,27 @@ export default function Repayments() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Repayment Date</Label>
-                <Input type="date" value={repaymentForm.repayment_date} onChange={(e) => setRepaymentForm(prev => ({ ...prev, repayment_date: e.target.value }))} />
+                <Input type="date" value={repaymentForm.repayment_date} onChange={(e) => setRepaymentForm(p => ({ ...p, repayment_date: e.target.value }))} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Total Repayment Amount</Label>
-                <Input type="number" value={repaymentForm.total_repayment_amount} onChange={(e) => setRepaymentForm(prev => ({ ...prev, total_repayment_amount: e.target.value }))} />
+                <Label className="text-xs">Repayment Amount</Label>
+                <Input type="number" value={repaymentForm.total_repayment} onChange={(e) => setRepaymentForm(p => ({ ...p, total_repayment: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Overdue Fee (if any)</Label>
-                <Input type="number" value={repaymentForm.overdue_fee} onChange={(e) => setRepaymentForm(prev => ({ ...prev, overdue_fee: e.target.value }))} />
+                <Label className="text-xs">Overdue Fee</Label>
+                <Input type="number" value={repaymentForm.overdue_fee} onChange={(e) => setRepaymentForm(p => ({ ...p, overdue_fee: e.target.value }))} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Payment Reference</Label>
-                <Input value={repaymentForm.payment_reference} onChange={(e) => setRepaymentForm(prev => ({ ...prev, payment_reference: e.target.value }))} />
+                <Input value={repaymentForm.payment_reference} onChange={(e) => setRepaymentForm(p => ({ ...p, payment_reference: e.target.value }))} />
               </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Notes</Label>
-              <Textarea value={repaymentForm.notes} onChange={(e) => setRepaymentForm(prev => ({ ...prev, notes: e.target.value }))} rows={2} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialog(false)}>Cancel</Button>
-            <Button onClick={handleCreate}>Create Repayment Memo</Button>
+            <Button onClick={handleCreate}>Create</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -343,20 +323,9 @@ export default function Repayments() {
   );
 }
 
-function MemoField({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div>
-      <span className="text-muted-foreground text-xs">{label}</span>
-      <p className="font-medium text-sm">{value || "—"}</p>
-    </div>
-  );
+function MF({ label, value }: { label: string; value?: string | null }) {
+  return <div><span className="text-muted-foreground text-xs">{label}</span><p className="font-medium text-sm">{value || "—"}</p></div>;
 }
-
-function MemoRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-  return (
-    <div className={`flex justify-between px-4 py-2 text-sm ${bold ? "font-bold bg-muted/50" : ""}`}>
-      <span className={bold ? "text-foreground" : "text-muted-foreground"}>{label}</span>
-      <span className="text-foreground">{value}</span>
-    </div>
-  );
+function MR({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return <div className={`flex justify-between px-4 py-2 text-sm ${bold ? "font-bold bg-muted/50" : ""}`}><span className={bold ? "text-foreground" : "text-muted-foreground"}>{label}</span><span className="text-foreground">{value}</span></div>;
 }
