@@ -65,6 +65,13 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
   const [submitting, setSubmitting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [approvedFacilities, setApprovedFacilities] = useState<any[]>([]);
+  const [selectedFacilityId, setSelectedFacilityId] = useState("");
+  const [files, setFiles] = useState<UploadedDoc[]>([]);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // AI analysis results
   const [docClassifications, setDocClassifications] = useState<any[]>([]);
