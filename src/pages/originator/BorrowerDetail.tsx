@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import {
   Loader2, ArrowLeft, Building2, Users, FileCheck, Shield, Save, Send,
   ShieldCheck, FileText, CreditCard, Landmark, UserCheck, CheckCircle2,
-  XCircle, AlertTriangle, Eye, Download,
+  XCircle, AlertTriangle, Eye, Download, Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
