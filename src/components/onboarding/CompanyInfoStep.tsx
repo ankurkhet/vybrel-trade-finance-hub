@@ -2,17 +2,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Building2 } from "lucide-react";
-import { format } from "date-fns";
+import { Building2 } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AddressInput } from "./AddressInput";
+import { DateInput } from "@/components/ui/date-input";
 import { COUNTRIES, INDUSTRIES } from "@/lib/onboarding-types";
-import type { CompanyFormData, AddressData } from "@/lib/onboarding-types";
+import type { CompanyFormData } from "@/lib/onboarding-types";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { sicToIndustry } from "@/lib/sic-industry-map";
 
@@ -29,7 +28,6 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
     onChange({ ...data, [field]: value });
   };
 
-  // Auto-map SIC codes to industry
   useEffect(() => {
     if (data.sic_codes) {
       const mapped = sicToIndustry(data.sic_codes);
@@ -49,13 +47,11 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
         <CardDescription>As it appears in registration documents</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        {/* Company Name */}
         <div className="space-y-2">
           <Label>Company Name (as per Registration Documents) <span className="text-destructive">*</span></Label>
           <Input value={data.company_name} onChange={(e) => update("company_name", e.target.value)} placeholder="Acme Corp Ltd" disabled={disabled} />
         </div>
 
-        {/* Trading Name + Reg Number */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Trading Name (if different)</Label>
@@ -67,7 +63,6 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
           </div>
         </div>
 
-        {/* Country + Incorporation Date */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Country <span className="text-destructive">*</span></Label>
@@ -98,38 +93,22 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
           </div>
           <div className="space-y-2">
             <Label>Incorporation Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !data.incorporation_date && "text-muted-foreground")} disabled={disabled}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {data.incorporation_date ? format(new Date(data.incorporation_date), "PPP") : "Select date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={data.incorporation_date ? new Date(data.incorporation_date) : undefined}
-                  onSelect={(d) => update("incorporation_date", d ? d.toISOString().split("T")[0] : "")}
-                  disabled={(d) => d > new Date()}
-                  initialFocus
-                  captionLayout="dropdown-buttons"
-                  fromYear={1900}
-                  toYear={new Date().getFullYear()}
-                  className="p-3 pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
+            <DateInput
+              value={data.incorporation_date}
+              onChange={(v) => update("incorporation_date", v)}
+              disabled={disabled}
+              maxToday
+              fromYear={1900}
+            />
           </div>
         </div>
 
-        {/* SIC Code(s) — moved before Industry */}
         <div className="space-y-2">
           <Label>SIC Code(s)</Label>
           <Input value={data.sic_codes} onChange={(e) => update("sic_codes", e.target.value)} placeholder="e.g. 64992 – Factoring, 82920 – Packaging" disabled={disabled} />
           <p className="text-xs text-muted-foreground">Industry will auto-select based on SIC code</p>
         </div>
 
-        {/* Industry */}
         <div className="space-y-2">
           <Label>Industry / Sector <span className="text-destructive">*</span></Label>
           <Select value={data.industry} onValueChange={(v) => update("industry", v)} disabled={disabled}>
@@ -142,7 +121,6 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
           </Select>
         </div>
 
-        {/* Registered Address */}
         <AddressInput
           label="Registered Office Address"
           value={data.registered_address}
@@ -151,7 +129,6 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
           disabled={disabled}
         />
 
-        {/* Trading Address */}
         <AddressInput
           label="Trading / Operational Address"
           value={data.trading_address}
@@ -159,7 +136,6 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
           disabled={disabled}
         />
 
-        {/* Contact details */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-2">
             <Label>Phone</Label>
@@ -175,7 +151,6 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
           </div>
         </div>
 
-        {/* Optional extras */}
         <details className="group" open>
           <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Additional Information
@@ -196,8 +171,6 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
               </div>
             </div>
 
-
-            {/* Group company */}
             <div className="flex items-center space-x-3">
               <input
                 type="checkbox"
