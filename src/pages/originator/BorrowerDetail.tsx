@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import {
   Loader2, ArrowLeft, Building2, Users, FileCheck, Shield, Save, Send,
   ShieldCheck, FileText, CreditCard, Landmark, UserCheck, CheckCircle2,
-  XCircle, AlertTriangle, Eye, Download, Upload,
+  XCircle, AlertTriangle, Eye, Download, Upload, MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
@@ -24,6 +24,7 @@ import { DirectorsStep } from "@/components/onboarding/DirectorsStep";
 import { RegistryVerificationTab } from "@/components/kyb/RegistryVerificationTab";
 import { ValidationResultsPanel } from "@/components/kyb/ValidationResultsPanel";
 import { CreditMemoEditor } from "@/components/credit-memo/CreditMemoEditor";
+import { DocumentPreviewModal, useDocumentPreview } from "@/components/ui/document-preview-modal";
 import { emptyCompanyForm, COUNTRIES, FACILITY_TYPES, ONBOARDING_STATUSES } from "@/lib/onboarding-types";
 import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 
