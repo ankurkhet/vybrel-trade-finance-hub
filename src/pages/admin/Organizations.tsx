@@ -283,6 +283,9 @@ export default function Organizations() {
                 ))}
               </SelectContent>
             </Select>
+            <Button variant={showTree ? "default" : "outline"} size="sm" onClick={() => { setShowTree(!showTree); if (!showTree) fetchTree(); }}>
+              <GitBranch className="mr-2 h-4 w-4" /> {showTree ? "Hide Tree" : "Borrower Tree"}
+            </Button>
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger asChild>
                 <Button><Plus className="mr-2 h-4 w-4" />Onboard New Originator</Button>
