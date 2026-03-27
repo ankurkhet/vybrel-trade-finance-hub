@@ -225,7 +225,7 @@ export default function BorrowerOnboarding() {
         if (meta.uploadedDocs) setUploadedDocs(meta.uploadedDocs);
 
         // If already submitted, start at review step
-        if (["submitted", "under_review", "approved", "onboarded"].includes(borrower.onboarding_status)) {
+        if (["documents_submitted", "under_review", "approved", "onboarded"].includes(borrower.onboarding_status)) {
           setStep(7); // review step
         }
       }
