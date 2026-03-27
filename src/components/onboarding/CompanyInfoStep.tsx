@@ -196,10 +196,6 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>SIC Code(s)</Label>
-              <Input value={data.sic_codes} onChange={(e) => update("sic_codes", e.target.value)} placeholder="e.g. 64992 – Factoring, 82920 – Packaging" disabled={disabled} />
-            </div>
 
             {/* Group company */}
             <div className="flex items-center space-x-3">
