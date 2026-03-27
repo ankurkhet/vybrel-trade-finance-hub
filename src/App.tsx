@@ -44,6 +44,7 @@ import BorrowerOnboarding from "./pages/borrower/Onboarding";
 import BorrowerDocuments from "./pages/borrower/Documents";
 import BorrowerInvoices from "./pages/borrower/Invoices";
 import BorrowerSettlements from "./pages/borrower/Settlements";
+import BorrowerMyProfile from "./pages/borrower/MyProfile";
 import FunderReports from "./pages/funder/Reports";
 import FunderMarketplace from "./pages/funder/Marketplace";
 import FunderPortfolio from "./pages/funder/Portfolio";
