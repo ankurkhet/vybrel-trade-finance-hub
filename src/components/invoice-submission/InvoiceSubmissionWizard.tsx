@@ -114,7 +114,7 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
   }, [borrower.id]);
 
   // Load on open
-  useState(() => { if (open) loadFacilities(); });
+  useEffect(() => { if (open) loadFacilities(); }, [open, loadFacilities]);
 
   const resetWizard = () => {
     setStep("upload");
