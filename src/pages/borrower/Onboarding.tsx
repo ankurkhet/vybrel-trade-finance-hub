@@ -105,7 +105,7 @@ export default function BorrowerOnboarding() {
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
   const [docNotes, setDocNotes] = useState<Record<string, string>>({});
 
-  const isReadOnly = !["draft", "documents_requested", "documents_pending", "registered"].includes(onboardingStatus);
+  const isReadOnly = !["draft", "invited", "documents_requested", "documents_pending", "registered"].includes(onboardingStatus);
   const isSubmitted = ["documents_submitted", "under_review", "approved", "onboarded"].includes(onboardingStatus);
 
   // Load existing borrower data
@@ -628,6 +628,7 @@ export default function BorrowerOnboarding() {
           <DocumentChecklistStep
             uploadedDocs={uploadedDocs}
             onUpload={(doc) => setUploadedDocs(prev => [...prev, doc])}
+            onDelete={(index) => setUploadedDocs(prev => prev.filter((_, i) => i !== index))}
             notes={docNotes}
             onNoteChange={(type, note) => setDocNotes(prev => ({ ...prev, [type]: note }))}
             disabled={isReadOnly}

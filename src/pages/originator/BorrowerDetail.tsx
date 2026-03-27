@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import {
   Loader2, ArrowLeft, Building2, Users, FileCheck, Shield, Save, Send,
   ShieldCheck, FileText, CreditCard, Landmark, UserCheck, CheckCircle2,
-  XCircle, AlertTriangle, Eye, Download, Upload,
+  XCircle, AlertTriangle, Eye, Download, Upload, MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
@@ -24,6 +24,7 @@ import { DirectorsStep } from "@/components/onboarding/DirectorsStep";
 import { RegistryVerificationTab } from "@/components/kyb/RegistryVerificationTab";
 import { ValidationResultsPanel } from "@/components/kyb/ValidationResultsPanel";
 import { CreditMemoEditor } from "@/components/credit-memo/CreditMemoEditor";
+import { DocumentPreviewModal, useDocumentPreview } from "@/components/ui/document-preview-modal";
 import { emptyCompanyForm, COUNTRIES, FACILITY_TYPES, ONBOARDING_STATUSES } from "@/lib/onboarding-types";
 import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 
@@ -54,6 +55,12 @@ export default function BorrowerDetail() {
   const [uploadDocType, setUploadDocType] = useState("");
   const [docUploading, setDocUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { preview, openPreview, closePreview } = useDocumentPreview();
+
+  // Request Update dialog
+  const [requestUpdateDialog, setRequestUpdateDialog] = useState(false);
+  const [requestUpdateSection, setRequestUpdateSection] = useState("");
+  const [requestUpdateMessage, setRequestUpdateMessage] = useState("");
 
   const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -319,6 +326,9 @@ export default function BorrowerDetail() {
             <Button variant="outline" size="sm" onClick={() => { setNewStatus(borrower.onboarding_status); setStatusDialog(true); }}>
               <AlertTriangle className="mr-2 h-4 w-4" /> Change Status
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setRequestUpdateDialog(true)}>
+              <MessageSquare className="mr-2 h-4 w-4" /> Request Update
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setQueryDialog(true)}>
               <Send className="mr-2 h-4 w-4" /> Query Borrower
             </Button>
@@ -569,15 +579,10 @@ export default function BorrowerDetail() {
                       {documents.map((doc) => (
                         <TableRow key={doc.id}>
                           <TableCell className="capitalize text-sm">{doc.document_type.replace(/_/g, " ")}</TableCell>
-                          <TableCell>
+                         <TableCell>
                             <button
                               className="text-sm text-primary underline hover:text-primary/80 text-left"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                const { data } = await supabase.storage.from("documents").createSignedUrl(doc.file_path, 300);
-                                if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-                                else toast.error("Could not open file");
-                              }}
+                              onClick={() => openPreview(doc.file_path, doc.file_name, doc.mime_type)}
                             >
                               {doc.file_name}
                             </button>
@@ -591,11 +596,7 @@ export default function BorrowerDetail() {
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={async (e) => {
-                                e.stopPropagation();
-                                const { data } = await supabase.storage.from("documents").createSignedUrl(doc.file_path, 300);
-                                if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-                              }}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openPreview(doc.file_path, doc.file_name, doc.mime_type)}>
                                 <Eye className="h-4 w-4" />
                               </Button>
                               {doc.status === "pending" && (
@@ -767,6 +768,103 @@ export default function BorrowerDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Request Update Dialog */}
+      <Dialog open={requestUpdateDialog} onOpenChange={setRequestUpdateDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Request Information Update</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Send a request to {borrower.contact_name || borrower.company_name} to update specific sections of their profile.
+            </p>
+            <div className="space-y-2">
+              <Label>Section to Update</Label>
+              <Select value={requestUpdateSection} onValueChange={setRequestUpdateSection}>
+                <SelectTrigger><SelectValue placeholder="Select section..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="company_info">Company Information</SelectItem>
+                  <SelectItem value="directors">Directors & Signatories</SelectItem>
+                  <SelectItem value="signatory">Signatory Details</SelectItem>
+                  <SelectItem value="facilities">Facility Requirements</SelectItem>
+                  <SelectItem value="lenders">Current Lenders</SelectItem>
+                  <SelectItem value="bank_details">Bank Details</SelectItem>
+                  <SelectItem value="documents">Documents</SelectItem>
+                  <SelectItem value="general">General / Multiple Sections</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Message to Borrower</Label>
+              <Textarea
+                value={requestUpdateMessage}
+                onChange={(e) => setRequestUpdateMessage(e.target.value)}
+                placeholder="Please describe what needs to be updated..."
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRequestUpdateDialog(false)}>Cancel</Button>
+            <Button
+              disabled={!requestUpdateSection || !requestUpdateMessage}
+              onClick={async () => {
+                if (!borrower.user_id || !profile?.user_id) {
+                  toast.error("Borrower has no linked user account");
+                  return;
+                }
+                // Send message via messaging system
+                const { error } = await supabase.from("messages").insert({
+                  sender_id: profile.user_id,
+                  recipient_id: borrower.user_id,
+                  organization_id: profile.organization_id,
+                  subject: `Update Requested: ${requestUpdateSection.replace(/_/g, " ")}`,
+                  body: requestUpdateMessage,
+                  message_type: "update_request",
+                  related_entity_type: "borrower",
+                  related_entity_id: id,
+                });
+                if (error) {
+                  toast.error("Failed to send: " + error.message);
+                  return;
+                }
+                // Change status to documents_requested so borrower can edit
+                const allowed = VALID_TRANSITIONS[borrower.onboarding_status] || [];
+                if (allowed.includes("documents_requested")) {
+                  await supabase.from("borrowers")
+                    .update({ onboarding_status: "documents_requested" as any })
+                    .eq("id", id!);
+                  await supabase.from("audit_logs").insert({
+                    user_id: profile.user_id,
+                    user_email: profile.email,
+                    action: "borrower_update_requested",
+                    resource_type: "borrower",
+                    resource_id: id!,
+                    details: { section: requestUpdateSection, message: requestUpdateMessage },
+                  });
+                }
+                toast.success("Update request sent to borrower");
+                setRequestUpdateDialog(false);
+                setRequestUpdateSection("");
+                setRequestUpdateMessage("");
+                loadAll();
+              }}
+            >
+              <Send className="mr-2 h-4 w-4" /> Send Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Preview Modal */}
+      {preview && (
+        <DocumentPreviewModal
+          open={!!preview}
+          onOpenChange={(open) => !open && closePreview()}
+          filePath={preview.filePath}
+          fileName={preview.fileName}
+          mimeType={preview.mimeType}
+        />
+      )}
     </DashboardLayout>
   );
 }

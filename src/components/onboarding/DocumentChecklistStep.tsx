@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, CheckCircle2, FileText, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, CheckCircle2, FileText, AlertCircle, Loader2, Trash2 } from "lucide-react";
 import { ONBOARDING_DOCUMENT_TYPES } from "@/lib/onboarding-types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -21,13 +21,14 @@ interface UploadedDoc {
 interface DocumentChecklistStepProps {
   uploadedDocs: UploadedDoc[];
   onUpload: (doc: UploadedDoc) => void;
+  onDelete?: (index: number) => void;
   notes: Record<string, string>;
   onNoteChange: (type: string, note: string) => void;
   disabled?: boolean;
   isSubmitted?: boolean;
 }
 
-export function DocumentChecklistStep({ uploadedDocs, onUpload, notes, onNoteChange, disabled, isSubmitted }: DocumentChecklistStepProps) {
+export function DocumentChecklistStep({ uploadedDocs, onUpload, onDelete, notes, onNoteChange, disabled, isSubmitted }: DocumentChecklistStepProps) {
   const [uploading, setUploading] = useState<string | null>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, docType: string) => {
@@ -59,6 +60,9 @@ export function DocumentChecklistStep({ uploadedDocs, onUpload, notes, onNoteCha
   const requiredCount = ONBOARDING_DOCUMENT_TYPES.filter(d => d.required).length;
   const uploadedRequired = ONBOARDING_DOCUMENT_TYPES.filter(d => d.required && uploadedDocs.some(u => u.type === d.type)).length;
 
+  // Can delete only before submission
+  const canDelete = !isSubmitted && !disabled;
+
   return (
     <Card>
       <CardHeader>
@@ -72,12 +76,13 @@ export function DocumentChecklistStep({ uploadedDocs, onUpload, notes, onNoteCha
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Mandatory section */}
         <div className="space-y-1">
           <h4 className="text-sm font-semibold text-foreground">Mandatory Documents</h4>
         </div>
         {ONBOARDING_DOCUMENT_TYPES.filter(d => d.required).map((doc) => {
-          const uploaded = uploadedDocs.filter(u => u.type === doc.type);
+          const uploaded = uploadedDocs
+            .map((u, i) => ({ ...u, originalIndex: i }))
+            .filter(u => u.type === doc.type);
           const latestUpload = uploaded[uploaded.length - 1];
           const isUploading = uploading === doc.type;
 
@@ -86,23 +91,26 @@ export function DocumentChecklistStep({ uploadedDocs, onUpload, notes, onNoteCha
               key={doc.type}
               doc={doc}
               latestUpload={latestUpload}
+              allUploads={uploaded}
               uploadCount={uploaded.length}
               isUploading={isUploading}
               note={notes[doc.type] || ""}
               onNoteChange={(val) => onNoteChange(doc.type, val)}
               onFileChange={(e) => handleFileUpload(e, doc.type)}
+              onDelete={canDelete && onDelete ? onDelete : undefined}
               disabled={disabled}
               isSubmitted={isSubmitted}
             />
           );
         })}
 
-        {/* Optional section */}
         <div className="space-y-1 pt-4 border-t">
           <h4 className="text-sm font-semibold text-foreground">Optional / Supporting Documents</h4>
         </div>
         {ONBOARDING_DOCUMENT_TYPES.filter(d => !d.required).map((doc) => {
-          const uploaded = uploadedDocs.filter(u => u.type === doc.type);
+          const uploaded = uploadedDocs
+            .map((u, i) => ({ ...u, originalIndex: i }))
+            .filter(u => u.type === doc.type);
           const latestUpload = uploaded[uploaded.length - 1];
           const isUploading = uploading === doc.type;
 
@@ -111,11 +119,13 @@ export function DocumentChecklistStep({ uploadedDocs, onUpload, notes, onNoteCha
               key={doc.type}
               doc={doc}
               latestUpload={latestUpload}
+              allUploads={uploaded}
               uploadCount={uploaded.length}
               isUploading={isUploading}
               note={notes[doc.type] || ""}
               onNoteChange={(val) => onNoteChange(doc.type, val)}
               onFileChange={(e) => handleFileUpload(e, doc.type)}
+              onDelete={canDelete && onDelete ? onDelete : undefined}
               disabled={disabled}
               isSubmitted={isSubmitted}
             />
@@ -129,25 +139,30 @@ export function DocumentChecklistStep({ uploadedDocs, onUpload, notes, onNoteCha
 function DocumentRow({
   doc,
   latestUpload,
+  allUploads,
   uploadCount,
   isUploading,
   note,
   onNoteChange,
   onFileChange,
+  onDelete,
   disabled,
   isSubmitted,
 }: {
   doc: { type: string; label: string; required: boolean };
-  latestUpload?: UploadedDoc;
+  latestUpload?: { name: string; originalIndex: number };
+  allUploads: Array<{ name: string; originalIndex: number; uploaded_at: string }>;
   uploadCount: number;
   isUploading: boolean;
   note: string;
   onNoteChange: (val: string) => void;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDelete?: (index: number) => void;
   disabled?: boolean;
   isSubmitted?: boolean;
 }) {
   const [showNote, setShowNote] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   return (
     <div className="rounded-lg border p-3 space-y-2">
@@ -165,7 +180,15 @@ function DocumentRow({
             {latestUpload && (
               <p className="text-xs text-muted-foreground truncate">
                 {latestUpload.name}
-                {uploadCount > 1 && ` (+${uploadCount - 1} more)`}
+                {uploadCount > 1 && (
+                  <button
+                    type="button"
+                    className="ml-1 text-primary hover:underline"
+                    onClick={() => setShowHistory(!showHistory)}
+                  >
+                    (+{uploadCount - 1} more)
+                  </button>
+                )}
               </p>
             )}
           </div>
@@ -181,7 +204,6 @@ function DocumentRow({
           >
             Note
           </Button>
-          {/* Allow uploads when not fully disabled; after submit allow adding but not deleting */}
           {(!disabled || isSubmitted) && (
             <Label className="cursor-pointer">
               <Input
@@ -198,6 +220,50 @@ function DocumentRow({
           )}
         </div>
       </div>
+
+      {/* Show all uploads with delete option */}
+      {showHistory && allUploads.length > 0 && (
+        <div className="space-y-1 pl-6">
+          {allUploads.map((upload, i) => (
+            <div key={i} className="flex items-center justify-between text-xs rounded-md border px-2 py-1.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
+                <span className="truncate text-foreground">{upload.name}</span>
+                <span className="text-muted-foreground shrink-0">
+                  {new Date(upload.uploaded_at).toLocaleDateString()}
+                </span>
+              </div>
+              {onDelete && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0"
+                  onClick={() => onDelete(upload.originalIndex)}
+                >
+                  <Trash2 className="h-3 w-3 text-destructive" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Single upload delete button (when only one) */}
+      {!showHistory && latestUpload && onDelete && uploadCount === 1 && (
+        <div className="pl-6">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-xs text-destructive hover:text-destructive h-7"
+            onClick={() => onDelete(latestUpload.originalIndex)}
+          >
+            <Trash2 className="mr-1 h-3 w-3" /> Remove
+          </Button>
+        </div>
+      )}
+
       {showNote && (
         <Textarea
           value={note}

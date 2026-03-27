@@ -2,12 +2,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, UserCheck } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { UserCheck } from "lucide-react";
+import { DateInput } from "@/components/ui/date-input";
 import type { SignatoryFormData } from "@/lib/onboarding-types";
 
 interface SignatoryInfoStepProps {
@@ -44,27 +40,13 @@ export function SignatoryInfoStep({ data, onChange, disabled }: SignatoryInfoSte
 
         <div className="space-y-2">
           <Label>Date of Birth <span className="text-destructive">*</span></Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("w-full justify-start text-left font-normal sm:w-[280px]", !data.dob && "text-muted-foreground")} disabled={disabled}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {data.dob ? format(new Date(data.dob), "PPP") : "Select date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={data.dob ? new Date(data.dob) : undefined}
-                onSelect={(d) => update("dob", d ? d.toISOString().split("T")[0] : "")}
-                disabled={(d) => d > new Date()}
-                initialFocus
-                captionLayout="dropdown-buttons"
-                fromYear={1920}
-                toYear={new Date().getFullYear()}
-                className="p-3 pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
+          <DateInput
+            value={data.dob}
+            onChange={(v) => update("dob", v)}
+            disabled={disabled}
+            maxToday
+            className="sm:max-w-[320px]"
+          />
         </div>
 
         <div className="space-y-3">

@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Upload, Loader2, CheckCircle2, XCircle, Clock, FileText, AlertCircle, ChevronDown, ChevronRight, History } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, XCircle, Clock, FileText, AlertCircle, ChevronDown, ChevronRight, History, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { DocumentPreviewModal, useDocumentPreview } from "@/components/ui/document-preview-modal";
 
 const DOC_TYPES = [
   { value: "kyc", label: "KYC Document" },
@@ -46,6 +47,7 @@ export default function BorrowerDocuments() {
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set(DOC_TYPES.map(d => d.value)));
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [borrower, setBorrower] = useState<any>(null);
+  const { preview, openPreview, closePreview } = useDocumentPreview();
 
   useEffect(() => {
     if (user) fetchDocs();
@@ -255,9 +257,19 @@ export default function BorrowerDocuments() {
                                     )}
                                   </div>
                                 </div>
-                                <Badge variant={statusBadgeVariant(doc.status)} className="text-xs capitalize">
-                                  {doc.status}
-                                </Badge>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => openPreview(doc.file_path, doc.file_name, doc.mime_type)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Badge variant={statusBadgeVariant(doc.status)} className="text-xs capitalize">
+                                    {doc.status}
+                                  </Badge>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -269,6 +281,16 @@ export default function BorrowerDocuments() {
               );
             })}
           </div>
+        )}
+
+        {preview && (
+          <DocumentPreviewModal
+            open={!!preview}
+            onOpenChange={(open) => !open && closePreview()}
+            filePath={preview.filePath}
+            fileName={preview.fileName}
+            mimeType={preview.mimeType}
+          />
         )}
       </div>
     </DashboardLayout>
