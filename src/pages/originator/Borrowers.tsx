@@ -109,9 +109,17 @@ export default function Borrowers() {
             <h1 className="text-2xl font-bold text-foreground">Borrowers</h1>
             <p className="text-sm text-muted-foreground">Manage borrower relationships and onboarding</p>
           </div>
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Add Borrower
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => {
+              // Generate invite link for a new borrower
+              toast.info("Use 'Add Borrower' to create a borrower record, then send them an invitation from their detail page.");
+            }}>
+              <Send className="mr-2 h-4 w-4" /> Invite Borrower
+            </Button>
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Add Borrower
+            </Button>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
