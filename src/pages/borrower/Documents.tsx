@@ -282,6 +282,16 @@ export default function BorrowerDocuments() {
             })}
           </div>
         )}
+
+        {preview && (
+          <DocumentPreviewModal
+            open={!!preview}
+            onOpenChange={(open) => !open && closePreview()}
+            filePath={preview.filePath}
+            fileName={preview.fileName}
+            mimeType={preview.mimeType}
+          />
+        )}
       </div>
     </DashboardLayout>
   );
