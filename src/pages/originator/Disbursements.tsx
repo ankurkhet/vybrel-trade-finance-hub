@@ -379,6 +379,85 @@ export default function Disbursements() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Disbursement Dialog */}
+      <Dialog open={createDialog} onOpenChange={setCreateDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create Disbursement Memo</DialogTitle>
+            <DialogDescription>Select an approved invoice and optionally link to a facility</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Approved Invoice</Label>
+              <Select value={selectedInvoice} onValueChange={setSelectedInvoice}>
+                <SelectTrigger><SelectValue placeholder="Select invoice..." /></SelectTrigger>
+                <SelectContent>
+                  {approvedInvoices.map(inv => (
+                    <SelectItem key={inv.id} value={inv.id}>
+                      {inv.invoice_number} — {(inv.borrowers as any)?.company_name} — {inv.currency} {Number(inv.amount).toLocaleString()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Linked Facility (optional)</Label>
+              <Select value={selectedFacility} onValueChange={setSelectedFacility}>
+                <SelectTrigger><SelectValue placeholder="No facility linked" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {approvedFacilities.map(fac => (
+                    <SelectItem key={fac.id} value={fac.id}>
+                      {fac.facility_type} — {(fac.borrowers as any)?.company_name} — {fac.currency} {Number(fac.approved_amount || fac.amount_requested || 0).toLocaleString()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Advance Rate (%)</Label>
+                <Input type="number" value={disbForm.advance_rate} onChange={(e) => setDisbForm(p => ({ ...p, advance_rate: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Funder / Lender Name</Label>
+                <Input value={disbForm.funder_name} onChange={(e) => setDisbForm(p => ({ ...p, funder_name: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Originator Fee</Label>
+                <Input type="number" value={disbForm.originator_fee} onChange={(e) => setDisbForm(p => ({ ...p, originator_fee: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Funder Fee</Label>
+                <Input type="number" value={disbForm.funder_fee} onChange={(e) => setDisbForm(p => ({ ...p, funder_fee: e.target.value }))} />
+              </div>
+            </div>
+            {selectedInvoice && (() => {
+              const inv = approvedInvoices.find(i => i.id === selectedInvoice);
+              if (!inv) return null;
+              const val = Number(inv.amount);
+              const adv = val * Number(disbForm.advance_rate) / 100;
+              const fees = Number(disbForm.originator_fee) + Number(disbForm.funder_fee);
+              return (
+                <div className="rounded-lg border divide-y text-sm">
+                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Invoice Value</span><span>{inv.currency} {val.toLocaleString()}</span></div>
+                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Advance ({disbForm.advance_rate}%)</span><span>{inv.currency} {adv.toLocaleString()}</span></div>
+                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Retained</span><span>{inv.currency} {(val - adv).toLocaleString()}</span></div>
+                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Total Fee</span><span>{inv.currency} {fees.toLocaleString()}</span></div>
+                  <div className="flex justify-between px-4 py-2 font-bold bg-muted/50"><span>Disbursement</span><span>{inv.currency} {(adv - fees).toLocaleString()}</span></div>
+                </div>
+              );
+            })()}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialog(false)}>Cancel</Button>
+            <Button onClick={handleCreateDisbursement}>Create Memo</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
