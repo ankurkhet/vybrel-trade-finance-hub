@@ -51,6 +51,35 @@ export default function BorrowerDetail() {
   const [docReviewDialog, setDocReviewDialog] = useState<any>(null);
   const [docAction, setDocAction] = useState<"approved" | "rejected">("approved");
   const [docRejectionReason, setDocRejectionReason] = useState("");
+  const [uploadDocType, setUploadDocType] = useState("");
+  const [docUploading, setDocUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadDocType || !profile?.organization_id || !id) return;
+    setDocUploading(true);
+    const filePath = `${profile.organization_id}/${id}/${Date.now()}_${file.name}`;
+    const { error: uploadErr } = await supabase.storage.from("documents").upload(filePath, file);
+    if (uploadErr) { toast.error(uploadErr.message); setDocUploading(false); return; }
+    const { error } = await supabase.from("documents").insert({
+      organization_id: profile.organization_id,
+      borrower_id: id,
+      document_type: uploadDocType as any,
+      file_name: file.name,
+      file_path: filePath,
+      file_size: file.size,
+      mime_type: file.type,
+      uploaded_by: user?.id || null,
+      status: "pending",
+    });
+    if (error) toast.error(error.message);
+    else toast.success(`"${file.name}" uploaded`);
+    setDocUploading(false);
+    setUploadDocType("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    loadAll();
+  };
 
   useEffect(() => {
     if (id) loadAll();
