@@ -316,7 +316,7 @@ export default function BorrowerOnboarding() {
             shareholding_pct: d.shareholding_pct ? Number(d.shareholding_pct) : null,
             email: d.email || null,
             phone: d.phone || null,
-            residential_address: d.residential_address,
+            residential_address: d.residential_address as any,
           }))
         );
       }
