@@ -401,6 +401,51 @@ export default function Organizations() {
           </div>
         </div>
 
+        {/* Borrower-Originator Tree View */}
+        {showTree && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <GitBranch className="h-4 w-4 text-primary" /> Borrower–Originator Tree
+              </CardTitle>
+              <CardDescription className="text-xs">Each borrower is linked to exactly one originator</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {treeLoading ? (
+                <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+              ) : (
+                <div className="space-y-3">
+                  {Object.entries(treeData).map(([orgId, { name, borrowers: brs }]) => (
+                    <div key={orgId} className="rounded-lg border p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Building2 className="h-4 w-4 text-primary" />
+                        <span className="font-medium text-sm text-foreground">{name}</span>
+                        <Badge variant="secondary" className="text-[10px]">{brs.length} borrower{brs.length !== 1 ? "s" : ""}</Badge>
+                      </div>
+                      {brs.length > 0 ? (
+                        <div className="ml-6 space-y-1">
+                          {brs.map(b => (
+                            <div key={b.id} className="flex items-center gap-2 text-sm">
+                              <div className="h-px w-4 bg-border" />
+                              <Users className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-foreground">{b.company_name}</span>
+                              <Badge variant={b.onboarding_status === "approved" ? "default" : "outline"} className="text-[10px] capitalize">
+                                {b.onboarding_status.replace(/_/g, " ")}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="ml-6 text-xs text-muted-foreground">No borrowers linked</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : orgs.length === 0 ? (
