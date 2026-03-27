@@ -122,6 +122,13 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
           </div>
         </div>
 
+        {/* SIC Code(s) — moved before Industry */}
+        <div className="space-y-2">
+          <Label>SIC Code(s)</Label>
+          <Input value={data.sic_codes} onChange={(e) => update("sic_codes", e.target.value)} placeholder="e.g. 64992 – Factoring, 82920 – Packaging" disabled={disabled} />
+          <p className="text-xs text-muted-foreground">Industry will auto-select based on SIC code</p>
+        </div>
+
         {/* Industry */}
         <div className="space-y-2">
           <Label>Industry / Sector <span className="text-destructive">*</span></Label>
