@@ -75,7 +75,7 @@ export default function OriginatorDocuments() {
 
   // Borrower docs state
   const [borrowers, setBorrowers] = useState<any[]>([]);
-  const [selectedBorrower, setSelectedBorrower] = useState<string>("all");
+  const [selectedBorrower, setSelectedBorrower] = useState<string>("");
   const [borrowerDocs, setBorrowerDocs] = useState<BorrowerDoc[]>([]);
   const [borrowerDocsLoading, setBorrowerDocsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
