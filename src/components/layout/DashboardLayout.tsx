@@ -102,6 +102,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Palette, label: "Branding", path: "/broker/branding", show: isBroker },
     // Borrower
     { icon: Building2, label: "My Profile", path: "/borrower/profile", show: isBorrower },
+    { icon: FileCheck, label: "Onboarding", path: "/borrower/onboarding", show: isBorrower },
     { icon: Upload, label: "My Documents", path: "/borrower/documents", show: isBorrower },
     { icon: CreditCard, label: "My Invoices", path: "/borrower/invoices", show: isBorrower },
     { icon: Receipt, label: "Settlements", path: "/borrower/settlements", show: isBorrower },
