@@ -47,6 +47,7 @@ export default function BorrowerDocuments() {
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set(DOC_TYPES.map(d => d.value)));
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [borrower, setBorrower] = useState<any>(null);
+  const { preview, openPreview, closePreview } = useDocumentPreview();
 
   useEffect(() => {
     if (user) fetchDocs();
