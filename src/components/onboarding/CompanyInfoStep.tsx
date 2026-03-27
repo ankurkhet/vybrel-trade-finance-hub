@@ -158,23 +158,55 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
         </div>
 
         {/* Optional extras */}
-        <details className="group">
+        <details className="group" open>
           <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            Additional Information (optional)
+            Additional Information
           </summary>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label>VAT / Tax ID</Label>
-              <Input value={data.vat_tax_id} onChange={(e) => update("vat_tax_id", e.target.value)} placeholder="VAT12345" disabled={disabled} />
+          <div className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label>VAT / Tax ID</Label>
+                <Input value={data.vat_tax_id} onChange={(e) => update("vat_tax_id", e.target.value)} placeholder="VAT12345" disabled={disabled} />
+              </div>
+              <div className="space-y-2">
+                <Label>Number of Employees</Label>
+                <Input type="number" value={data.num_employees} onChange={(e) => update("num_employees", e.target.value)} placeholder="50" disabled={disabled} />
+              </div>
+              <div className="space-y-2">
+                <Label>Last Full Financial Year Turnover</Label>
+                <Input type="number" value={data.annual_turnover} onChange={(e) => update("annual_turnover", e.target.value)} placeholder="1000000" disabled={disabled} />
+              </div>
             </div>
+
             <div className="space-y-2">
-              <Label>Number of Employees</Label>
-              <Input type="number" value={data.num_employees} onChange={(e) => update("num_employees", e.target.value)} placeholder="50" disabled={disabled} />
+              <Label>SIC Code(s)</Label>
+              <Input value={data.sic_codes} onChange={(e) => update("sic_codes", e.target.value)} placeholder="e.g. 64992 – Factoring, 82920 – Packaging" disabled={disabled} />
             </div>
-            <div className="space-y-2">
-              <Label>Annual Turnover (last year)</Label>
-              <Input type="number" value={data.annual_turnover} onChange={(e) => update("annual_turnover", e.target.value)} placeholder="1000000" disabled={disabled} />
+
+            {/* Group company */}
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                checked={data.is_part_of_group}
+                onChange={(e) => update("is_part_of_group", e.target.checked)}
+                disabled={disabled}
+                className="h-4 w-4 rounded border-input"
+              />
+              <Label className="font-normal">Part of a larger group?</Label>
             </div>
+
+            {data.is_part_of_group && (
+              <div className="rounded-lg border border-border bg-muted/30 p-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Name of the Parent Company</Label>
+                  <Input value={data.parent_company_name} onChange={(e) => update("parent_company_name", e.target.value)} placeholder="Parent Corp Ltd" disabled={disabled} />
+                </div>
+                <div className="space-y-2">
+                  <Label>% Shareholding of the Parent</Label>
+                  <Input type="number" min="0" max="100" value={data.parent_shareholding_pct} onChange={(e) => update("parent_shareholding_pct", e.target.value)} placeholder="100" disabled={disabled} />
+                </div>
+              </div>
+            )}
           </div>
         </details>
       </CardContent>
