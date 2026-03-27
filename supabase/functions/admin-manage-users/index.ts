@@ -171,11 +171,9 @@ Deno.serve(async (req) => {
         const { user_id } = body;
         if (!user_id) throw new Error('Missing user_id');
 
-        // Get user email
         const { data: targetUser } = await supabaseAdmin.auth.admin.getUserById(user_id);
         if (!targetUser?.user?.email) throw new Error('User not found');
 
-        // Generate password reset link
         const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
           type: 'recovery',
           email: targetUser.user.email,
@@ -187,6 +185,25 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({
           success: true,
           message: `Password reset link generated for ${targetUser.user.email}`,
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      case 'set_password': {
+        const { user_id, password: newPassword } = body;
+        if (!user_id || !newPassword) throw new Error('Missing user_id or password');
+
+        const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(user_id, {
+          password: newPassword,
+        });
+        if (pwErr) throw pwErr;
+
+        await logAudit('admin.set_password', 'user', user_id, {});
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Password updated successfully',
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
