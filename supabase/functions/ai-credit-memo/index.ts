@@ -219,11 +219,11 @@ Be specific about numbers. Use tables extensively. Cite sources for all financia
           type: "function",
           function: {
             name: "credit_memo",
-            description: "Return structured credit memo with sections",
+            description: "Return structured credit memo matching the Convenient Capital format",
             parameters: {
               type: "object",
               properties: {
-                memo_text: { type: "string", description: "Full credit memo in professional markdown with Company Overview, Financial Summary, Risk Assessment, Recommendation, and Sources sections" },
+                memo_text: { type: "string", description: "Full credit memo in professional markdown following the exact structure: Company Details, Facility Sought, Purpose, Countries, Debtor Limits, UBO, Shareholders, Financial Analysis (multi-year tables), Performance Metrics, Revenue Pipeline, Risk Assessment, Recommendation, Sources" },
                 risk_rating: { type: "string", enum: ["low", "moderate", "elevated", "high", "critical"] },
                 recommended_limit: { type: "number" },
                 recommended_advance_rate: { type: "number", description: "Percentage 0-100" },
@@ -232,6 +232,8 @@ Be specific about numbers. Use tables extensively. Cite sources for all financia
                 conditions_precedent: { type: "array", items: { type: "string" } },
                 recommendation: { type: "string", enum: ["approve", "approve_with_conditions", "decline", "defer"] },
                 summary: { type: "string", description: "2-3 sentence executive summary" },
+                facility_sought: { type: "array", items: { type: "object", properties: { type: { type: "string" }, amount: { type: "number" }, tenor: { type: "string" }, pricing: { type: "string" } } } },
+                financial_analysis: { type: "object", description: "Multi-year financial data extracted or computed" },
               },
               required: ["memo_text", "risk_rating", "recommendation", "summary"],
             },
