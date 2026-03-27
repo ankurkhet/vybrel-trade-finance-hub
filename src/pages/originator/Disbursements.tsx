@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Search, Receipt, Inbox, CheckCircle2, XCircle, Eye, Banknote } from "lucide-react";
+import { Loader2, Search, Receipt, Inbox, CheckCircle2, XCircle, Eye, Banknote, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -25,6 +25,19 @@ export default function Disbursements() {
   const [approving, setApproving] = useState(false);
   const [paymentDialog, setPaymentDialog] = useState<any>(null);
   const [paymentData, setPaymentData] = useState({ payment_date: "", payment_reference: "" });
+
+  // Create disbursement state
+  const [createDialog, setCreateDialog] = useState(false);
+  const [approvedInvoices, setApprovedInvoices] = useState<any[]>([]);
+  const [approvedFacilities, setApprovedFacilities] = useState<any[]>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState("");
+  const [selectedFacility, setSelectedFacility] = useState("");
+  const [disbForm, setDisbForm] = useState({
+    advance_rate: "80",
+    originator_fee: "0",
+    funder_fee: "0",
+    funder_name: "",
+  });
 
   useEffect(() => {
     if (profile?.organization_id) fetchMemos();
