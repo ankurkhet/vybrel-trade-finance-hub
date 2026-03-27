@@ -269,12 +269,12 @@ export default function BorrowerOnboarding() {
         signatory_dob: signatoryData.dob,
         signatory_is_director: signatoryData.is_director,
         signatory_email: signatoryData.is_director === false ? signatoryData.director_email : null,
-        metadata: {
+        metadata: JSON.parse(JSON.stringify({
           signatory: signatoryData,
           bankDetails,
           uploadedDocs,
           docNotes,
-        },
+        })),
         organization_id: orgId,
         user_id: profile.user_id,
       };
