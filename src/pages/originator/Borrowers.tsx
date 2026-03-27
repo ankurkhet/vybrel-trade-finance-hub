@@ -242,6 +242,16 @@ export default function Borrowers() {
           <DialogHeader>
             <DialogTitle>Add New Borrower</DialogTitle>
           </DialogHeader>
+          <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">Auto-fill from Registry</p>
+              <p className="text-xs text-muted-foreground">Enter a registration number &amp; country above, then click lookup to pre-fill company details.</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleRegistryLookup} disabled={lookingUp || !companyData.registration_number}>
+              {lookingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Globe className="mr-2 h-4 w-4" />}
+              Lookup
+            </Button>
+          </div>
           <CompanyInfoStep data={companyData} onChange={setCompanyData} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
