@@ -60,6 +60,13 @@ export default function BorrowerDetail() {
         vat_tax_id: b.vat_tax_id || "",
         num_employees: b.num_employees?.toString() || "",
         annual_turnover: b.annual_turnover?.toString() || "",
+        is_part_of_group: (b as any).is_part_of_group || false,
+        parent_company_name: (b as any).parent_company_name || "",
+        parent_shareholding_pct: (b as any).parent_shareholding_pct?.toString() || "",
+        sic_codes: ((b as any).sic_codes || []).join(", "),
+        has_credit_facilities: (b as any).has_credit_facilities || false,
+        other_invoice_facilities: (b as any).other_invoice_facilities || "",
+        turnover_currency: "GBP",
       });
     }
 
