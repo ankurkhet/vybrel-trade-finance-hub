@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Search, Receipt, Inbox, CheckCircle2, XCircle, Eye, Banknote } from "lucide-react";
+import { Loader2, Search, Receipt, Inbox, CheckCircle2, XCircle, Eye, Banknote, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -25,6 +25,19 @@ export default function Disbursements() {
   const [approving, setApproving] = useState(false);
   const [paymentDialog, setPaymentDialog] = useState<any>(null);
   const [paymentData, setPaymentData] = useState({ payment_date: "", payment_reference: "" });
+
+  // Create disbursement state
+  const [createDialog, setCreateDialog] = useState(false);
+  const [approvedInvoices, setApprovedInvoices] = useState<any[]>([]);
+  const [approvedFacilities, setApprovedFacilities] = useState<any[]>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState("");
+  const [selectedFacility, setSelectedFacility] = useState("");
+  const [disbForm, setDisbForm] = useState({
+    advance_rate: "80",
+    originator_fee: "0",
+    funder_fee: "0",
+    funder_name: "",
+  });
 
   useEffect(() => {
     if (profile?.organization_id) fetchMemos();
@@ -67,6 +80,76 @@ export default function Disbursements() {
     if (error) toast.error(error.message);
     else toast.success("Disbursement memo rejected");
     setDetailMemo(null);
+    fetchMemos();
+  };
+
+  const openCreateDialog = async () => {
+    const [{ data: invs }, { data: facs }] = await Promise.all([
+      supabase.from("invoices").select("*, borrowers(company_name)")
+        .eq("organization_id", profile!.organization_id!)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false }),
+      supabase.from("facility_requests").select("*, borrowers(company_name)")
+        .eq("organization_id", profile!.organization_id!)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false }),
+    ]);
+    setApprovedInvoices(invs || []);
+    setApprovedFacilities(facs || []);
+    setCreateDialog(true);
+  };
+
+  const handleCreateDisbursement = async () => {
+    if (!selectedInvoice) { toast.error("Select an invoice"); return; }
+    const inv = approvedInvoices.find(i => i.id === selectedInvoice);
+    if (!inv) return;
+
+    const advanceRate = Number(disbForm.advance_rate) / 100;
+    const invoiceValue = Number(inv.amount);
+    const advanceAmount = invoiceValue * advanceRate;
+    const retainedAmount = invoiceValue - advanceAmount;
+    const origFee = Number(disbForm.originator_fee) || 0;
+    const funderFee = Number(disbForm.funder_fee) || 0;
+    const totalFee = origFee + funderFee;
+    const disbursementAmount = advanceAmount - totalFee;
+
+    const memoNumber = `DM-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(memos.length + 1).padStart(4, "0")}`;
+
+    const { error } = await supabase.from("disbursement_memos").insert({
+      organization_id: profile!.organization_id!,
+      borrower_id: inv.borrower_id,
+      invoice_id: inv.id,
+      facility_request_id: selectedFacility || null,
+      memo_number: memoNumber,
+      invoice_number: inv.invoice_number,
+      invoice_value: invoiceValue,
+      invoice_date: inv.issue_date,
+      invoice_due_date: inv.due_date,
+      counterparty_name: inv.debtor_name,
+      funder_name: disbForm.funder_name || null,
+      advance_rate: Number(disbForm.advance_rate),
+      advance_amount: advanceAmount,
+      retained_amount: retainedAmount,
+      originator_fee: origFee,
+      funder_fee: funderFee,
+      total_fee: totalFee,
+      disbursement_amount: disbursementAmount,
+      status: "pending",
+    });
+
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Disbursement memo created");
+      await supabase.from("audit_logs").insert({
+        user_id: profile?.user_id, user_email: profile?.email,
+        action: "disbursement_created", resource_type: "disbursement_memo",
+        details: { invoice_id: inv.id, facility_request_id: selectedFacility, amount: disbursementAmount },
+      });
+    }
+    setCreateDialog(false);
+    setSelectedInvoice("");
+    setSelectedFacility("");
+    setDisbForm({ advance_rate: "80", originator_fee: "0", funder_fee: "0", funder_name: "" });
     fetchMemos();
   };
 
@@ -115,9 +198,12 @@ export default function Disbursements() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Disbursement Memos</h1>
-          <p className="text-sm text-muted-foreground">Review and approve funding disbursements</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Disbursement Memos</h1>
+            <p className="text-sm text-muted-foreground">Create, review and approve funding disbursements</p>
+          </div>
+          <Button onClick={openCreateDialog}><Plus className="mr-2 h-4 w-4" /> Create Disbursement</Button>
         </div>
 
         {/* Stats */}
@@ -290,6 +376,85 @@ export default function Disbursements() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setPaymentDialog(null)}>Cancel</Button>
             <Button onClick={handlePaymentConfirm}>Confirm Payment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Disbursement Dialog */}
+      <Dialog open={createDialog} onOpenChange={setCreateDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create Disbursement Memo</DialogTitle>
+            <DialogDescription>Select an approved invoice and optionally link to a facility</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Approved Invoice</Label>
+              <Select value={selectedInvoice} onValueChange={setSelectedInvoice}>
+                <SelectTrigger><SelectValue placeholder="Select invoice..." /></SelectTrigger>
+                <SelectContent>
+                  {approvedInvoices.map(inv => (
+                    <SelectItem key={inv.id} value={inv.id}>
+                      {inv.invoice_number} — {(inv.borrowers as any)?.company_name} — {inv.currency} {Number(inv.amount).toLocaleString()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Linked Facility (optional)</Label>
+              <Select value={selectedFacility} onValueChange={setSelectedFacility}>
+                <SelectTrigger><SelectValue placeholder="No facility linked" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {approvedFacilities.map(fac => (
+                    <SelectItem key={fac.id} value={fac.id}>
+                      {fac.facility_type} — {(fac.borrowers as any)?.company_name} — {fac.currency} {Number(fac.approved_amount || fac.amount_requested || 0).toLocaleString()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Advance Rate (%)</Label>
+                <Input type="number" value={disbForm.advance_rate} onChange={(e) => setDisbForm(p => ({ ...p, advance_rate: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Funder / Lender Name</Label>
+                <Input value={disbForm.funder_name} onChange={(e) => setDisbForm(p => ({ ...p, funder_name: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Originator Fee</Label>
+                <Input type="number" value={disbForm.originator_fee} onChange={(e) => setDisbForm(p => ({ ...p, originator_fee: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Funder Fee</Label>
+                <Input type="number" value={disbForm.funder_fee} onChange={(e) => setDisbForm(p => ({ ...p, funder_fee: e.target.value }))} />
+              </div>
+            </div>
+            {selectedInvoice && (() => {
+              const inv = approvedInvoices.find(i => i.id === selectedInvoice);
+              if (!inv) return null;
+              const val = Number(inv.amount);
+              const adv = val * Number(disbForm.advance_rate) / 100;
+              const fees = Number(disbForm.originator_fee) + Number(disbForm.funder_fee);
+              return (
+                <div className="rounded-lg border divide-y text-sm">
+                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Invoice Value</span><span>{inv.currency} {val.toLocaleString()}</span></div>
+                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Advance ({disbForm.advance_rate}%)</span><span>{inv.currency} {adv.toLocaleString()}</span></div>
+                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Retained</span><span>{inv.currency} {(val - adv).toLocaleString()}</span></div>
+                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Total Fee</span><span>{inv.currency} {fees.toLocaleString()}</span></div>
+                  <div className="flex justify-between px-4 py-2 font-bold bg-muted/50"><span>Disbursement</span><span>{inv.currency} {(adv - fees).toLocaleString()}</span></div>
+                </div>
+              );
+            })()}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialog(false)}>Cancel</Button>
+            <Button onClick={handleCreateDisbursement}>Create Memo</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

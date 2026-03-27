@@ -152,8 +152,28 @@ export default function BorrowerDetail() {
     loadAll();
   };
 
+  // Valid status transitions
+  const VALID_TRANSITIONS: Record<string, string[]> = {
+    draft: ["invited", "registered", "rejected"],
+    invited: ["registered", "rejected"],
+    registered: ["documents_pending", "rejected"],
+    documents_pending: ["documents_submitted", "rejected"],
+    documents_submitted: ["under_review", "documents_requested", "rejected"],
+    documents_requested: ["documents_submitted", "rejected"],
+    under_review: ["approved", "documents_requested", "rejected"],
+    approved: ["onboarded", "rejected"],
+    rejected: ["draft", "invited"],
+    onboarded: [],
+  };
+
   const handleStatusChange = async () => {
     if (!newStatus) return;
+    // Validate transition
+    const allowed = VALID_TRANSITIONS[borrower.onboarding_status] || [];
+    if (!allowed.includes(newStatus)) {
+      toast.error(`Cannot transition from "${borrower.onboarding_status.replace(/_/g, " ")}" to "${newStatus.replace(/_/g, " ")}"`);
+      return;
+    }
     const { error } = await supabase.from("borrowers")
       .update({ onboarding_status: newStatus as any })
       .eq("id", id!);
@@ -398,7 +418,7 @@ export default function BorrowerDetail() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {f.status === "pending" && (
+                            {(f.status === "pending" || f.status === "requested") && (
                               <Button variant="outline" size="sm" onClick={() => {
                                 setFacilityDialog(f);
                                 setFacilityApproval({
@@ -544,11 +564,15 @@ export default function BorrowerDetail() {
               <Select value={newStatus} onValueChange={setNewStatus}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {ONBOARDING_STATUSES.map(s => (
-                    <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
-                  ))}
+                  {(VALID_TRANSITIONS[borrower?.onboarding_status] || []).map(key => {
+                    const s = ONBOARDING_STATUSES.find(os => os.key === key);
+                    return s ? <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem> : null;
+                  })}
                 </SelectContent>
               </Select>
+              {(VALID_TRANSITIONS[borrower?.onboarding_status] || []).length === 0 && (
+                <p className="text-xs text-muted-foreground">No valid transitions from current status.</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Note (optional)</Label>
