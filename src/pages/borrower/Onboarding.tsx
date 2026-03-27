@@ -284,7 +284,7 @@ export default function BorrowerOnboarding() {
       if (borrowerId) {
         const { error } = await supabase
           .from("borrowers")
-          .update(borrowerPayload)
+          .update(borrowerPayload as any)
           .eq("id", borrowerId);
         if (error) throw error;
       } else {
