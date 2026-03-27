@@ -158,10 +158,11 @@ export default function AdminUsers() {
                         <div className="overflow-x-auto">
                           <Table>
                             <TableHeader>
-                              <TableRow>
+                                <TableRow>
                                 <TableHead>Name</TableHead>
                                 <TableHead>Email</TableHead>
                                 <TableHead>Roles</TableHead>
+                                <TableHead>Entity Assignment</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Last Sign In</TableHead>
                                 <TableHead className="w-[60px]" />
