@@ -564,11 +564,15 @@ export default function BorrowerDetail() {
               <Select value={newStatus} onValueChange={setNewStatus}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {ONBOARDING_STATUSES.map(s => (
-                    <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
-                  ))}
+                  {(VALID_TRANSITIONS[borrower?.onboarding_status] || []).map(key => {
+                    const s = ONBOARDING_STATUSES.find(os => os.key === key);
+                    return s ? <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem> : null;
+                  })}
                 </SelectContent>
               </Select>
+              {(VALID_TRANSITIONS[borrower?.onboarding_status] || []).length === 0 && (
+                <p className="text-xs text-muted-foreground">No valid transitions from current status.</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Note (optional)</Label>
