@@ -36,9 +36,10 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function AdminUsers() {
   const {
-    users, organizations, loading, fetchUsers,
+    users, organizations, borrowerEntities, loading, fetchUsers,
     createUser, sendInvitation, forcePasswordReset,
     changeEmail, updateRoles, updateOrganization, toggleActive,
+    linkBorrowerEntity,
   } = useAdminUsers();
 
   const [search, setSearch] = useState("");
