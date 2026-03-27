@@ -150,6 +150,8 @@ export default function Disbursements() {
     setSelectedInvoice("");
     setSelectedFacility("");
     setDisbForm({ advance_rate: "80", originator_fee: "0", funder_fee: "0", funder_name: "" });
+    fetchMemos();
+  };
 
   const handlePaymentConfirm = async () => {
     if (!paymentDialog) return;
