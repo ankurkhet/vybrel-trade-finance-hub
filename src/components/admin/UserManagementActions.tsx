@@ -2,10 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -14,8 +12,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MoreHorizontal, KeyRound, Mail, Shield, Building2, UserX, UserCheck } from "lucide-react";
-import type { AdminUser, Org } from "@/hooks/useAdminUsers";
+import { MoreHorizontal, KeyRound, Mail, Shield, Building2, UserX, UserCheck, Link2 } from "lucide-react";
+import type { AdminUser, Org, BorrowerEntity } from "@/hooks/useAdminUsers";
 
 const ALL_ROLES = [
   { value: "admin", label: "Admin" },
@@ -29,28 +27,48 @@ const ALL_ROLES = [
 interface Props {
   user: AdminUser;
   organizations: Org[];
+  borrowerEntities: BorrowerEntity[];
   onForcePasswordReset: (userId: string) => Promise<void>;
   onChangeEmail: (userId: string, newEmail: string) => Promise<void>;
   onUpdateRoles: (userId: string, roles: string[]) => Promise<void>;
   onUpdateOrganization: (userId: string, orgId: string | null) => Promise<void>;
   onToggleActive: (userId: string, isActive: boolean) => Promise<void>;
+  onLinkBorrowerEntity: (userId: string, borrowerId: string | null) => Promise<void>;
 }
 
 export function UserManagementActions({
-  user, organizations, onForcePasswordReset, onChangeEmail,
-  onUpdateRoles, onUpdateOrganization, onToggleActive,
+  user, organizations, borrowerEntities, onForcePasswordReset, onChangeEmail,
+  onUpdateRoles, onUpdateOrganization, onToggleActive, onLinkBorrowerEntity,
 }: Props) {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [rolesDialogOpen, setRolesDialogOpen] = useState(false);
   const [orgDialogOpen, setOrgDialogOpen] = useState(false);
+  const [entityDialogOpen, setEntityDialogOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [selectedRoles, setSelectedRoles] = useState<string[]>(user.roles);
   const [selectedOrg, setSelectedOrg] = useState(user.organization_id || "none");
+  const [selectedBorrower, setSelectedBorrower] = useState(user.linked_borrower_id || "none");
   const [processing, setProcessing] = useState(false);
+
+  const isBorrower = user.roles.includes("borrower");
+  const isFunder = user.roles.includes("funder");
+  const isBroker = user.roles.includes("broker_admin");
+
+  // Filter borrower entities by user's organization
+  const availableBorrowers = borrowerEntities.filter(
+    b => !user.organization_id || b.organization_id === user.organization_id
+  );
 
   const handleAction = async (fn: () => Promise<void>) => {
     setProcessing(true);
     try { await fn(); } finally { setProcessing(false); }
+  };
+
+  // Determine entity assignment label
+  const getEntityLabel = () => {
+    if (isBorrower) return "Link Borrower Entity";
+    if (isFunder || isBroker) return "Change Organization";
+    return "Change Organization";
   };
 
   return (
@@ -74,6 +92,11 @@ export function UserManagementActions({
           <DropdownMenuItem onClick={() => { setSelectedOrg(user.organization_id || "none"); setOrgDialogOpen(true); }}>
             <Building2 className="mr-2 h-4 w-4" /> Change Organization
           </DropdownMenuItem>
+          {isBorrower && (
+            <DropdownMenuItem onClick={() => { setSelectedBorrower(user.linked_borrower_id || "none"); setEntityDialogOpen(true); }}>
+              <Link2 className="mr-2 h-4 w-4" /> Link Borrower Entity
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => handleAction(() => onToggleActive(user.id, !user.is_active))}
@@ -162,7 +185,11 @@ export function UserManagementActions({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Change Organization</DialogTitle>
-            <DialogDescription>Assign this user to a different organization.</DialogDescription>
+            <DialogDescription>
+              Assign this user to a different organization.
+              {isFunder && " This determines which originator the funder is linked to."}
+              {isBroker && " This determines which originator the broker operates under."}
+            </DialogDescription>
           </DialogHeader>
           <Select value={selectedOrg} onValueChange={setSelectedOrg}>
             <SelectTrigger>
@@ -185,6 +212,52 @@ export function UserManagementActions({
               })}
             >
               {processing ? "Saving..." : "Update Organization"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Link Borrower Entity Dialog */}
+      <Dialog open={entityDialogOpen} onOpenChange={setEntityDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Link Borrower Entity</DialogTitle>
+            <DialogDescription>
+              Assign this borrower user to a borrower company entity. This determines which borrower record they can access and manage.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Current Assignment</Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                {user.linked_borrower_name || "Not linked to any borrower entity"}
+              </p>
+            </div>
+            <div>
+              <Label>Borrower Entity</Label>
+              <Select value={selectedBorrower} onValueChange={setSelectedBorrower}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select borrower entity" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Entity (Unlink)</SelectItem>
+                  {availableBorrowers.map(b => (
+                    <SelectItem key={b.id} value={b.id}>{b.company_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEntityDialogOpen(false)}>Cancel</Button>
+            <Button
+              disabled={processing}
+              onClick={() => handleAction(async () => {
+                await onLinkBorrowerEntity(user.id, selectedBorrower === "none" ? null : selectedBorrower);
+                setEntityDialogOpen(false);
+              })}
+            >
+              {processing ? "Saving..." : "Update Entity"}
             </Button>
           </DialogFooter>
         </DialogContent>
