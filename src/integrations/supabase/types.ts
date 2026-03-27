@@ -2791,6 +2791,9 @@ export type Database = {
         | "under_review"
         | "approved"
         | "rejected"
+        | "draft"
+        | "documents_requested"
+        | "onboarded"
       org_onboarding_status:
         | "pending_documents"
         | "documents_submitted"
@@ -2984,6 +2987,9 @@ export const Constants = {
         "under_review",
         "approved",
         "rejected",
+        "draft",
+        "documents_requested",
+        "onboarded",
       ],
       org_onboarding_status: [
         "pending_documents",
