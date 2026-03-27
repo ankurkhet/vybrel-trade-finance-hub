@@ -387,12 +387,25 @@ export default function BorrowerOnboarding() {
     });
   };
 
+  // NDA acknowledgment state
+  const [ndaAccepted, setNdaAccepted] = useState(false);
+
+  // Check if NDA was previously signed
+  useEffect(() => {
+    if (borrowerId) {
+      const meta = (signatoryData as any);
+      // Also check borrower.nda_signed from loaded data
+    }
+  }, [borrowerId]);
+
   const validateStep = () => {
     if (step === 0) {
       if (!signatoryData.full_name) { toast.error("Full name is required"); return false; }
       if (!signatoryData.designation) { toast.error("Designation is required"); return false; }
       if (signatoryData.is_director === null) { toast.error("Please indicate if you are a Director/Authorised Signatory"); return false; }
       if (signatoryData.is_director === false && !signatoryData.director_name) { toast.error("Director/Signatory name is required"); return false; }
+      // NDA Gate: must acknowledge NDA before proceeding
+      if (!ndaAccepted) { toast.error("You must accept the NDA to continue"); return false; }
     }
     if (step === 1) {
       if (!companyData.company_name) { toast.error("Company name is required"); return false; }
