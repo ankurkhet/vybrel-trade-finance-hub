@@ -155,7 +155,7 @@ export default function BorrowerDetail() {
   const handleStatusChange = async () => {
     if (!newStatus) return;
     const { error } = await supabase.from("borrowers")
-      .update({ onboarding_status: newStatus as Database["public"]["Enums"]["onboarding_status"] })
+      .update({ onboarding_status: newStatus as any })
       .eq("id", id!);
     if (error) { toast.error(error.message); return; }
 

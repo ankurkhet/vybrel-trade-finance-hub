@@ -242,7 +242,7 @@ export default function BorrowerOnboarding() {
       const orgId = profile.organization_id;
       if (!orgId) throw new Error("No organization found");
 
-    const borrowerPayload: Record<string, unknown> = {
+      const borrowerPayload = {
       company_name: companyData.company_name || "Unnamed Company",
         trading_name: companyData.trading_name,
         registration_number: companyData.registration_number,
