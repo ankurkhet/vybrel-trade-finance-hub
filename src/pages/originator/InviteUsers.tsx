@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { UserPlus, Loader2, Mail, Clock, CheckCircle2 } from "lucide-react";
@@ -13,12 +15,38 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-type InviteRole = "funder" | "broker_admin" | "borrower";
+type PrimaryRole = "originator_admin" | "originator_user" | "funder" | "broker_admin" | "borrower";
 
-const ROLE_LABELS: Record<InviteRole, string> = {
+const INTERNAL_ROLES: { value: PrimaryRole; label: string }[] = [
+  { value: "originator_admin", label: "Originator Admin" },
+  { value: "originator_user", label: "Originator User" },
+];
+
+const EXTERNAL_ROLES: { value: PrimaryRole; label: string }[] = [
+  { value: "funder", label: "Funder / Lender" },
+  { value: "broker_admin", label: "Broker" },
+  { value: "borrower", label: "Borrower" },
+];
+
+const ORIGINATOR_USER_SUB_ROLES = [
+  { value: "credit_committee_member", label: "Credit Committee Member" },
+  { value: "credit_manager", label: "Credit Manager" },
+  { value: "operations_manager", label: "Operations Manager" },
+  { value: "relationship_manager", label: "Relationship Manager" },
+  { value: "legal", label: "Legal" },
+];
+
+const ROLE_LABELS: Record<string, string> = {
+  originator_admin: "Originator Admin",
+  originator_user: "Originator User",
   funder: "Funder / Lender",
   broker_admin: "Broker",
   borrower: "Borrower",
+  credit_committee_member: "Credit Committee",
+  credit_manager: "Credit Manager",
+  operations_manager: "Operations Manager",
+  relationship_manager: "Relationship Manager",
+  legal: "Legal",
 };
 
 export default function InviteUsers() {
@@ -30,7 +58,9 @@ export default function InviteUsers() {
 
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<InviteRole>("funder");
+  const [isInternal, setIsInternal] = useState(true);
+  const [role, setRole] = useState<PrimaryRole>("originator_admin");
+  const [subRoles, setSubRoles] = useState<string[]>([]);
 
   const orgId = profile?.organization_id;
 
@@ -56,25 +86,34 @@ export default function InviteUsers() {
     const { error } = await supabase.from("invitations").insert({
       organization_id: orgId,
       email,
-      role,
+      role: role as any,
       invited_by: user?.id,
     });
 
     if (error) {
       toast.error(error.message);
     } else {
+      // If originator_user with sub-roles, store them in metadata (future use)
       toast.success(`Invitation sent to ${email}`);
       setDialogOpen(false);
       setEmail("");
       setFullName("");
-      setRole("funder");
+      setRole("originator_admin");
+      setSubRoles([]);
+      setIsInternal(true);
       fetchInvitations();
     }
     setSubmitting(false);
   };
 
+  const toggleSubRole = (r: string) => {
+    setSubRoles(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]);
+  };
+
   const roleColor = (r: string) => {
     switch (r) {
+      case "originator_admin": return "default";
+      case "originator_user": return "secondary";
       case "funder": return "default";
       case "broker_admin": return "secondary";
       case "borrower": return "outline";
@@ -82,13 +121,15 @@ export default function InviteUsers() {
     }
   };
 
+  const currentRoles = isInternal ? INTERNAL_ROLES : EXTERNAL_ROLES;
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Invite Users</h1>
-            <p className="text-sm text-muted-foreground">Invite funders, brokers, and borrowers to the platform</p>
+            <p className="text-sm text-muted-foreground">Invite staff, funders, brokers, and borrowers to the platform</p>
           </div>
           <Button onClick={() => setDialogOpen(true)}>
             <UserPlus className="mr-2 h-4 w-4" /> Send Invitation
@@ -143,7 +184,7 @@ export default function InviteUsers() {
                       <TableCell className="font-medium text-foreground">{inv.email}</TableCell>
                       <TableCell>
                         <Badge variant={roleColor(inv.role) as any} className="capitalize text-xs">
-                          {ROLE_LABELS[inv.role as InviteRole] || inv.role.replace(/_/g, " ")}
+                          {ROLE_LABELS[inv.role] || inv.role.replace(/_/g, " ")}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{new Date(inv.created_at).toLocaleDateString()}</TableCell>
@@ -167,7 +208,7 @@ export default function InviteUsers() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Send Invitation</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
@@ -178,17 +219,52 @@ export default function InviteUsers() {
               <Label>Full Name</Label>
               <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Smith" />
             </div>
+
+            {/* Internal / External toggle */}
+            <div className="flex items-center gap-3 rounded-lg border p-3">
+              <Label className="text-sm font-medium flex-1">User Type</Label>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs ${!isInternal ? "text-muted-foreground" : "font-medium text-foreground"}`}>Internal</span>
+                <Switch checked={!isInternal} onCheckedChange={(v) => {
+                  setIsInternal(!v);
+                  setRole(!v ? "originator_admin" : "funder");
+                  setSubRoles([]);
+                }} />
+                <span className={`text-xs ${isInternal ? "text-muted-foreground" : "font-medium text-foreground"}`}>External</span>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>Role *</Label>
-              <Select value={role} onValueChange={(v) => setRole(v as InviteRole)}>
+              <Select value={role} onValueChange={(v) => { setRole(v as PrimaryRole); setSubRoles([]); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="funder">Funder / Lender</SelectItem>
-                  <SelectItem value="broker_admin">Broker</SelectItem>
-                  <SelectItem value="borrower">Borrower</SelectItem>
+                  {currentRoles.map(r => (
+                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Sub-roles for Originator User */}
+            {role === "originator_user" && (
+              <div className="space-y-2">
+                <Label className="text-sm">Assign Function Roles</Label>
+                <p className="text-xs text-muted-foreground">Select one or more functional roles for this user</p>
+                <div className="grid grid-cols-1 gap-2 mt-1">
+                  {ORIGINATOR_USER_SUB_ROLES.map(sr => (
+                    <div key={sr.value} className="flex items-center gap-2 rounded-md border px-3 py-2">
+                      <Checkbox
+                        id={sr.value}
+                        checked={subRoles.includes(sr.value)}
+                        onCheckedChange={() => toggleSubRole(sr.value)}
+                      />
+                      <Label htmlFor={sr.value} className="text-sm font-normal cursor-pointer">{sr.label}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
