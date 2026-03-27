@@ -36,9 +36,10 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function AdminUsers() {
   const {
-    users, organizations, loading, fetchUsers,
+    users, organizations, borrowerEntities, loading, fetchUsers,
     createUser, sendInvitation, forcePasswordReset,
     changeEmail, updateRoles, updateOrganization, toggleActive,
+    linkBorrowerEntity,
   } = useAdminUsers();
 
   const [search, setSearch] = useState("");
@@ -157,10 +158,11 @@ export default function AdminUsers() {
                         <div className="overflow-x-auto">
                           <Table>
                             <TableHeader>
-                              <TableRow>
+                                <TableRow>
                                 <TableHead>Name</TableHead>
                                 <TableHead>Email</TableHead>
                                 <TableHead>Roles</TableHead>
+                                <TableHead>Entity Assignment</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Last Sign In</TableHead>
                                 <TableHead className="w-[60px]" />
@@ -185,7 +187,26 @@ export default function AdminUsers() {
                                       {user.roles.length === 0 && (
                                         <span className="text-xs text-muted-foreground">No roles</span>
                                       )}
-                                    </div>
+                                   </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {user.roles.includes("borrower") ? (
+                                      <span className="text-xs">
+                                        {user.linked_borrower_name ? (
+                                          <Badge variant="outline" className="bg-success/10 text-success border-success/20 text-xs">
+                                            {user.linked_borrower_name}
+                                          </Badge>
+                                        ) : (
+                                          <span className="text-muted-foreground italic">Not linked</span>
+                                        )}
+                                      </span>
+                                    ) : user.organization_id ? (
+                                      <Badge variant="outline" className="text-xs">
+                                        {organizations.find(o => o.id === user.organization_id)?.name || "—"}
+                                      </Badge>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">—</span>
+                                    )}
                                   </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-1.5">
@@ -203,11 +224,13 @@ export default function AdminUsers() {
                                     <UserManagementActions
                                       user={user}
                                       organizations={organizations}
+                                      borrowerEntities={borrowerEntities}
                                       onForcePasswordReset={forcePasswordReset}
                                       onChangeEmail={changeEmail}
                                       onUpdateRoles={updateRoles}
                                       onUpdateOrganization={updateOrganization}
                                       onToggleActive={toggleActive}
+                                      onLinkBorrowerEntity={linkBorrowerEntity}
                                     />
                                   </TableCell>
                                 </TableRow>

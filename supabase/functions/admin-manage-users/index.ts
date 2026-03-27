@@ -60,10 +60,12 @@ Deno.serve(async (req) => {
         const { data: profiles } = await supabaseAdmin.from('profiles').select('*');
         const { data: userRoles } = await supabaseAdmin.from('user_roles').select('*');
         const { data: orgs } = await supabaseAdmin.from('organizations').select('id, name, slug');
+        const { data: borrowerEntities } = await supabaseAdmin.from('borrowers').select('id, company_name, user_id, organization_id');
 
         const users = (authUsers?.users || []).map(u => {
           const profile = profiles?.find(p => p.user_id === u.id);
           const roles = userRoles?.filter(r => r.user_id === u.id).map(r => r.role) || [];
+          const linkedBorrower = borrowerEntities?.find(b => b.user_id === u.id);
           return {
             id: u.id,
             email: u.email,
@@ -75,10 +77,16 @@ Deno.serve(async (req) => {
             created_at: u.created_at,
             last_sign_in_at: u.last_sign_in_at,
             email_confirmed_at: u.email_confirmed_at,
+            linked_borrower_id: linkedBorrower?.id || null,
+            linked_borrower_name: linkedBorrower?.company_name || null,
           };
         });
 
-        return new Response(JSON.stringify({ users, organizations: orgs || [] }), {
+        return new Response(JSON.stringify({
+          users,
+          organizations: orgs || [],
+          borrower_entities: (borrowerEntities || []).map(b => ({ id: b.id, company_name: b.company_name, organization_id: b.organization_id })),
+        }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -232,6 +240,25 @@ Deno.serve(async (req) => {
         } else {
           await supabaseAdmin.auth.admin.updateUserById(user_id, { ban_duration: 'none' });
         }
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      case 'link_borrower_entity': {
+        const { user_id, borrower_id } = body;
+        if (!user_id) throw new Error('Missing user_id');
+
+        // Unlink any existing borrower linked to this user
+        await supabaseAdmin.from('borrowers').update({ user_id: null }).eq('user_id', user_id);
+
+        // Link new borrower entity if provided
+        if (borrower_id) {
+          await supabaseAdmin.from('borrowers').update({ user_id }).eq('id', borrower_id);
+        }
+
+        await logAudit('admin.link_borrower_entity', 'user', user_id, { borrower_id });
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },

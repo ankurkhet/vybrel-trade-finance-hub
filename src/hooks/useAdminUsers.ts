@@ -13,6 +13,8 @@ export interface AdminUser {
   created_at: string;
   last_sign_in_at: string | null;
   email_confirmed_at: string | null;
+  linked_borrower_id: string | null;
+  linked_borrower_name: string | null;
 }
 
 export interface Org {
@@ -21,9 +23,16 @@ export interface Org {
   slug: string;
 }
 
+export interface BorrowerEntity {
+  id: string;
+  company_name: string;
+  organization_id: string;
+}
+
 export function useAdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [organizations, setOrganizations] = useState<Org[]>([]);
+  const [borrowerEntities, setBorrowerEntities] = useState<BorrowerEntity[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -40,6 +49,7 @@ export function useAdminUsers() {
       const data = await invoke({ action: "list_users" });
       setUsers(data.users || []);
       setOrganizations(data.organizations || []);
+      setBorrowerEntities(data.borrower_entities || []);
     } catch (e: any) {
       toast({ title: "Error loading users", description: e.message, variant: "destructive" });
     } finally {
@@ -92,9 +102,16 @@ export function useAdminUsers() {
     await fetchUsers();
   }, [invoke, toast, fetchUsers]);
 
+  const linkBorrowerEntity = useCallback(async (userId: string, borrowerId: string | null) => {
+    await invoke({ action: "link_borrower_entity", user_id: userId, borrower_id: borrowerId });
+    toast({ title: "Borrower entity updated" });
+    await fetchUsers();
+  }, [invoke, toast, fetchUsers]);
+
   return {
-    users, organizations, loading, fetchUsers,
+    users, organizations, borrowerEntities, loading, fetchUsers,
     createUser, sendInvitation, forcePasswordReset,
     changeEmail, updateRoles, updateOrganization, toggleActive,
+    linkBorrowerEntity,
   };
 }
