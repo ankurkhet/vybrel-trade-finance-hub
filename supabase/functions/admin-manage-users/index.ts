@@ -60,10 +60,12 @@ Deno.serve(async (req) => {
         const { data: profiles } = await supabaseAdmin.from('profiles').select('*');
         const { data: userRoles } = await supabaseAdmin.from('user_roles').select('*');
         const { data: orgs } = await supabaseAdmin.from('organizations').select('id, name, slug');
+        const { data: borrowerEntities } = await supabaseAdmin.from('borrowers').select('id, company_name, user_id, organization_id');
 
         const users = (authUsers?.users || []).map(u => {
           const profile = profiles?.find(p => p.user_id === u.id);
           const roles = userRoles?.filter(r => r.user_id === u.id).map(r => r.role) || [];
+          const linkedBorrower = borrowerEntities?.find(b => b.user_id === u.id);
           return {
             id: u.id,
             email: u.email,
@@ -75,10 +77,16 @@ Deno.serve(async (req) => {
             created_at: u.created_at,
             last_sign_in_at: u.last_sign_in_at,
             email_confirmed_at: u.email_confirmed_at,
+            linked_borrower_id: linkedBorrower?.id || null,
+            linked_borrower_name: linkedBorrower?.company_name || null,
           };
         });
 
-        return new Response(JSON.stringify({ users, organizations: orgs || [] }), {
+        return new Response(JSON.stringify({
+          users,
+          organizations: orgs || [],
+          borrower_entities: (borrowerEntities || []).map(b => ({ id: b.id, company_name: b.company_name, organization_id: b.organization_id })),
+        }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
