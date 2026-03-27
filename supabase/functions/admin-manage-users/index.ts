@@ -95,6 +95,9 @@ Deno.serve(async (req) => {
         const { email, full_name, password, role, organization_id } = body;
         if (!email || !full_name || !role) throw new Error('Missing required fields');
 
+        let userId: string;
+        let wasExisting = false;
+
         const createOpts: any = {
           email,
           email_confirm: true,
@@ -103,21 +106,45 @@ Deno.serve(async (req) => {
         if (password) createOpts.password = password;
 
         const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser(createOpts);
-        if (createErr) throw createErr;
 
-        const userId = newUser.user.id;
+        if (createErr) {
+          // If user already exists, find them and update instead
+          if (createErr.message?.includes('already been registered') || createErr.message?.includes('already exists')) {
+            const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+            const existing = listData?.users?.find(u => u.email === email);
+            if (!existing) throw new Error(`User with email ${email} exists but could not be found`);
+            userId = existing.id;
+            wasExisting = true;
 
-        // Assign role
-        await supabaseAdmin.from('user_roles').insert({ user_id: userId, role });
+            // Update profile name if provided
+            await supabaseAdmin.from('profiles').update({ full_name }).eq('user_id', userId);
+          } else {
+            throw createErr;
+          }
+        } else {
+          userId = newUser.user.id;
+        }
+
+        // Assign role (upsert - ignore if already has this role)
+        await supabaseAdmin.from('user_roles').upsert(
+          { user_id: userId, role },
+          { onConflict: 'user_id,role' }
+        );
 
         // Update profile with org
         if (organization_id) {
           await supabaseAdmin.from('profiles').update({ organization_id }).eq('user_id', userId);
         }
 
-        await logAudit('admin.user_create', 'user', userId, { email, role, organization_id });
+        await logAudit('admin.user_create', 'user', userId, { email, role, organization_id, wasExisting });
 
-        return new Response(JSON.stringify({ success: true, userId }), {
+        return new Response(JSON.stringify({
+          success: true,
+          userId,
+          message: wasExisting
+            ? `Existing user ${email} has been assigned the ${role} role`
+            : `New account created for ${email}`,
+        }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
