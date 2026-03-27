@@ -83,6 +83,74 @@ export default function Disbursements() {
     fetchMemos();
   };
 
+  const openCreateDialog = async () => {
+    const [{ data: invs }, { data: facs }] = await Promise.all([
+      supabase.from("invoices").select("*, borrowers(company_name)")
+        .eq("organization_id", profile!.organization_id!)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false }),
+      supabase.from("facility_requests").select("*, borrowers(company_name)")
+        .eq("organization_id", profile!.organization_id!)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false }),
+    ]);
+    setApprovedInvoices(invs || []);
+    setApprovedFacilities(facs || []);
+    setCreateDialog(true);
+  };
+
+  const handleCreateDisbursement = async () => {
+    if (!selectedInvoice) { toast.error("Select an invoice"); return; }
+    const inv = approvedInvoices.find(i => i.id === selectedInvoice);
+    if (!inv) return;
+
+    const advanceRate = Number(disbForm.advance_rate) / 100;
+    const invoiceValue = Number(inv.amount);
+    const advanceAmount = invoiceValue * advanceRate;
+    const retainedAmount = invoiceValue - advanceAmount;
+    const origFee = Number(disbForm.originator_fee) || 0;
+    const funderFee = Number(disbForm.funder_fee) || 0;
+    const totalFee = origFee + funderFee;
+    const disbursementAmount = advanceAmount - totalFee;
+
+    const memoNumber = `DM-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(memos.length + 1).padStart(4, "0")}`;
+
+    const { error } = await supabase.from("disbursement_memos").insert({
+      organization_id: profile!.organization_id!,
+      borrower_id: inv.borrower_id,
+      invoice_id: inv.id,
+      facility_request_id: selectedFacility || null,
+      memo_number: memoNumber,
+      invoice_number: inv.invoice_number,
+      invoice_value: invoiceValue,
+      invoice_date: inv.issue_date,
+      invoice_due_date: inv.due_date,
+      counterparty_name: inv.debtor_name,
+      funder_name: disbForm.funder_name || null,
+      advance_rate: Number(disbForm.advance_rate),
+      advance_amount: advanceAmount,
+      retained_amount: retainedAmount,
+      originator_fee: origFee,
+      funder_fee: funderFee,
+      total_fee: totalFee,
+      disbursement_amount: disbursementAmount,
+      status: "pending",
+    });
+
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Disbursement memo created");
+      await supabase.from("audit_logs").insert({
+        user_id: profile?.user_id, user_email: profile?.email,
+        action: "disbursement_created", resource_type: "disbursement_memo",
+        details: { invoice_id: inv.id, facility_request_id: selectedFacility, amount: disbursementAmount },
+      });
+    }
+    setCreateDialog(false);
+    setSelectedInvoice("");
+    setSelectedFacility("");
+    setDisbForm({ advance_rate: "80", originator_fee: "0", funder_fee: "0", funder_name: "" });
+
   const handlePaymentConfirm = async () => {
     if (!paymentDialog) return;
     const { error } = await supabase.from("disbursement_memos").update({
