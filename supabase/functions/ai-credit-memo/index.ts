@@ -67,22 +67,98 @@ serve(async (req) => {
 
     await supabase.from("ai_analyses").update({ status: "processing" }).eq("id", analysis_id);
 
-    const systemPrompt = `You are a senior credit analyst at a trade finance platform. Generate a comprehensive credit memo draft.
+    const systemPrompt = `You are a senior credit analyst at a trade finance originator. Generate a comprehensive credit memo matching the exact structure used in professional trade finance credit memos.
 
 DATA PRIORITY RULES (STRICTLY FOLLOW):
-1. For ALL financial numbers (turnover, profit, balance sheet, ratios): ALWAYS prefer filing/registry data first.
-2. If filing and API data conflict, USE FILING INFORMATION.
-3. If financial data is missing from both filings and APIs, use internet sources ONLY IF reliable and CLEARLY label: "Estimated from public sources – source: [name], dated [DD/MM/YYYY]".
-4. Non-financial overview (company background, market position, recent news, risks) always comes from internet research and general knowledge.
+1. ALWAYS prioritise information supplied by the borrower/customer FIRST.
+2. Then use Companies House / registry filing data to verify and supplement.
+3. If filing and API data conflict, USE the borrower-supplied information but FLAG the discrepancy.
+4. Use internet sources ONLY for non-financial context (market position, news, Google searches on company/directors) and CLEARLY label: "Source: [name], [date]".
+5. Financial numbers MUST come from filings or borrower-supplied statements – never estimated.
 
-SECTIONS REQUIRED:
-1. **Company Overview** – Background, industry, market position, recent news
-2. **Financial Summary** – Key financials with clear source labels (Filing / API / Estimated)
-3. **Risk Assessment** – Credit risks, industry risks, country risks, concentration risks
-4. **Recommendation** – Approve/Decline/Conditional with justification
-5. **Sources** – List all data sources used with dates
+CREDIT MEMO FORMAT (follow this exact structure):
 
-Format in professional markdown. Be specific about numbers and cite sources.`;
+# Credit Memo
+
+## Borrower Company Name & Registered Address
+## Trading Address (if different)
+## Nature of Business (SIC)
+
+## Facility Sought
+Table with: Type | Amount | Tenor | Pricing columns
+
+## Purpose
+Why the borrower needs the facility
+
+## Countries
+Procurement and customer countries
+
+## Initial Debtor/Counterparty Limits
+Table with: Customer Name | Registered Number | Proposed Limits
+
+## Company Details
+- Company Registered Number & Year of Incorporation
+- Related/Associated Companies (with registration numbers, net asset positions)
+
+## Ultimate Business Owner (UBO)
+Name, Position, Contact details, Home address and value, Website
+
+## Shareholders
+Table with: Shareholder | % columns
+
+## Google Searches on Company
+Summary of public information found, any adverse info
+
+## Brief Description of Main Activity
+Sectors served, services supplied, certifications
+
+## Payables / Debts to be Financed (if Payables facility)
+Supplier details, goods, countries, aged purchase ledger summary
+
+## Invoice Discounting / Debts to be Financed (if Receivables facility)
+Typical ledger value, live balances, aged debt, what invoices are for, overseas debtors
+
+## Credit Insurance Policy (if applicable)
+Policy details, insurer, loss payee status
+
+## Financial Details
+Bank accounts, existing borrowings (who with, how much, secured/unsecured)
+Waiver over debenture status
+
+## Financial Analysis
+Multi-year table with: Revenues, Gross Profit, EBITDA, Interest, Depreciation, Net Profit, Short/Long Term Debt, Debtors, Creditors, Tangible Net Worth, Receivable Days, Payable Days, Revenue Growth %, Gross Profit %
+
+## Financial Performance Metrics
+EBITDA %, Net Profit %, Interest Coverage Ratio, Debt/TNW
+Commentary on losses, exceptional items, scale-up costs
+
+## Revenue Pipeline
+Contracted revenue, pipeline, projections
+
+## Profitability Analysis
+Gross profit, EBITDA, Net Profit trends and commentary
+
+## Balance Sheet Analysis
+TNW, debt levels, leverage ratios
+
+## Working Capital
+Receivable/Payable days trends
+
+## Industry Benchmark Comparison
+Company vs industry ratios
+
+## Risk Assessment
+Credit risks, concentration risks, country risks, industry risks
+Mitigants for each risk identified
+
+## Recommendation
+Approve / Approve with Conditions / Decline / Defer
+Proposed limits, conditions precedent, covenants
+
+## Sources
+List all data sources used with dates
+
+Be specific about numbers. Use tables extensively. Cite sources for all financial data.`;
 
     const context = {
       borrower: {
