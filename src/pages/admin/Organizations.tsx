@@ -62,6 +62,18 @@ export default function Organizations() {
 
   useEffect(() => { fetchOrgs(); }, []);
 
+  const fetchTree = async () => {
+    setTreeLoading(true);
+    const { data: allOrgs } = await supabase.from("organizations").select("id, name").order("name");
+    const { data: allBorrowers } = await supabase.from("borrowers").select("id, company_name, onboarding_status, organization_id");
+    const tree: typeof treeData = {};
+    (allOrgs || []).forEach(org => {
+      tree[org.id] = { name: org.name, borrowers: (allBorrowers || []).filter(b => b.organization_id === org.id) };
+    });
+    setTreeData(tree);
+    setTreeLoading(false);
+  };
+
   const fetchOrgs = async () => {
     setLoading(true);
     const { data: rawOrgs } = await supabase
