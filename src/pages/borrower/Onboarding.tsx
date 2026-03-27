@@ -158,6 +158,8 @@ export default function BorrowerOnboarding() {
         if (meta.signatory) {
           setSignatoryData(meta.signatory);
         }
+        // Restore NDA accepted state
+        if (borrower.nda_signed) setNdaAccepted(true);
         if (meta.docNotes) setDocNotes(meta.docNotes);
         setOtherInvoiceFacilities((borrower as any).other_invoice_facilities || "");
 
