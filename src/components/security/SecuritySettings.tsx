@@ -30,6 +30,11 @@ export function SecuritySettings() {
   const [loginAlerts, setLoginAlerts] = useState(true);
   const [deviceTrust, setDeviceTrust] = useState(true);
 
+  // Editable session settings
+  const [idleTimeout, setIdleTimeout] = useState("15");
+  const [maxSessions, setMaxSessions] = useState("3");
+  const [editingSession, setEditingSession] = useState(false);
+
   const [devices] = useState<TrustedDevice[]>([
     { id: "1", name: "Chrome on Windows", type: "desktop", lastUsed: "2026-03-13", current: true },
     { id: "2", name: "Safari on iPhone", type: "mobile", lastUsed: "2026-03-12", current: false },
@@ -71,19 +76,47 @@ export function SecuritySettings() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <p className="font-medium text-foreground">Auto-logout on idle</p>
-              <p className="text-sm text-muted-foreground">Sessions expire after 15 minutes of inactivity</p>
+              <p className="text-sm text-muted-foreground">Sessions expire after inactivity</p>
             </div>
-            <Badge variant="secondary">15 min</Badge>
+            {editingSession ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={idleTimeout}
+                  onChange={(e) => setIdleTimeout(e.target.value)}
+                  className="w-20 text-center"
+                />
+                <span className="text-sm text-muted-foreground">min</span>
+              </div>
+            ) : (
+              <Badge variant="secondary">{idleTimeout} min</Badge>
+            )}
           </div>
           <Separator />
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <p className="font-medium text-foreground">Concurrent session limit</p>
               <p className="text-sm text-muted-foreground">Maximum active sessions per user</p>
             </div>
-            <Badge variant="secondary">3 sessions</Badge>
+            {editingSession ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={maxSessions}
+                  onChange={(e) => setMaxSessions(e.target.value)}
+                  className="w-20 text-center"
+                />
+                <span className="text-sm text-muted-foreground">sessions</span>
+              </div>
+            ) : (
+              <Badge variant="secondary">{maxSessions} sessions</Badge>
+            )}
           </div>
           <Separator />
           <div className="flex items-center justify-between">
@@ -92,6 +125,15 @@ export function SecuritySettings() {
               <p className="text-sm text-muted-foreground">Require password for sensitive actions (settings, financial ops)</p>
             </div>
             <Switch defaultChecked />
+          </div>
+          <div className="flex justify-end">
+            <Button
+              variant={editingSession ? "default" : "outline"}
+              size="sm"
+              onClick={() => setEditingSession(!editingSession)}
+            >
+              {editingSession ? "Save Changes" : "Edit Settings"}
+            </Button>
           </div>
         </CardContent>
       </Card>

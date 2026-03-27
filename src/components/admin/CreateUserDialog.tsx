@@ -12,7 +12,7 @@ import {
 import type { Org } from "@/hooks/useAdminUsers";
 
 const ALL_ROLES = [
-  { value: "admin", label: "Admin" },
+  { value: "admin", label: "Vybrel Admin" },
   { value: "originator_admin", label: "Originator Admin" },
   { value: "originator_user", label: "Originator User" },
   { value: "borrower", label: "Borrower" },
@@ -37,6 +37,9 @@ export function CreateUserDialog({ open, onOpenChange, organizations, onCreateUs
   const [orgId, setOrgId] = useState("");
   const [processing, setProcessing] = useState(false);
 
+  // For admin role, org is not required
+  const isAdminRole = role === "admin";
+
   const reset = () => {
     setEmail(""); setFullName(""); setPassword(""); setRole(""); setOrgId("");
   };
@@ -47,7 +50,7 @@ export function CreateUserDialog({ open, onOpenChange, organizations, onCreateUs
       await onCreateUser({
         email, full_name: fullName, role,
         ...(password ? { password } : {}),
-        ...(orgId ? { organization_id: orgId } : {}),
+        ...(orgId && !isAdminRole ? { organization_id: orgId } : {}),
       });
       reset();
       onOpenChange(false);
@@ -59,10 +62,18 @@ export function CreateUserDialog({ open, onOpenChange, organizations, onCreateUs
   };
 
   const handleInvite = async () => {
-    if (!orgId) return;
+    // For admin role, use a placeholder org or skip org requirement
+    if (!isAdminRole && !orgId) return;
     setProcessing(true);
     try {
-      await onSendInvitation({ email, full_name: fullName || undefined, role, organization_id: orgId });
+      if (isAdminRole) {
+        // Create directly since admin doesn't need an org
+        await onCreateUser({
+          email, full_name: fullName || email, role,
+        });
+      } else {
+        await onSendInvitation({ email, full_name: fullName || undefined, role, organization_id: orgId });
+      }
       reset();
       onOpenChange(false);
     } catch (e) {
@@ -108,15 +119,17 @@ export function CreateUserDialog({ open, onOpenChange, organizations, onCreateUs
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Organization</Label>
-              <Select value={orgId} onValueChange={setOrgId}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select organization (optional)" /></SelectTrigger>
-                <SelectContent>
-                  {organizations.map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isAdminRole && (
+              <div>
+                <Label>Organization</Label>
+                <Select value={orgId} onValueChange={setOrgId}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select organization (optional)" /></SelectTrigger>
+                  <SelectContent>
+                    {organizations.map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <DialogFooter className="pt-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button disabled={processing || !email || !fullName || !role} onClick={handleCreate}>
@@ -143,19 +156,21 @@ export function CreateUserDialog({ open, onOpenChange, organizations, onCreateUs
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Organization *</Label>
-              <Select value={orgId} onValueChange={setOrgId}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select organization" /></SelectTrigger>
-                <SelectContent>
-                  {organizations.map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isAdminRole && (
+              <div>
+                <Label>Organization *</Label>
+                <Select value={orgId} onValueChange={setOrgId}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select organization" /></SelectTrigger>
+                  <SelectContent>
+                    {organizations.map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <DialogFooter className="pt-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button disabled={processing || !email || !role || !orgId} onClick={handleInvite}>
-                {processing ? "Sending..." : "Send Invitation"}
+              <Button disabled={processing || !email || !role || (!isAdminRole && !orgId)} onClick={handleInvite}>
+                {processing ? "Sending..." : isAdminRole ? "Create Admin" : "Send Invitation"}
               </Button>
             </DialogFooter>
           </TabsContent>

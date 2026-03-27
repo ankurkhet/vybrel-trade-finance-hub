@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { WORKFLOW_TEMPLATES } from "@/lib/workflow-templates";
 import {
   FileText,
@@ -13,6 +16,9 @@ import {
   Plus,
   ArrowRight,
   Workflow,
+  Building2,
+  Banknote,
+  CreditCard,
 } from "lucide-react";
 
 const categoryIcons: Record<string, typeof FileText> = {
@@ -20,6 +26,9 @@ const categoryIcons: Record<string, typeof FileText> = {
   borrowers: Users,
   credit_committee: Gavel,
   settlements: Receipt,
+  organizations: Building2,
+  disbursements: Banknote,
+  facilities: CreditCard,
   custom: Workflow,
 };
 
@@ -30,6 +39,8 @@ interface WorkflowListProps {
 }
 
 export function WorkflowList({ onSelect, onCreateNew, onInitTemplate }: WorkflowListProps) {
+  const [showDraftsOnly, setShowDraftsOnly] = useState(false);
+
   const { data: workflows, isLoading } = useQuery({
     queryKey: ["workflows"],
     queryFn: async () => {
@@ -47,6 +58,22 @@ export function WorkflowList({ onSelect, onCreateNew, onInitTemplate }: Workflow
     (t) => !existingSlugs.has(t.slug)
   );
 
+  // Filter by live/draft toggle
+  const filteredWorkflows = (workflows || []).filter((wf: any) => {
+    if (!showDraftsOnly) {
+      // Show "Current Live" — workflows that have a published version
+      return wf.workflow_versions?.some((v: any) => v.status === "published");
+    } else {
+      // Show "Draft" — workflows that have a draft version
+      return wf.workflow_versions?.some((v: any) => v.status === "draft");
+    }
+  });
+
+  // Also show workflows with no versions at all when showing drafts
+  const allWorkflows = showDraftsOnly
+    ? [...filteredWorkflows, ...(workflows || []).filter((wf: any) => !wf.workflow_versions?.length)]
+    : filteredWorkflows;
+
   if (isLoading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -62,14 +89,24 @@ export function WorkflowList({ onSelect, onCreateNew, onInitTemplate }: Workflow
 
   return (
     <div className="space-y-6">
+      {/* Live / Draft toggle */}
+      <div className="flex items-center gap-3 rounded-lg border p-3">
+        <Label className="text-sm font-medium flex-1">View</Label>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs ${showDraftsOnly ? "text-muted-foreground" : "font-semibold text-foreground"}`}>Current Live</span>
+          <Switch checked={showDraftsOnly} onCheckedChange={setShowDraftsOnly} />
+          <span className={`text-xs ${!showDraftsOnly ? "text-muted-foreground" : "font-semibold text-foreground"}`}>Draft</span>
+        </div>
+      </div>
+
       {/* Existing workflows */}
-      {workflows && workflows.length > 0 && (
+      {allWorkflows.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            Active Workflows
+            {showDraftsOnly ? "Draft Workflows" : "Live Workflows"}
           </h3>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {workflows.map((wf: any) => {
+            {allWorkflows.map((wf: any) => {
               const Icon = categoryIcons[wf.category] || Workflow;
               const publishedVersion = wf.workflow_versions?.find(
                 (v: any) => v.status === "published"
@@ -117,6 +154,15 @@ export function WorkflowList({ onSelect, onCreateNew, onInitTemplate }: Workflow
             })}
           </div>
         </div>
+      )}
+
+      {allWorkflows.length === 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center py-8 text-muted-foreground">
+            <Workflow className="h-8 w-8 mb-2" />
+            <p className="text-sm">{showDraftsOnly ? "No draft workflows" : "No live workflows yet"}</p>
+          </CardContent>
+        </Card>
       )}
 
       {/* Template blueprints to initialize */}

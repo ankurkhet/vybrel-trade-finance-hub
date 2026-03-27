@@ -637,7 +637,7 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
                     <CheckCircle2 className="mr-2 h-4 w-4" /> Approve & Activate
                   </Button>
                 )}
-                {org.onboarding_status !== "rejected" && org.onboarding_status !== "on_hold" && (
+                {org.onboarding_status !== "rejected" && org.onboarding_status !== "on_hold" && org.onboarding_status !== "approved" && (
                   <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50" onClick={() => handleOrgStatusChange("on_hold")} disabled={statusUpdating}>
                     <PauseCircle className="mr-2 h-4 w-4" /> Put On Hold
                   </Button>
@@ -652,7 +652,7 @@ export function OrgDetailPanel({ orgId, onBack }: OrgDetailPanelProps) {
                     <XCircle className="mr-2 h-4 w-4" /> Reject
                   </Button>
                 )}
-                {(org.onboarding_status === "approved" || org.onboarding_status === "rejected") && (
+                {(org.onboarding_status === "approved" || org.onboarding_status === "rejected") && !isOnHold && (
                   <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50" onClick={() => handleOrgStatusChange("on_hold")} disabled={statusUpdating}>
                     <PauseCircle className="mr-2 h-4 w-4" /> Put On Hold
                   </Button>
