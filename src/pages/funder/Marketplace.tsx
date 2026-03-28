@@ -37,8 +37,8 @@ export default function LimitAssessment() {
     if (!user?.id) return;
     
     // Fetch limits referred to this Funder
-    const { data, error } = await (supabase
-      .from("funder_limits" as any) as any)
+    const { data, error } = await supabase
+      .from("funder_limits")
       .select("*, borrowers(company_name)")
       .eq("funder_user_id", user.id)
       .order("created_at", { ascending: false });
@@ -55,7 +55,7 @@ export default function LimitAssessment() {
     if (!assessDialog || !limitAmount || !user) return;
     setSubmitting(true);
 
-    const { error } = await (supabase.from("funder_limits" as any) as any).update({
+    const { error } = await supabase.from("funder_limits").update({
       limit_amount: parseFloat(limitAmount),
       status: "approved",
       updated_at: new Date().toISOString(),

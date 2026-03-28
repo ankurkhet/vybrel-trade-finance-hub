@@ -22,7 +22,7 @@ import {
   Banknote,
 } from "lucide-react";
 import { toast } from "sonner";
-import CreditMemoDetail from "./CreditMemoDetail";
+import { CreditMemoDetail } from "./CreditMemoDetail";
 import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
 import { SignatoryInfoStep } from "@/components/onboarding/SignatoryInfoStep";
 import { DirectorsStep } from "@/components/onboarding/DirectorsStep";

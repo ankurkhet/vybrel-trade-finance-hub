@@ -1082,6 +1082,69 @@ export type Database = {
         }
         Relationships: []
       }
+      funder_limits: {
+        Row: {
+          id: string
+          organization_id: string
+          funder_user_id: string
+          borrower_id: string
+          counterparty_name: string | null
+          limit_amount: number
+          currency: string
+          base_rate_type: string
+          base_rate_value: number | null
+          margin_pct: number | null
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          funder_user_id: string
+          borrower_id: string
+          counterparty_name?: string | null
+          limit_amount: number
+          currency?: string
+          base_rate_type?: string
+          base_rate_value?: number | null
+          margin_pct?: number | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          funder_user_id?: string
+          borrower_id?: string
+          counterparty_name?: string | null
+          limit_amount?: number
+          currency?: string
+          base_rate_type?: string
+          base_rate_value?: number | null
+          margin_pct?: number | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funder_limits_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funder_limits_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       disbursement_memos: {
         Row: {
           advance_amount: number
@@ -1312,6 +1375,17 @@ export type Database = {
           created_at: string
           currency: string
           facility_type: string
+          funder_base_rate_type: string | null
+          funder_base_rate_value: number | null
+          funder_margin_pct: number | null
+          funder_discounting_rate: number | null
+          funder_advance_rate: number | null
+          originator_margin_pct: number | null
+          originator_fixed_comparison_rate: number | null
+          originator_recommended_rate: number | null
+          final_discounting_rate: number | null
+          final_advance_rate: number | null
+          overdue_fee_pct: number | null
           id: string
           metadata: Json | null
           organization_id: string
@@ -1331,6 +1405,17 @@ export type Database = {
           created_at?: string
           currency?: string
           facility_type: string
+          funder_base_rate_type?: string | null
+          funder_base_rate_value?: number | null
+          funder_margin_pct?: number | null
+          funder_discounting_rate?: number | null
+          funder_advance_rate?: number | null
+          originator_margin_pct?: number | null
+          originator_fixed_comparison_rate?: number | null
+          originator_recommended_rate?: number | null
+          final_discounting_rate?: number | null
+          final_advance_rate?: number | null
+          overdue_fee_pct?: number | null
           id?: string
           metadata?: Json | null
           organization_id: string
@@ -1350,6 +1435,17 @@ export type Database = {
           created_at?: string
           currency?: string
           facility_type?: string
+          funder_base_rate_type?: string | null
+          funder_base_rate_value?: number | null
+          funder_margin_pct?: number | null
+          funder_discounting_rate?: number | null
+          funder_advance_rate?: number | null
+          originator_margin_pct?: number | null
+          originator_fixed_comparison_rate?: number | null
+          originator_recommended_rate?: number | null
+          final_discounting_rate?: number | null
+          final_advance_rate?: number | null
+          overdue_fee_pct?: number | null
           id?: string
           metadata?: Json | null
           organization_id?: string
