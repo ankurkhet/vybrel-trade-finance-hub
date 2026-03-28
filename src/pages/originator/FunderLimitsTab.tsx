@@ -35,7 +35,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
 
   const fetchFunders = async () => {
     // Only fetch funders in the same organization
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("profiles")
       .select("id, full_name, role")
       .eq("role", "funder")
@@ -45,9 +45,9 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
 
   const fetchLimits = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("funder_limits")
-      .select(`*, funder:profiles!funder_limits_funder_user_id_fkey(full_name)`)
+    const { data } = await (supabase
+      .from("funder_limits" as any)
+      .select(`*, funder:profiles!funder_limits_funder_user_id_fkey(full_name)`) as any)
       .eq("borrower_id", borrowerId)
       .order("created_at", { ascending: false });
     if (data) setLimits(data);
@@ -73,7 +73,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
       status: "pending"
     };
 
-    const { error } = await supabase.from("funder_limits").insert(payload);
+    const { error } = await (supabase.from("funder_limits" as any) as any).insert(payload);
     if (error) {
       toast.error(error.message);
     } else {

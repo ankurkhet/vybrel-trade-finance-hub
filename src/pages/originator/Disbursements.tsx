@@ -118,14 +118,14 @@ export default function Disbursements() {
     const counterparty = inv.debtor_name;
 
     // 1. Fetch relevant limits for the 3-combinations
-    const { data: limitsData } = await supabase.from("funder_limits")
+    const { data: limitsData } = await (supabase.from("funder_limits" as any) as any)
       .select("*")
       .eq("status", "approved")
       .or(`and(borrower_id.eq.${borrowerId},counterparty_name.eq.${counterparty}),and(borrower_id.eq.${borrowerId},counterparty_name.is.null),and(borrower_id.is.null,counterparty_name.eq.${counterparty})`);
 
     if (limitsData && limitsData.length > 0) {
       // Find the tightest (minimum) limit amount
-      const effectiveLimit = Math.min(...limitsData.map(l => Number(l.limit_amount)));
+      const effectiveLimit = Math.min(...limitsData.map((l: any) => Number(l.limit_amount)));
 
       // 2. Calculate current math: Sum(Disbursed) - Sum(Repaid)
       const [{ data: disbs }, { data: repays }] = await Promise.all([
