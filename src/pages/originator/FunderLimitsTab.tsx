@@ -45,9 +45,9 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
 
   const fetchLimits = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("funder_limits")
-      .select(`*, funder:profiles!funder_limits_funder_user_id_fkey(full_name)`)
+    const { data } = await (supabase
+      .from("funder_limits" as any)
+      .select(`*, funder:profiles!funder_limits_funder_user_id_fkey(full_name)`) as any)
       .eq("borrower_id", borrowerId)
       .order("created_at", { ascending: false });
     if (data) setLimits(data);
