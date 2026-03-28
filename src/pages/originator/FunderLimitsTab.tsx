@@ -73,7 +73,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
       status: "pending"
     };
 
-    const { error } = await supabase.from("funder_limits").insert(payload);
+    const { error } = await (supabase.from("funder_limits" as any) as any).insert(payload);
     if (error) {
       toast.error(error.message);
     } else {

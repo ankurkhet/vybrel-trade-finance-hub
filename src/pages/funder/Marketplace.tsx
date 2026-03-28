@@ -55,7 +55,7 @@ export default function LimitAssessment() {
     if (!assessDialog || !limitAmount || !user) return;
     setSubmitting(true);
 
-    const { error } = await supabase.from("funder_limits").update({
+    const { error } = await (supabase.from("funder_limits" as any) as any).update({
       limit_amount: parseFloat(limitAmount),
       status: "approved",
       updated_at: new Date().toISOString(),
