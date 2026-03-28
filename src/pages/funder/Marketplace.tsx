@@ -37,8 +37,8 @@ export default function LimitAssessment() {
     if (!user?.id) return;
     
     // Fetch limits referred to this Funder
-    const { data, error } = await supabase
-      .from("funder_limits")
+    const { data, error } = await (supabase
+      .from("funder_limits" as any) as any)
       .select("*, borrowers(company_name)")
       .eq("funder_user_id", user.id)
       .order("created_at", { ascending: false });
