@@ -35,7 +35,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
 
   const fetchFunders = async () => {
     // Only fetch funders in the same organization
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("profiles")
       .select("id, full_name, role")
       .eq("role", "funder")
