@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { UserCheck } from "lucide-react";
 import { DateInput } from "@/components/ui/date-input";
+import { AddressInput } from "./AddressInput";
 import type { SignatoryFormData } from "@/lib/onboarding-types";
 
 interface SignatoryInfoStepProps {
@@ -47,6 +48,30 @@ export function SignatoryInfoStep({ data, onChange, disabled }: SignatoryInfoSte
             maxToday
             className="sm:max-w-[320px]"
           />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>NRIC / Passport Number <span className="text-destructive">*</span></Label>
+            <Input value={data.nric_passport} onChange={(e) => update("nric_passport", e.target.value)} placeholder="e.g. S1234567A" disabled={disabled} />
+          </div>
+          <div className="space-y-2">
+            <Label>Telephone Number <span className="text-destructive">*</span></Label>
+            <Input type="tel" value={data.phone} onChange={(e) => update("phone", e.target.value)} placeholder="+44..." disabled={disabled} />
+          </div>
+        </div>
+
+        <AddressInput
+          label="Residential Address"
+          value={data.address}
+          onChange={(addr) => update("address", addr)}
+          required
+          disabled={disabled}
+        />
+
+        <div className="space-y-2">
+          <Label>LinkedIn URL</Label>
+          <Input type="url" value={data.linkedin_url} onChange={(e) => update("linkedin_url", e.target.value)} placeholder="https://linkedin.com/in/..." disabled={disabled} />
         </div>
 
         <div className="space-y-3">

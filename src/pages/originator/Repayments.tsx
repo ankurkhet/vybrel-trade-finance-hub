@@ -115,9 +115,15 @@ export default function Repayments() {
     const { error } = await supabase.from("repayment_memos").update({
       status: "approved", approved_by: profile?.user_id, approved_at: new Date().toISOString(),
     }).eq("id", memo.id);
-    if (error) toast.error(error.message);
-    else {
+    if (error) {
+       toast.error(error.message);
+    } else {
       toast.success("Repayment memo approved");
+      
+      // Update Invoice settlement status based on balance due
+      const newInvoiceStatus = Number(memo.balance_due) > 0 ? "partially_settled" : "settled";
+      await supabase.from("invoices").update({ status: newInvoiceStatus }).eq("id", memo.invoice_id);
+
       await supabase.from("audit_logs").insert({
         user_id: profile?.user_id, user_email: profile?.email,
         action: "repayment_approved", resource_type: "repayment_memo", resource_id: memo.id,

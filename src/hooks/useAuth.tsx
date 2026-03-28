@@ -18,6 +18,8 @@ interface AuthContextType {
   hasRole: (role: AppRole) => boolean;
   isAdmin: boolean;
   isOriginatorAdmin: boolean;
+  isOriginatorUser: boolean;
+  isOperationsManager: boolean;
   isBorrower: boolean;
   isFunder: boolean;
   isBroker: boolean;
@@ -128,6 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasRole,
         isAdmin: hasRole("admin"),
         isOriginatorAdmin: hasRole("originator_admin"),
+        isOriginatorUser: hasRole("originator_user"),
+        isOperationsManager: hasRole("operations_manager" as AppRole),
         isBorrower: hasRole("borrower"),
         isFunder: hasRole("funder"),
         isBroker: hasRole("broker_admin"),

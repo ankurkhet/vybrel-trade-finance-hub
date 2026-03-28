@@ -103,6 +103,16 @@ export interface SignatoryFormData {
   is_director: boolean | null;
   director_name: string;
   director_email: string;
+  // New Flow Fields
+  nric_passport: string;
+  address: AddressData;
+  phone: string;
+  linkedin_url: string;
+  board_resolution_path: string;
+  nda_sign_method: "electronic" | "docusign" | "manual" | null;
+  nda_status: "pending" | "sent" | "signed";
+  docusign_envelope_id: string;
+  nda_document_path: string;
 }
 
 export const emptySignatoryForm: SignatoryFormData = {
@@ -112,6 +122,15 @@ export const emptySignatoryForm: SignatoryFormData = {
   is_director: null,
   director_name: "",
   director_email: "",
+  nric_passport: "",
+  address: { ...emptyAddress },
+  phone: "",
+  linkedin_url: "",
+  board_resolution_path: "",
+  nda_sign_method: null,
+  nda_status: "pending",
+  docusign_envelope_id: "",
+  nda_document_path: "",
 };
 
 export interface FacilityRequestData {

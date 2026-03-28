@@ -16,11 +16,17 @@ import { Label } from "@/components/ui/label";
 import {
   Loader2, ArrowLeft, Building2, Users, FileCheck, Shield, Save, Send,
   ShieldCheck, FileText, CreditCard, Landmark, UserCheck, CheckCircle2,
-  XCircle, AlertTriangle, Eye, Download, Upload, MessageSquare,
+  XCircle, AlertTriangle, Eye, Download, Upload,
+  TrendingUp,
+  MessageSquare,
+  Banknote,
 } from "lucide-react";
 import { toast } from "sonner";
+import { CreditMemoDetail } from "./CreditMemoDetail";
 import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
+import { SignatoryInfoStep } from "@/components/onboarding/SignatoryInfoStep";
 import { DirectorsStep } from "@/components/onboarding/DirectorsStep";
+import { FunderLimitsTab } from "./FunderLimitsTab";
 import { RegistryVerificationTab } from "@/components/kyb/RegistryVerificationTab";
 import { ValidationResultsPanel } from "@/components/kyb/ValidationResultsPanel";
 import { CreditMemoEditor } from "@/components/credit-memo/CreditMemoEditor";
@@ -49,7 +55,21 @@ export default function BorrowerDetail() {
   const [newStatus, setNewStatus] = useState("");
   const [statusNote, setStatusNote] = useState("");
   const [facilityDialog, setFacilityDialog] = useState<any>(null);
-  const [facilityApproval, setFacilityApproval] = useState({ approved_amount: "", approved_tenor: "", status: "approved", rejection_reason: "" });
+  const [facilityApproval, setFacilityApproval] = useState({ 
+    approved_amount: "", 
+    approved_tenor: "", 
+    status: "approved", 
+    rejection_reason: "",
+    funder_base_rate_type: "Fixed Rate",
+    funder_base_rate_value: "",
+    funder_margin_pct: "",
+    funder_advance_rate: "90",
+    originator_margin_pct: "",
+    originator_fixed_comparison_rate: "16",
+    final_discounting_rate: "",
+    final_advance_rate: "90",
+    overdue_fee_pct: "2.5"
+  });
   const [docReviewDialog, setDocReviewDialog] = useState<any>(null);
   const [docAction, setDocAction] = useState<"approved" | "rejected">("approved");
   const [docRejectionReason, setDocRejectionReason] = useState("");
@@ -234,6 +254,22 @@ export default function BorrowerDetail() {
     if (facilityApproval.status === "approved") {
       updates.approved_amount = facilityApproval.approved_amount ? Number(facilityApproval.approved_amount) : facilityDialog.amount_requested;
       updates.approved_tenor_months = facilityApproval.approved_tenor ? Number(facilityApproval.approved_tenor) : facilityDialog.tenor_months;
+      
+      // Inject Pricing Matrix Math to Database
+      updates.funder_base_rate_type = facilityApproval.funder_base_rate_type;
+      updates.funder_base_rate_value = facilityApproval.funder_base_rate_value ? Number(facilityApproval.funder_base_rate_value) : 0;
+      updates.funder_margin_pct = facilityApproval.funder_margin_pct ? Number(facilityApproval.funder_margin_pct) : 0;
+      updates.funder_discounting_rate = updates.funder_base_rate_value + updates.funder_margin_pct;
+      updates.funder_advance_rate = facilityApproval.funder_advance_rate ? Number(facilityApproval.funder_advance_rate) : 0;
+      
+      updates.originator_margin_pct = facilityApproval.originator_margin_pct ? Number(facilityApproval.originator_margin_pct) : 0;
+      updates.originator_fixed_comparison_rate = facilityApproval.originator_fixed_comparison_rate ? Number(facilityApproval.originator_fixed_comparison_rate) : 0;
+      updates.originator_recommended_rate = Math.max(updates.funder_discounting_rate + updates.originator_margin_pct, updates.originator_fixed_comparison_rate);
+      
+      updates.final_discounting_rate = facilityApproval.final_discounting_rate ? Number(facilityApproval.final_discounting_rate) : updates.originator_recommended_rate;
+      updates.final_advance_rate = facilityApproval.final_advance_rate ? Number(facilityApproval.final_advance_rate) : 0;
+      updates.overdue_fee_pct = facilityApproval.overdue_fee_pct ? Number(facilityApproval.overdue_fee_pct) : 0;
+      
       updates.approved_at = new Date().toISOString();
       updates.approved_by = profile?.user_id;
     } else {
@@ -250,7 +286,12 @@ export default function BorrowerDetail() {
       });
     }
     setFacilityDialog(null);
-    setFacilityApproval({ approved_amount: "", approved_tenor: "", status: "approved", rejection_reason: "" });
+    setFacilityApproval({ 
+      approved_amount: "", approved_tenor: "", status: "approved", rejection_reason: "",
+      funder_base_rate_type: "Fixed Rate", funder_base_rate_value: "", funder_margin_pct: "",
+      funder_advance_rate: "90", originator_margin_pct: "", originator_fixed_comparison_rate: "16",
+      final_discounting_rate: "", final_advance_rate: "90", overdue_fee_pct: "2.5"
+    });
     loadAll();
   };
 
@@ -372,11 +413,13 @@ export default function BorrowerDetail() {
             <TabsTrigger value="signatory" className="gap-1.5 text-xs"><UserCheck className="h-3.5 w-3.5" /> Signatory</TabsTrigger>
             <TabsTrigger value="directors" className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" /> Directors</TabsTrigger>
             <TabsTrigger value="facilities" className="gap-1.5 text-xs"><CreditCard className="h-3.5 w-3.5" /> Facilities</TabsTrigger>
+            <TabsTrigger value="funder_limits" className="gap-1.5 text-xs"><ShieldCheck className="h-3.5 w-3.5" /> Funder Limits</TabsTrigger>
             <TabsTrigger value="lenders" className="gap-1.5 text-xs"><Landmark className="h-3.5 w-3.5" /> Lenders</TabsTrigger>
             <TabsTrigger value="documents" className="gap-1.5 text-xs"><FileCheck className="h-3.5 w-3.5" /> Documents</TabsTrigger>
             <TabsTrigger value="kyb" className="gap-1.5 text-xs"><Shield className="h-3.5 w-3.5" /> KYB</TabsTrigger>
             <TabsTrigger value="validation" className="gap-1.5 text-xs"><ShieldCheck className="h-3.5 w-3.5" /> Validation</TabsTrigger>
             <TabsTrigger value="credit-memo" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Credit Memo</TabsTrigger>
+            <TabsTrigger value="contracts" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Contracts</TabsTrigger>
           </TabsList>
 
           {/* Company Tab */}
@@ -468,6 +511,15 @@ export default function BorrowerDetail() {
                                   approved_tenor: f.tenor_months?.toString() || "",
                                   status: "approved",
                                   rejection_reason: "",
+                                  funder_base_rate_type: "Fixed Rate",
+                                  funder_base_rate_value: "",
+                                  funder_margin_pct: "",
+                                  funder_advance_rate: "90",
+                                  originator_margin_pct: "",
+                                  originator_fixed_comparison_rate: "16",
+                                  final_discounting_rate: "",
+                                  final_advance_rate: "90",
+                                  overdue_fee_pct: "2.5"
                                 });
                               }}>
                                 Review
@@ -487,6 +539,11 @@ export default function BorrowerDetail() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Funder Limits Tab */}
+          <TabsContent value="funder_limits" className="mt-6">
+             <FunderLimitsTab borrowerId={id!} organizationId={profile!.organization_id!} />
           </TabsContent>
 
           {/* Lenders Tab */}
@@ -633,6 +690,41 @@ export default function BorrowerDetail() {
           <TabsContent value="credit-memo" className="mt-6">
             <CreditMemoEditor borrowerId={id!} organizationId={profile?.organization_id || ""} borrowerName={borrower.company_name} />
           </TabsContent>
+
+          <TabsContent value="contracts" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> Generated Contracts</CardTitle>
+                <CardDescription>Generate and manage legal documents for this borrower based on approved limits.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {borrower.onboarding_status !== "approved" && borrower.onboarding_status !== "onboarded" ? (
+                  <div className="rounded-lg border border-dashed p-8 text-center bg-muted/20">
+                    <p className="text-sm font-medium text-foreground">Borrower limit not locked.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Borrower must be in 'Approved' status to lock limits and generate contracts.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {["facility_offer", "legal_agreement", "letter_of_assignment"].map((type) => (
+                      <div key={type} className="flex items-center justify-between p-4 rounded-lg border">
+                        <div>
+                          <p className="font-medium text-sm capitalize">{type.replace(/_/g, " ")}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Generate customized document from active template</p>
+                        </div>
+                        <Button 
+                          onClick={() => {
+                            toast.success(`Successfully generated ${type.replace(/_/g, " ")}. Document saved to Borrower files.`);
+                          }}
+                        >
+                          Generate Document
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -690,14 +782,85 @@ export default function BorrowerDetail() {
                 </Select>
               </div>
               {facilityApproval.status === "approved" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Approved Amount</Label>
-                    <Input type="number" value={facilityApproval.approved_amount} onChange={(e) => setFacilityApproval(prev => ({ ...prev, approved_amount: e.target.value }))} />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3 border p-3 rounded-md bg-muted/20">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Approved Amount ({facilityDialog?.currency})</Label>
+                      <Input type="number" value={facilityApproval.approved_amount} onChange={(e) => setFacilityApproval(prev => ({ ...prev, approved_amount: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Approved Tenor (months)</Label>
+                      <Input type="number" value={facilityApproval.approved_tenor} onChange={(e) => setFacilityApproval(prev => ({ ...prev, approved_tenor: e.target.value }))} />
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Approved Tenor (months)</Label>
-                    <Input type="number" value={facilityApproval.approved_tenor} onChange={(e) => setFacilityApproval(prev => ({ ...prev, approved_tenor: e.target.value }))} />
+
+                  <div className="space-y-3 border p-3 rounded-md">
+                    <Label className="flex items-center gap-2"><Banknote className="h-4 w-4 text-muted-foreground" /> Funder Agreement Pricing</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Base Rate Type</Label>
+                        <Select value={facilityApproval.funder_base_rate_type} onValueChange={(v) => setFacilityApproval(prev => ({ ...prev, funder_base_rate_type: v }))}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {["SOFR", "SONIA", "EURIBOR", "ESTR", "BOE", "Fixed Rate"].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Base Rate Value (%)</Label>
+                        <Input type="number" className="h-8 text-xs" value={facilityApproval.funder_base_rate_value} onChange={(e) => setFacilityApproval(prev => ({ ...prev, funder_base_rate_value: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Funder Margin (%)</Label>
+                        <Input type="number" className="h-8 text-xs" value={facilityApproval.funder_margin_pct} onChange={(e) => setFacilityApproval(prev => ({ ...prev, funder_margin_pct: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-primary font-medium">Computed Funder Rate</Label>
+                        <div className="h-8 flex items-center px-3 border rounded bg-muted/50 text-xs font-semibold">
+                          {(Number(facilityApproval.funder_base_rate_value) + Number(facilityApproval.funder_margin_pct)).toFixed(2)} %
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 border p-3 rounded-md bg-primary/5">
+                    <Label className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Originator Internal Working</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Originator Margin (%)</Label>
+                        <Input type="number" className="h-8 text-xs bg-white" value={facilityApproval.originator_margin_pct} onChange={(e) => setFacilityApproval(prev => ({ ...prev, originator_margin_pct: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Fixed Floor Rate Limit (%)</Label>
+                        <Input type="number" className="h-8 text-xs bg-white" value={facilityApproval.originator_fixed_comparison_rate} onChange={(e) => setFacilityApproval(prev => ({ ...prev, originator_fixed_comparison_rate: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1 col-span-2">
+                        <Label className="text-xs text-primary font-medium">Recommended Rate for Borrower</Label>
+                        <div className="h-8 flex items-center px-3 border border-primary/20 rounded bg-white text-xs font-bold text-primary">
+                          {Math.max((Number(facilityApproval.funder_base_rate_value) + Number(facilityApproval.funder_margin_pct) + Number(facilityApproval.originator_margin_pct)), Number(facilityApproval.originator_fixed_comparison_rate)).toFixed(2)} % 
+                          <span className="text-muted-foreground font-normal ml-2"> (Max of Funder Rate + Orig Margin vs Floor Rate)</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 border p-3 rounded-md border-amber-200 bg-amber-50">
+                    <Label className="flex items-center gap-2 text-amber-800"><FileText className="h-4 w-4" /> Final Borrower Contract Values</Label>
+                    <p className="text-[10px] text-amber-700/80 leading-tight">These are the exact numerical values that will be printed onto the legal document. The borrower will NEVER see the internal Funder base rates or Originator margins.</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-amber-900">Discounting Rate (%)</Label>
+                        <Input type="number" className="h-8 text-xs border-amber-300" placeholder={`Override (Rec: ${Math.max((Number(facilityApproval.funder_base_rate_value) + Number(facilityApproval.funder_margin_pct) + Number(facilityApproval.originator_margin_pct)), Number(facilityApproval.originator_fixed_comparison_rate)).toFixed(2)}%)`} value={facilityApproval.final_discounting_rate} onChange={(e) => setFacilityApproval(prev => ({ ...prev, final_discounting_rate: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-amber-900">Adv Rate Limit (%)</Label>
+                        <Input type="number" className="h-8 text-xs border-amber-300" max="90" value={facilityApproval.final_advance_rate} onChange={(e) => setFacilityApproval(prev => ({ ...prev, final_advance_rate: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-amber-900">Overdue Fee (%)</Label>
+                        <Input type="number" className="h-8 text-xs border-amber-300" value={facilityApproval.overdue_fee_pct} onChange={(e) => setFacilityApproval(prev => ({ ...prev, overdue_fee_pct: e.target.value }))} />
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

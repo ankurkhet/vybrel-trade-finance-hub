@@ -88,7 +88,10 @@ export function ApplicationDetail({ applicationId }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("credit_committee_applications")
-        .select("*")
+        .select(`
+          *,
+          borrowers ( company_name )
+        `)
         .eq("id", applicationId)
         .single();
       if (error) throw error;
@@ -339,11 +342,21 @@ export function ApplicationDetail({ applicationId }: Props) {
             <CardHeader><CardTitle className="text-sm">Details</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">Type</span><span className="capitalize">{(application.type || "").replace(/_/g, " ")}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Debtor</span><span>{application.debtor_name || "—"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Borrower</span><span className="font-medium">{(application as any).borrowers?.company_name || "—"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Counterparty (Debtor)</span><span>{application.debtor_name || "—"}</span></div>
               {(application.metadata as any)?.proposed_limit && (
-                <div className="flex justify-between">
+                <div className="flex justify-between border-t mt-2 pt-2">
                   <span className="text-muted-foreground">Proposed Credit Limit</span>
-                  <span className="font-bold text-foreground">£{Number((application.metadata as any).proposed_limit).toLocaleString()}</span>
+                  <span className="font-bold text-lg text-primary">
+                    {((application.metadata as any).currency === "USD" ? "$" : (application.metadata as any).currency === "EUR" ? "€" : "£")}
+                    {Number((application.metadata as any).proposed_limit).toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {(application.metadata as any)?.proposed_tenor_days && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Facility Tenor</span>
+                  <span className="font-medium text-foreground">{(application.metadata as any).proposed_tenor_days} Days</span>
                 </div>
               )}
               {(application.metadata as any)?.risk_rating && (

@@ -8,7 +8,7 @@ type AppRole = Database["public"]["Enums"]["app_role"];
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  requiredRoles?: AppRole[];
+  requiredRoles?: (AppRole | string)[];
 }
 
 export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps) {
@@ -25,7 +25,7 @@ export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps)
   if (!user) return <Navigate to="/auth" replace />;
 
   if (requiredRoles && requiredRoles.length > 0) {
-    const hasRequiredRole = requiredRoles.some((r) => roles.includes(r));
+    const hasRequiredRole = requiredRoles.some((r) => roles.includes(r as AppRole));
     if (!hasRequiredRole) return <Navigate to="/dashboard" replace />;
   }
 

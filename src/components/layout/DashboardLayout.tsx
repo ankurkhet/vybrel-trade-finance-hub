@@ -43,7 +43,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { user, profile, roles, signOut, isAdmin, isOriginatorAdmin, isBorrower, isFunder, isBroker, isAccountManager } = useAuth();
+  const { user, profile, roles, signOut, isAdmin, isOriginatorAdmin, isOperationsManager, isBorrower, isFunder, isBroker, isAccountManager } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -74,7 +74,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: CreditCard, label: "Invoices", path: "/originator/invoices", show: isOriginatorAdmin },
     { icon: Brain, label: "AI Insights", path: "/originator/ai-insights", show: isOriginatorAdmin },
     { icon: Upload, label: "KYC/KYB Docs", path: "/originator/documents", show: isOriginatorAdmin },
-    { icon: Receipt, label: "Collections", path: "/originator/collections", show: isOriginatorAdmin },
+    { icon: FileCheck, label: "Templates", path: "/originator/document-templates", show: isOriginatorAdmin },
+    { icon: Receipt, label: "Collections", path: "/originator/collections", show: isOriginatorAdmin || isOperationsManager },
     { icon: ArrowDownUp, label: "Fee Config", path: "/originator/fee-config", show: isOriginatorAdmin },
     { icon: Users, label: "Counterparties", path: "/originator/counterparties", show: isOriginatorAdmin },
     { icon: UserPlus, label: "Invite Users", path: "/originator/invite", show: isOriginatorAdmin },
@@ -84,8 +85,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: FileText, label: "Credit Memos", path: "/originator/credit-memos", show: isOriginatorAdmin },
     { icon: Gavel, label: "Credit Committee", path: "/originator/credit-committee", show: isOriginatorAdmin },
     { icon: Gavel, label: "Committee Config", path: "/originator/credit-committee/config", show: isOriginatorAdmin },
-    { icon: Banknote, label: "Disbursements", path: "/originator/disbursements", show: isOriginatorAdmin },
-    { icon: ArrowDownUp, label: "Repayments", path: "/originator/repayments", show: isOriginatorAdmin },
+    { icon: Banknote, label: "Disbursements", path: "/originator/disbursements", show: isOriginatorAdmin || isOperationsManager },
+    { icon: ArrowDownUp, label: "Repayments", path: "/originator/repayments", show: isOriginatorAdmin || isOperationsManager },
     // Account Manager
     { icon: Users, label: "Borrowers", path: "/originator/borrowers", show: isAccountManager && !isOriginatorAdmin },
     { icon: FileText, label: "Contracts", path: "/originator/contracts", show: isAccountManager && !isOriginatorAdmin },

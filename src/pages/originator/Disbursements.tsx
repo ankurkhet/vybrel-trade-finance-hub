@@ -47,7 +47,7 @@ export default function Disbursements() {
     setLoading(true);
     const { data } = await supabase
       .from("disbursement_memos")
-      .select("*, borrowers(company_name)")
+      .select("*, borrowers(company_name), facility_requests(approved_amount, currency)")
       .eq("organization_id", profile!.organization_id!)
       .order("created_at", { ascending: false });
     setMemos(data || []);
@@ -112,6 +112,42 @@ export default function Disbursements() {
     const funderFee = Number(disbForm.funder_fee) || 0;
     const totalFee = origFee + funderFee;
     const disbursementAmount = advanceAmount - totalFee;
+
+    // Phase 5: Outstanding Exposure & 3-Tier Funder Limit Verification
+    const borrowerId = inv.borrower_id;
+    const counterparty = inv.debtor_name;
+
+    // 1. Fetch relevant limits for the 3-combinations
+    const { data: limitsData } = await supabase.from("funder_limits")
+      .select("*")
+      .eq("status", "approved")
+      .or(`and(borrower_id.eq.${borrowerId},counterparty_name.eq.${counterparty}),and(borrower_id.eq.${borrowerId},counterparty_name.is.null),and(borrower_id.is.null,counterparty_name.eq.${counterparty})`);
+
+    if (limitsData && limitsData.length > 0) {
+      // Find the tightest (minimum) limit amount
+      const effectiveLimit = Math.min(...limitsData.map(l => Number(l.limit_amount)));
+
+      // 2. Calculate current math: Sum(Disbursed) - Sum(Repaid)
+      const [{ data: disbs }, { data: repays }] = await Promise.all([
+        supabase.from("disbursement_memos")
+          .select("disbursement_amount")
+          .eq("borrower_id", borrowerId)
+          .eq("status", "disbursed"),
+        supabase.from("repayment_memos")
+          .select("total_repayment")
+          .eq("borrower_id", borrowerId)
+          .eq("status", "approved")
+      ]);
+
+      const totalDisbursed = (disbs || []).reduce((sum, d) => sum + Number(d.disbursement_amount || 0), 0);
+      const totalRepaid = (repays || []).reduce((sum, r) => sum + Number(r.total_repayment || 0), 0);
+      const outstandingExposure = totalDisbursed - totalRepaid;
+
+      if ((outstandingExposure + disbursementAmount) > effectiveLimit) {
+        toast.error(`Disbursement blocked: Outstanding exposure (${inv.currency} ${outstandingExposure}) + new disbursement (${inv.currency} ${disbursementAmount}) breaches the tightest Funder Limit of ${inv.currency} ${effectiveLimit}.`);
+        return;
+      }
+    }
 
     const memoNumber = `DM-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(memos.length + 1).padStart(4, "0")}`;
 
@@ -316,10 +352,13 @@ export default function Disbursements() {
                   <MemoRow label="Invoice Value" value={Number(detailMemo.invoice_value || 0).toLocaleString()} />
                   <MemoRow label={`Advance Amount (${detailMemo.advance_rate ? `${detailMemo.advance_rate}%` : "—"})`} value={Number(detailMemo.advance_amount || 0).toLocaleString()} />
                   <MemoRow label="Retained Amount" value={Number(detailMemo.retained_amount || 0).toLocaleString()} />
+                  {detailMemo.facility_requests && (
+                    <MemoRow label="Locked Facility Limit Check" value={`${detailMemo.facility_requests.currency} ${Number(detailMemo.facility_requests.approved_amount).toLocaleString()}`} bold />
+                  )}
                   <MemoRow label="Originator Fee" value={Number(detailMemo.originator_fee || 0).toLocaleString()} />
                   <MemoRow label="Funder Fee" value={Number(detailMemo.funder_fee || 0).toLocaleString()} />
                   <MemoRow label="Total Fee" value={Number(detailMemo.total_fee || 0).toLocaleString()} />
-                  <MemoRow label="Disbursement Amount" value={Number(detailMemo.disbursement_amount || 0).toLocaleString()} bold />
+                  <MemoRow label="Net Disbursement Amount" value={Number(detailMemo.disbursement_amount || 0).toLocaleString()} bold />
                 </div>
               </div>
 
@@ -348,6 +387,15 @@ export default function Disbursements() {
                 {detailMemo.status === "approved" && (
                   <Button className="w-full" onClick={() => { setPaymentDialog(detailMemo); setDetailMemo(null); }}>
                     <Banknote className="mr-2 h-4 w-4" /> Confirm Payment
+                  </Button>
+                )}
+                {detailMemo.status === "disbursed" && (
+                  <Button variant="outline" className="w-full" onClick={() => {
+                    toast.success("Generating Payment Advice PDF...");
+                    // Window.print triggers the browser print dialog which satisfies PDF generation visually
+                    window.print();
+                  }}>
+                    <Receipt className="mr-2 h-4 w-4" /> Download Payment Advice
                   </Button>
                 )}
               </div>

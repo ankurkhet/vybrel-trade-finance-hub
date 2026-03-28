@@ -217,10 +217,10 @@ export default function BorrowerMyProfile() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Type</TableHead>
-                        <TableHead>Amount Requested</TableHead>
+                        <TableHead>Requested</TableHead>
                         <TableHead>Currency</TableHead>
-                        <TableHead>Tenor</TableHead>
-                        <TableHead>Approved Amount</TableHead>
+                        <TableHead>Approved Amount/Tenor</TableHead>
+                        <TableHead>Contracted Rates</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -230,10 +230,18 @@ export default function BorrowerMyProfile() {
                           <TableCell className="font-medium text-sm capitalize">{f.facility_type?.replace(/_/g, " ")}</TableCell>
                           <TableCell>{f.amount_requested ? Number(f.amount_requested).toLocaleString() : "—"}</TableCell>
                           <TableCell>{f.currency}</TableCell>
-                          <TableCell>{f.tenor_months ? `${f.tenor_months} months` : "—"}</TableCell>
                           <TableCell className="font-medium">
                             {f.approved_amount ? `${Number(f.approved_amount).toLocaleString()}` : "—"}
                             {f.approved_tenor_months && ` / ${f.approved_tenor_months}m`}
+                          </TableCell>
+                          <TableCell>
+                            {f.status === "approved" ? (
+                              <div className="flex flex-col gap-1 text-[11px] leading-tight text-muted-foreground">
+                                <div><span className="font-medium text-foreground">Discount Rate:</span> {f.final_discounting_rate || "—"}%</div>
+                                <div><span className="font-medium text-foreground">Advance Limit:</span> {f.final_advance_rate || "—"}%</div>
+                                <div><span className="font-medium text-foreground">Overdue Fee:</span> {f.overdue_fee_pct || "—"}%</div>
+                              </div>
+                            ) : "—"}
                           </TableCell>
                           <TableCell>
                             <Badge variant={f.status === "approved" ? "default" : f.status === "rejected" ? "destructive" : "secondary"} className="capitalize text-xs">

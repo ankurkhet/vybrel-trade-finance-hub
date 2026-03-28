@@ -3,7 +3,8 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Wallet, TrendingUp, CheckCircle2, Clock } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Wallet, TrendingUp, CheckCircle2, Clock, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -28,11 +29,14 @@ export default function FunderPortfolio() {
     setLoading(false);
   };
 
+  const acceptedOffers = offers.filter((o: any) => o.status === "accepted");
+  
   const stats = {
     totalOffers: offers.length,
-    totalFunded: offers.filter((o: any) => o.status === "accepted").reduce((s: number, o: any) => s + Number(o.offer_amount), 0),
+    totalFunded: acceptedOffers.reduce((s: number, o: any) => s + Number(o.offer_amount), 0),
+    expectedYield: acceptedOffers.reduce((s: number, o: any) => s + (Number(o.offer_amount) * (Number(o.discount_rate || 0) / 100)), 0),
     pending: offers.filter((o: any) => o.status === "pending").length,
-    accepted: offers.filter((o: any) => o.status === "accepted").length,
+    accepted: acceptedOffers.length,
   };
 
   const statusIcon = (s: string) => {
@@ -76,19 +80,80 @@ export default function FunderPortfolio() {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Accepted</p>
-              <p className="text-xl font-bold text-foreground">{stats.accepted}</p>
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-green-500/10 p-2"><Activity className="h-5 w-5 text-green-600" /></div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Expected Return</p>
+                  <p className="text-xl font-bold text-green-600">${stats.expectedYield.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Pending</p>
-              <p className="text-xl font-bold text-foreground">{stats.pending}</p>
+              <p className="text-xs text-muted-foreground">Active Facilities</p>
+              <p className="text-xl font-bold text-foreground">{stats.accepted}</p>
             </CardContent>
           </Card>
         </div>
 
-        <Card>
+        <Tabs defaultValue="investments" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+            <TabsTrigger value="investments">Active Investments</TabsTrigger>
+            <TabsTrigger value="offers">My Bids & Offers</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="investments" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Active Investments Ledger</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {loading ? (
+                  <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+                ) : acceptedOffers.length === 0 ? (
+                  <div className="flex flex-col items-center py-12">
+                    <Activity className="h-10 w-10 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">You don't have any active investments yet.</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Debtor</TableHead>
+                        <TableHead>Invoice #</TableHead>
+                        <TableHead>Capital Deployed</TableHead>
+                        <TableHead>Your Auth. Discount Rate</TableHead>
+                        <TableHead>Est. Yield</TableHead>
+                        <TableHead>Settlement Due</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {acceptedOffers.map((o: any) => (
+                        <TableRow key={o.id}>
+                          <TableCell className="font-medium">{(o.invoices as any)?.debtor_name || "—"}</TableCell>
+                          <TableCell>{(o.invoices as any)?.invoice_number || "—"}</TableCell>
+                          <TableCell className="font-medium">
+                            {(o.invoices as any)?.currency} {Number(o.offer_amount).toLocaleString()}
+                          </TableCell>
+                          <TableCell>{o.discount_rate ? `${o.discount_rate}%` : "—"}</TableCell>
+                          <TableCell className="text-green-600 font-medium">
+                            +{(o.invoices as any)?.currency} {(Number(o.offer_amount) * (Number(o.discount_rate || 0) / 100)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell>
+                            {(o.invoices as any)?.due_date ? new Date((o.invoices as any).due_date).toLocaleDateString() : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="offers" className="mt-4">
+            <Card>
           <CardHeader>
             <CardTitle className="text-base">Funding Offers</CardTitle>
           </CardHeader>
@@ -141,6 +206,8 @@ export default function FunderPortfolio() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
