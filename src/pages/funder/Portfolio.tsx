@@ -4,13 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Wallet, TrendingUp, CheckCircle2, Clock, Activity } from "lucide-react";
+import { Loader2, Wallet, TrendingUp, CheckCircle2, Clock, Activity, Handshake } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function FunderPortfolio() {
   const { user } = useAuth();
   const [offers, setOffers] = useState<any[]>([]);
+  const [msas, setMsas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,6 +26,14 @@ export default function FunderPortfolio() {
       .eq("funder_user_id", user!.id)
       .order("created_at", { ascending: false });
 
+    // Fetch active MSAs
+    const { data: msaData } = await supabase
+      .from("funder_relationships")
+      .select("*, organization:organizations(name)")
+      .eq("funder_user_id", user!.id)
+      .eq("agreement_status", "active");
+
+    if (msaData) setMsas(msaData);
     setOffers((data as any[]) || []);
     setLoading(false);
   };
@@ -54,6 +63,23 @@ export default function FunderPortfolio() {
           <h1 className="text-2xl font-bold text-foreground">My Portfolio</h1>
           <p className="text-sm text-muted-foreground">Track your funding offers and active investments</p>
         </div>
+
+        {msas.length > 0 && (
+          <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex gap-4 items-center">
+            <div className="bg-primary/10 p-3 rounded-lg"><Handshake className="h-6 w-6 text-primary" /></div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground flex items-center gap-2">Active Master Agreements</h3>
+              <div className="flex flex-wrap gap-4 mt-2">
+                {msas.map(msa => (
+                  <Badge key={msa.id} variant="outline" className="bg-background text-sm py-1 font-normal border-primary/20">
+                    <span className="font-semibold mr-1">{(msa as any).organization?.name || "Originator"}</span>
+                    | {msa.master_base_rate_type} +{msa.master_margin_pct}%
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>

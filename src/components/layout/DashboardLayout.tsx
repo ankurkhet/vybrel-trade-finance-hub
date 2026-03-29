@@ -34,6 +34,7 @@ import {
   ArrowDownUp,
   UserPlus,
   MessageSquare,
+  Handshake,
 } from "lucide-react";
 import { Gavel, Workflow, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -87,6 +88,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Gavel, label: "Committee Config", path: "/originator/credit-committee/config", show: isOriginatorAdmin },
     { icon: Banknote, label: "Disbursements", path: "/originator/disbursements", show: isOriginatorAdmin || isOperationsManager },
     { icon: ArrowDownUp, label: "Repayments", path: "/originator/repayments", show: isOriginatorAdmin || isOperationsManager },
+    { icon: Handshake, label: "Lender Management", path: "/originator/lender-management", show: isOriginatorAdmin },
     // Account Manager
     { icon: Users, label: "Borrowers", path: "/originator/borrowers", show: isAccountManager && !isOriginatorAdmin },
     { icon: FileText, label: "Contracts", path: "/originator/contracts", show: isAccountManager && !isOriginatorAdmin },

@@ -15,6 +15,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
   const [limits, setLimits] = useState<any[]>([]);
   const [funders, setFunders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [msaTerms, setMsaTerms] = useState<any>(null);
   
   const [referDialog, setReferDialog] = useState(false);
   const [formData, setFormData] = useState({
@@ -52,6 +53,32 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
       .order("created_at", { ascending: false });
     if (data) setLimits(data);
     setLoading(false);
+  };
+
+  const handleFunderSelect = async (funderId: string) => {
+    setFormData(f => ({...f, funder_user_id: funderId}));
+    
+    const { data: rels } = await supabase
+      .from('funder_relationships')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .eq('funder_user_id', funderId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+      
+    if (rels && rels.length > 0) {
+       const active = rels[0];
+       setMsaTerms(active);
+       setFormData(f => ({
+         ...f,
+         base_rate_type: active.master_base_rate_type || 'Fixed Rate',
+         base_rate_value: active.master_base_rate_value ? String(active.master_base_rate_value) : "",
+         margin_pct: active.master_margin_pct ? String(active.master_margin_pct) : ""
+       }));
+       toast.info(`Rates pre-populated from Master Agreement (${active.master_base_rate_type} + ${active.master_margin_pct}%)`);
+    } else {
+       setMsaTerms(null);
+    }
   };
 
   const handleRefer = async () => {
@@ -155,7 +182,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
           <div className="grid grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
               <Label>Select Funder *</Label>
-              <Select value={formData.funder_user_id} onValueChange={(val) => setFormData(f => ({...f, funder_user_id: val}))}>
+              <Select value={formData.funder_user_id} onValueChange={handleFunderSelect}>
                 <SelectTrigger><SelectValue placeholder="Choose funder..." /></SelectTrigger>
                 <SelectContent>
                   {funders.length === 0 && <SelectItem value="none" disabled>No active funders</SelectItem>}
@@ -180,7 +207,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
               />
             </div>
             <div className="space-y-2">
-              <Label>Base Rate Type</Label>
+              <Label className="flex items-center gap-2">Base Rate Type {msaTerms && <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 ml-2">MSA Default</Badge>}</Label>
               <Select value={formData.base_rate_type} onValueChange={(val) => setFormData(f => ({...f, base_rate_type: val}))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -192,7 +219,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Base Rate Value (%)</Label>
+              <Label className="flex items-center gap-2">Base Rate Value (%) {msaTerms && <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 ml-2">MSA Default</Badge>}</Label>
               <Input 
                 type="number" step="0.01" 
                 value={formData.base_rate_value} 
@@ -200,7 +227,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
               />
             </div>
             <div className="space-y-2">
-              <Label>Funder Margin (%)</Label>
+              <Label className="flex items-center gap-2">Funder Margin (%) {msaTerms && <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 ml-2">MSA Default</Badge>}</Label>
               <Input 
                 type="number" step="0.01" 
                 value={formData.margin_pct} 

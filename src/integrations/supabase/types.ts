@@ -1145,6 +1145,59 @@ export type Database = {
           }
         ]
       }
+      funder_relationships: {
+        Row: {
+          id: string
+          organization_id: string
+          funder_user_id: string
+          master_base_rate_type: string
+          master_base_rate_value: number | null
+          master_margin_pct: number | null
+          default_advance_rate: number | null
+          effective_date: string
+          agreement_status: string
+          agreement_document_path: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          funder_user_id: string
+          master_base_rate_type?: string
+          master_base_rate_value?: number | null
+          master_margin_pct?: number | null
+          default_advance_rate?: number | null
+          effective_date?: string
+          agreement_status?: string
+          agreement_document_path?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          funder_user_id?: string
+          master_base_rate_type?: string
+          master_base_rate_value?: number | null
+          master_margin_pct?: number | null
+          default_advance_rate?: number | null
+          effective_date?: string
+          agreement_status?: string
+          agreement_document_path?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funder_relationships_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       disbursement_memos: {
         Row: {
           advance_amount: number

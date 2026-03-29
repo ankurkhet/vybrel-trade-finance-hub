@@ -65,6 +65,7 @@ import CreditMemos from "./pages/originator/CreditMemos";
 import CreditMemoDetail from "./pages/originator/CreditMemoDetail";
 import Disbursements from "./pages/originator/Disbursements";
 import Repayments from "./pages/originator/Repayments";
+import OriginatorLenderManagement from "./pages/originator/LenderManagement";
 
 const queryClient = new QueryClient();
 
@@ -126,6 +127,7 @@ const App = () => (
               <Route path="/originator/credit-memos/:id" element={<ProtectedRoute requiredRoles={["originator_admin"]}><CreditMemoDetail /></ProtectedRoute>} />
               <Route path="/originator/disbursements" element={<ProtectedRoute requiredRoles={["originator_admin", "operations_manager"]}><Disbursements /></ProtectedRoute>} />
               <Route path="/originator/repayments" element={<ProtectedRoute requiredRoles={["originator_admin", "operations_manager"]}><Repayments /></ProtectedRoute>} />
+              <Route path="/originator/lender-management" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorLenderManagement /></ProtectedRoute>} />
 
               {/* Broker (reuses originator components with read-only fee config) */}
               <Route path="/broker/borrowers" element={<ProtectedRoute requiredRoles={["broker_admin"]}><OriginatorBorrowers /></ProtectedRoute>} />
