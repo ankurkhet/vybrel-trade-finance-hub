@@ -89,6 +89,10 @@ export default function Disbursements() {
   };
 
   const openCreateDialog = async () => {
+    // Fetch funder user_ids from user_roles (consistent with GAP-13 fix)
+    const { data: funderRoles } = await supabase.from("user_roles").select("user_id").eq("role", "funder");
+    const funderIds = (funderRoles || []).map((r: any) => r.user_id);
+
     const [{ data: invs }, { data: facs }, { data: fnds }] = await Promise.all([
       supabase.from("invoices").select("*, borrowers(company_name)")
         .eq("organization_id", profile!.organization_id!)
@@ -98,7 +102,9 @@ export default function Disbursements() {
         .eq("organization_id", profile!.organization_id!)
         .eq("status", "approved")
         .order("created_at", { ascending: false }),
-      supabase.from("profiles").select("user_id, full_name").eq("role", "funder").eq("organization_id", profile!.organization_id!)
+      supabase.from("profiles").select("user_id, full_name")
+        .eq("organization_id", profile!.organization_id!)
+        .in("user_id", funderIds.length ? funderIds : ["00000000-0000-0000-0000-000000000000"])
     ]);
     setApprovedInvoices(invs || []);
     setApprovedFacilities(facs || []);

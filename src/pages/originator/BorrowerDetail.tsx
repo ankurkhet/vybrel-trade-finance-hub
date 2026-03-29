@@ -126,7 +126,7 @@ export default function BorrowerDetail() {
       supabase.from("borrower_lenders").select("*").eq("borrower_id", id!).order("created_at"),
       supabase.from("documents").select("*").eq("borrower_id", id!).eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("credit_committee_applications").select("id").eq("borrower_id", id!).eq("status", "approved"),
-      supabase.from("contracts").select("id, name, counterparty").eq("borrower_id", id!).eq("status", "active"),
+      supabase.from("contracts").select("id, title, counterparty").eq("borrower_id", id!).eq("status", "active"),
       supabase.from("product_fee_configs").select("*").eq("organization_id", profile!.organization_id!)
     ]);
 
@@ -828,7 +828,7 @@ export default function BorrowerDetail() {
                         <SelectTrigger><SelectValue placeholder="Select active master contract" /></SelectTrigger>
                         <SelectContent>
                            {contracts.length === 0 && <SelectItem value="none" disabled>No active contracts found</SelectItem>}
-                           {contracts.map(c => <SelectItem key={c.id} value={c.id}>{c.name} {c.counterparty ? `(${c.counterparty})` : ''}</SelectItem>)}
+                           {contracts.map(c => <SelectItem key={c.id} value={c.id}>{c.title} {c.counterparty ? `(${c.counterparty})` : ''}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>

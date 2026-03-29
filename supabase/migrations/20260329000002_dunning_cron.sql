@@ -14,7 +14,7 @@ BEGIN
     UPDATE public.invoices i
     SET 
         accrued_late_fees = COALESCE(i.accrued_late_fees, 0) + (
-            i.invoice_value * (
+            i.amount * (
                 COALESCE((
                     SELECT f.overdue_fee_pct 
                     FROM public.disbursement_memos dm

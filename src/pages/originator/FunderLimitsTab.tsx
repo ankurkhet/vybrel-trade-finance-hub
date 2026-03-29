@@ -35,12 +35,18 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
   }, [borrowerId]);
 
   const fetchFunders = async () => {
-    // Only fetch funders in the same organization
+    // Fetch funder user_ids from user_roles (consistent with GAP-13 fix)
+    const { data: roleRecords } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "funder");
+    const funderIds = (roleRecords || []).map((r: any) => r.user_id);
+
     const { data } = await supabase
       .from("profiles")
       .select("user_id, full_name, role")
-      .eq("role", "funder")
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)
+      .in("user_id", funderIds.length ? funderIds : ["00000000-0000-0000-0000-000000000000"]);
     if (data) setFunders(data);
   };
 
