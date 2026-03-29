@@ -34,9 +34,23 @@ export default function SettlementAdvices({ role }: { role: "borrower" | "funder
       .order("created_at", { ascending: false });
 
     if (role === "borrower") {
+      // Get borrower ID first
+      const { data: b } = await supabase
+        .from("borrowers")
+        .select("id")
+        .eq("user_id", user!.id)
+        .single();
+        
       query = query.eq("advice_type", "borrower_settlement");
+      if (b) {
+        query = query.eq("to_borrower_id", b.id);
+      } else {
+        // Force no results if no borrower profile
+        query = query.eq("to_borrower_id", "00000000-0000-0000-0000-000000000000");
+      }
     } else {
       query = query.eq("advice_type", "funder_settlement");
+      query = query.eq("to_funder_user_id", user!.id);
     }
 
     const { data } = await query;

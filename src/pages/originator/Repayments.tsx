@@ -124,6 +124,11 @@ export default function Repayments() {
       const newInvoiceStatus = Number(memo.balance_due) > 0 ? "partially_settled" : "settled";
       await supabase.from("invoices").update({ status: newInvoiceStatus }).eq("id", memo.invoice_id);
 
+      if (newInvoiceStatus === "settled") {
+        // GAP-17: Cascade settled status to flag underlying memo as repaid
+        await supabase.from("disbursement_memos").update({ status: "repaid" }).eq("id", memo.disbursement_memo_id);
+      }
+
       await supabase.from("audit_logs").insert({
         user_id: profile?.user_id, user_email: profile?.email,
         action: "repayment_approved", resource_type: "repayment_memo", resource_id: memo.id,

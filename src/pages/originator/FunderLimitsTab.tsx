@@ -38,7 +38,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
     // Only fetch funders in the same organization
     const { data } = await supabase
       .from("profiles")
-      .select("id, full_name, role")
+      .select("user_id, full_name, role")
       .eq("role", "funder")
       .eq("organization_id", organizationId);
     if (data) setFunders(data);
@@ -186,7 +186,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
                 <SelectTrigger><SelectValue placeholder="Choose funder..." /></SelectTrigger>
                 <SelectContent>
                   {funders.length === 0 && <SelectItem value="none" disabled>No active funders</SelectItem>}
-                  {funders.map(f => <SelectItem key={f.id} value={f.id}>{f.full_name}</SelectItem>)}
+                  {funders.map(f => <SelectItem key={f.user_id} value={f.user_id}>{f.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

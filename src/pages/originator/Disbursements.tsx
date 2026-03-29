@@ -30,13 +30,14 @@ export default function Disbursements() {
   const [createDialog, setCreateDialog] = useState(false);
   const [approvedInvoices, setApprovedInvoices] = useState<any[]>([]);
   const [approvedFacilities, setApprovedFacilities] = useState<any[]>([]);
+  const [funders, setFunders] = useState<any[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState("");
   const [selectedFacility, setSelectedFacility] = useState("");
   const [disbForm, setDisbForm] = useState({
     advance_rate: "80",
     originator_fee: "0",
     funder_fee: "0",
-    funder_name: "",
+    funder_user_id: "",
   });
 
   useEffect(() => {
@@ -55,6 +56,10 @@ export default function Disbursements() {
   };
 
   const handleApprove = async (memo: any) => {
+    if (memo.created_by === profile?.user_id) {
+       toast.error("Maker-Checker Rule: You cannot approve a disbursement you created.");
+       return;
+    }
     setApproving(true);
     const { error } = await supabase.from("disbursement_memos").update({
       status: "approved",
@@ -84,7 +89,7 @@ export default function Disbursements() {
   };
 
   const openCreateDialog = async () => {
-    const [{ data: invs }, { data: facs }] = await Promise.all([
+    const [{ data: invs }, { data: facs }, { data: fnds }] = await Promise.all([
       supabase.from("invoices").select("*, borrowers(company_name)")
         .eq("organization_id", profile!.organization_id!)
         .eq("status", "approved")
@@ -93,11 +98,28 @@ export default function Disbursements() {
         .eq("organization_id", profile!.organization_id!)
         .eq("status", "approved")
         .order("created_at", { ascending: false }),
+      supabase.from("profiles").select("user_id, full_name").eq("role", "funder").eq("organization_id", profile!.organization_id!)
     ]);
     setApprovedInvoices(invs || []);
     setApprovedFacilities(facs || []);
+    setFunders(fnds || []);
     setCreateDialog(true);
   };
+
+  useEffect(() => {
+    if (selectedFacility && selectedInvoice) {
+      const fac = approvedFacilities.find(f => f.id === selectedFacility);
+      const inv = approvedInvoices.find(i => i.id === selectedInvoice);
+      if (fac && inv) {
+        setDisbForm(f => ({
+          ...f,
+          advance_rate: (fac.final_advance_rate || 90).toString(),
+          originator_fee: ((Number(inv.amount) * (Number(fac.originator_margin_pct || 0) / 100)) / 12).toFixed(2),
+          funder_fee: ((Number(inv.amount) * (Number(fac.funder_discounting_rate || 0) / 100)) / 12).toFixed(2)
+        }));
+      }
+    }
+  }, [selectedFacility, selectedInvoice]);
 
   const handleCreateDisbursement = async () => {
     if (!selectedInvoice) { toast.error("Select an invoice"); return; }
@@ -121,7 +143,7 @@ export default function Disbursements() {
     const { data: limitsData } = await supabase.from("funder_limits")
       .select("*")
       .eq("status", "approved")
-      .or(`and(borrower_id.eq.${borrowerId},counterparty_name.eq.${counterparty}),and(borrower_id.eq.${borrowerId},counterparty_name.is.null),and(borrower_id.is.null,counterparty_name.eq.${counterparty})`);
+      .or(`and(borrower_id.eq.${borrowerId},counterparty_name.eq.${counterparty}),and(borrower_id.eq.${borrowerId},counterparty_name.is.null)`);
 
     if (limitsData && limitsData.length > 0) {
       // Find the tightest (minimum) limit amount
@@ -162,7 +184,7 @@ export default function Disbursements() {
       invoice_date: inv.issue_date,
       invoice_due_date: inv.due_date,
       counterparty_name: inv.debtor_name,
-      funder_name: disbForm.funder_name || null,
+      funder_user_id: disbForm.funder_user_id || null,
       advance_rate: Number(disbForm.advance_rate),
       advance_amount: advanceAmount,
       retained_amount: retainedAmount,
@@ -171,6 +193,7 @@ export default function Disbursements() {
       total_fee: totalFee,
       disbursement_amount: disbursementAmount,
       status: "pending",
+      created_by: profile!.user_id,
     });
 
     if (error) toast.error(error.message);
@@ -185,7 +208,7 @@ export default function Disbursements() {
     setCreateDialog(false);
     setSelectedInvoice("");
     setSelectedFacility("");
-    setDisbForm({ advance_rate: "80", originator_fee: "0", funder_fee: "0", funder_name: "" });
+    setDisbForm({ advance_rate: "80", originator_fee: "0", funder_fee: "0", funder_user_id: "" });
     fetchMemos();
   };
 
@@ -375,7 +398,7 @@ export default function Disbursements() {
               <div className="flex gap-2 pt-2">
                 {detailMemo.status === "pending" && (
                   <>
-                    <Button className="flex-1" onClick={() => handleApprove(detailMemo)} disabled={approving}>
+                    <Button className="flex-1" onClick={() => handleApprove(detailMemo)} disabled={approving || detailMemo.created_by === profile?.user_id}>
                       {approving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                       Approve
                     </Button>
@@ -466,21 +489,26 @@ export default function Disbursements() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Advance Rate (%)</Label>
-                <Input type="number" value={disbForm.advance_rate} onChange={(e) => setDisbForm(p => ({ ...p, advance_rate: e.target.value }))} />
+                <Input type="number" value={disbForm.advance_rate} disabled={!!selectedFacility} onChange={(e) => setDisbForm(p => ({ ...p, advance_rate: e.target.value }))} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Funder / Lender Name</Label>
-                <Input value={disbForm.funder_name} onChange={(e) => setDisbForm(p => ({ ...p, funder_name: e.target.value }))} />
+                <Label className="text-xs">Funder / Lender</Label>
+                <Select value={disbForm.funder_user_id} onValueChange={(v) => setDisbForm(p => ({ ...p, funder_user_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select funder" /></SelectTrigger>
+                  <SelectContent>
+                    {funders.map(f => <SelectItem key={f.user_id} value={f.user_id}>{f.full_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Originator Fee</Label>
-                <Input type="number" value={disbForm.originator_fee} onChange={(e) => setDisbForm(p => ({ ...p, originator_fee: e.target.value }))} />
+                <Input type="number" value={disbForm.originator_fee} disabled={!!selectedFacility} onChange={(e) => setDisbForm(p => ({ ...p, originator_fee: e.target.value }))} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Funder Fee</Label>
-                <Input type="number" value={disbForm.funder_fee} onChange={(e) => setDisbForm(p => ({ ...p, funder_fee: e.target.value }))} />
+                <Input type="number" value={disbForm.funder_fee} disabled={!!selectedFacility} onChange={(e) => setDisbForm(p => ({ ...p, funder_fee: e.target.value }))} />
               </div>
             </div>
             {selectedInvoice && (() => {

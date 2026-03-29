@@ -44,6 +44,9 @@ export default function BorrowerDetail() {
   const [facilities, setFacilities] = useState<any[]>([]);
   const [lenders, setLenders] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
+  const [ccApps, setCcApps] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [feeConfigs, setFeeConfigs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [companyData, setCompanyData] = useState<CompanyFormData>({ ...emptyCompanyForm });
@@ -60,6 +63,7 @@ export default function BorrowerDetail() {
     approved_tenor: "", 
     status: "approved", 
     rejection_reason: "",
+    contract_id: "",
     funder_base_rate_type: "Fixed Rate",
     funder_base_rate_value: "",
     funder_margin_pct: "",
@@ -115,12 +119,15 @@ export default function BorrowerDetail() {
 
   const loadAll = async () => {
     setLoading(true);
-    const [{ data: b }, { data: dirs }, { data: facs }, { data: lnds }, { data: docs }] = await Promise.all([
+    const [{ data: b }, { data: dirs }, { data: facs }, { data: lnds }, { data: docs }, { data: ccas }, { data: ctrs }, { data: fees }] = await Promise.all([
       supabase.from("borrowers").select("*").eq("id", id!).single(),
       supabase.from("borrower_directors").select("*").eq("borrower_id", id!).order("created_at"),
       supabase.from("facility_requests").select("*").eq("borrower_id", id!).order("created_at"),
       supabase.from("borrower_lenders").select("*").eq("borrower_id", id!).order("created_at"),
       supabase.from("documents").select("*").eq("borrower_id", id!).eq("is_deleted", false).order("created_at", { ascending: false }),
+      supabase.from("credit_committee_applications").select("id").eq("borrower_id", id!).eq("status", "approved"),
+      supabase.from("contracts").select("id, name, counterparty").eq("borrower_id", id!).eq("status", "active"),
+      supabase.from("product_fee_configs").select("*").eq("organization_id", profile!.organization_id!)
     ]);
 
     if (b) {
@@ -165,6 +172,9 @@ export default function BorrowerDetail() {
     setFacilities(facs || []);
     setLenders(lnds || []);
     setDocuments(docs || []);
+    setCcApps(ccas || []);
+    setContracts(ctrs || []);
+    setFeeConfigs(fees || []);
     setLoading(false);
   };
 
@@ -250,8 +260,21 @@ export default function BorrowerDetail() {
 
   const handleFacilityDecision = async () => {
     if (!facilityDialog) return;
+    
+    if (facilityApproval.status === "approved") {
+      if (ccApps.length === 0) {
+        toast.error("Facility cannot be approved: A verified, approved Credit Committee application is required.");
+        return;
+      }
+      if (!facilityApproval.contract_id && contracts.length > 0) {
+        toast.error("Facility cannot be approved: You must attach an active Master Contract.");
+        return;
+      }
+    }
+
     const updates: any = { status: facilityApproval.status };
     if (facilityApproval.status === "approved") {
+      updates.contract_id = facilityApproval.contract_id || null;
       updates.approved_amount = facilityApproval.approved_amount ? Number(facilityApproval.approved_amount) : facilityDialog.amount_requested;
       updates.approved_tenor_months = facilityApproval.approved_tenor ? Number(facilityApproval.approved_tenor) : facilityDialog.tenor_months;
       
@@ -287,7 +310,7 @@ export default function BorrowerDetail() {
     }
     setFacilityDialog(null);
     setFacilityApproval({ 
-      approved_amount: "", approved_tenor: "", status: "approved", rejection_reason: "",
+      approved_amount: "", approved_tenor: "", status: "approved", rejection_reason: "", contract_id: "",
       funder_base_rate_type: "Fixed Rate", funder_base_rate_value: "", funder_margin_pct: "",
       funder_advance_rate: "90", originator_margin_pct: "", originator_fixed_comparison_rate: "16",
       final_discounting_rate: "", final_advance_rate: "90", overdue_fee_pct: "2.5"
@@ -505,18 +528,20 @@ export default function BorrowerDetail() {
                           <TableCell>
                             {(f.status === "pending" || f.status === "requested") && (
                               <Button variant="outline" size="sm" onClick={() => {
+                                const config = feeConfigs.find(c => c.product_type === f.facility_type);
                                 setFacilityDialog(f);
                                 setFacilityApproval({
                                   approved_amount: f.amount_requested?.toString() || "",
                                   approved_tenor: f.tenor_months?.toString() || "",
                                   status: "approved",
                                   rejection_reason: "",
+                                  contract_id: "",
                                   funder_base_rate_type: "Fixed Rate",
                                   funder_base_rate_value: "",
                                   funder_margin_pct: "",
                                   funder_advance_rate: "90",
-                                  originator_margin_pct: "",
-                                  originator_fixed_comparison_rate: "16",
+                                  originator_margin_pct: config?.originator_fee_pct?.toString() || "",
+                                  originator_fixed_comparison_rate: config?.default_discount_rate?.toString() || "16",
                                   final_discounting_rate: "",
                                   final_advance_rate: "90",
                                   overdue_fee_pct: "2.5"
@@ -781,9 +806,32 @@ export default function BorrowerDetail() {
                   </SelectContent>
                 </Select>
               </div>
+              
+              {facilityApproval.status === "approved" && ccApps.length === 0 && (
+                <div className="rounded border border-destructive/50 bg-destructive/10 p-3 text-destructive text-sm font-semibold flex items-center gap-2">
+                  <XCircle className="h-5 w-5" /> 
+                  Action Blocked: A verified Approved Credit Committee application is required to approve facilities for this borrower.
+                </div>
+              )}
+              {facilityApproval.status === "approved" && ccApps.length > 0 && (
+                <div className="rounded border border-primary/50 bg-primary/10 p-3 text-primary text-sm font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5" /> 
+                  Credit Committee sign-off verified.
+                </div>
+              )}
               {facilityApproval.status === "approved" && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3 border p-3 rounded-md bg-muted/20">
+                    <div className="space-y-1 col-span-2">
+                      <Label className="text-xs">Attach Active Contract *</Label>
+                      <Select value={facilityApproval.contract_id} onValueChange={(v) => setFacilityApproval(prev => ({ ...prev, contract_id: v }))}>
+                        <SelectTrigger><SelectValue placeholder="Select active master contract" /></SelectTrigger>
+                        <SelectContent>
+                           {contracts.length === 0 && <SelectItem value="none" disabled>No active contracts found</SelectItem>}
+                           {contracts.map(c => <SelectItem key={c.id} value={c.id}>{c.name} {c.counterparty ? `(${c.counterparty})` : ''}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Approved Amount ({facilityDialog?.currency})</Label>
                       <Input type="number" value={facilityApproval.approved_amount} onChange={(e) => setFacilityApproval(prev => ({ ...prev, approved_amount: e.target.value }))} />
@@ -874,7 +922,7 @@ export default function BorrowerDetail() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setFacilityDialog(null)}>Cancel</Button>
-            <Button onClick={handleFacilityDecision} variant={facilityApproval.status === "rejected" ? "destructive" : "default"}>
+            <Button disabled={facilityApproval.status === "approved" && ccApps.length === 0} onClick={handleFacilityDecision} variant={facilityApproval.status === "rejected" ? "destructive" : "default"}>
               {facilityApproval.status === "approved" ? "Approve Facility" : "Reject Facility"}
             </Button>
           </DialogFooter>

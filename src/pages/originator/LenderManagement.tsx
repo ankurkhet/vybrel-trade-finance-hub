@@ -35,12 +35,21 @@ export default function LenderManagement() {
   const { data: funders = [], isLoading, refetch } = useQuery({
     queryKey: ['org-funders', orgId],
     queryFn: async () => {
-      // Get all Funder Profiles
+      // 1a. Identify which users have the Funder role
+      const { data: roleRecords, error: roleError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'funder');
+      if (roleError) throw roleError;
+      
+      const funderUserIds = roleRecords.map((r: any) => r.user_id);
+
+      // 1b. Get only the Profiles for those Funders, within this organization
       const { data: profiles, error: pError } = await supabase
         .from('profiles')
         .select('*')
         .eq('organization_id', orgId)
-        .eq('role', 'funder');
+        .in('user_id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
       if (pError) throw pError;
 
       // Get Master Rate histories mapping to those Funders
