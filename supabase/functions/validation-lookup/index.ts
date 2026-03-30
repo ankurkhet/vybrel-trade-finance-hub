@@ -248,7 +248,7 @@ serve(async (req) => {
           });
           return jsonResponse({ status: res.ok ? "healthy" : "unhealthy", message: res.ok ? "API responding" : `Status ${res.status}` });
         } catch (err) {
-          return jsonResponse({ status: "unhealthy", message: err.message });
+          return jsonResponse({ status: "unhealthy", message: (err as Error).message });
         }
       }
 
