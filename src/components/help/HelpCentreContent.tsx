@@ -69,7 +69,7 @@ export default function HelpCentreContent({ embedded }: HelpCentreContentProps) 
 
   const handleDownloadPDF = useCallback(async () => {
     if (!contentRef.current) return;
-    const toastId = toast.loading("Generating PDF manual...");
+    const toastId = toast.loading("Generating PDF manual…");
     try {
       const element = contentRef.current;
       const canvas = await html2canvas(element, {
@@ -78,16 +78,41 @@ export default function HelpCentreContent({ embedded }: HelpCentreContentProps) 
         logging: false,
         windowWidth: 1200,
       });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "px",
-        format: [canvas.width, canvas.height],
-      });
-      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-      pdf.save(
-        `Vybrel_User_Manual_${new Date().toISOString().split("T")[0]}.pdf`
-      );
+
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 10; // mm each side
+      const usableW = pageW - margin * 2;
+      const usableH = pageH - margin * 2;
+
+      // scale canvas width to usableW
+      const ratio = usableW / canvas.width;
+      const scaledH = canvas.height * ratio;
+      const stripHeightPx = usableH / ratio; // canvas px per page
+
+      let y = 0;
+      let pageNum = 0;
+      while (y < canvas.height) {
+        if (pageNum > 0) pdf.addPage();
+        const sliceH = Math.min(stripHeightPx, canvas.height - y);
+
+        // create a temp canvas for this strip
+        const strip = document.createElement("canvas");
+        strip.width = canvas.width;
+        strip.height = sliceH;
+        const ctx = strip.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+        }
+        const stripData = strip.toDataURL("image/jpeg", 0.92);
+        const imgH = sliceH * ratio;
+        pdf.addImage(stripData, "JPEG", margin, margin, usableW, imgH);
+        y += sliceH;
+        pageNum++;
+      }
+
+      pdf.save(`Vybrel_User_Manual_${new Date().toISOString().split("T")[0]}.pdf`);
       toast.dismiss(toastId);
       toast.success("Manual downloaded successfully.");
     } catch {
@@ -251,12 +276,15 @@ export default function HelpCentreContent({ embedded }: HelpCentreContentProps) 
             <style>
               {`
                 @media print {
-                  .no-print { display: none !important; }
-                  body { background: white !important; }
-                  #help-center-root { max-width: 100% !important; padding: 0 !important; }
+                  .no-print, nav, [data-sidebar], header.sticky { display: none !important; }
+                  body, html { background: white !important; color: black !important; }
+                  #help-center-root { max-width: 100% !important; padding: 0 !important; height: auto !important; overflow: visible !important; }
+                  #help-center-root > div { display: block !important; overflow: visible !important; height: auto !important; }
                   .prose { max-width: none !important; }
-                  img { page-break-inside: avoid; }
-                  article { page-break-after: always; }
+                  img { page-break-inside: avoid; max-width: 80% !important; }
+                  article { page-break-inside: avoid; page-break-after: always; }
+                  h1, h2, h3 { page-break-after: avoid; }
+                  table { page-break-inside: avoid; }
                 }
               `}
             </style>
