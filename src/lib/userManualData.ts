@@ -803,6 +803,8 @@ The \`generate-settlement\` edge function creates professional settlement docume
     content: `
 # Repayments & Collections
 
+![Collections with Waterfall Breakdown](/screenshots/orig_collections.jpg)
+
 ## Collections
 
 Navigate to **Collections** to manage incoming payments from debtors.
