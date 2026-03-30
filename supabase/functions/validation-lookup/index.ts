@@ -213,7 +213,7 @@ serve(async (req) => {
       } catch (err) {
         return jsonResponse({
           screened: false,
-          error: err.message,
+          error: (err as Error).message,
           source: "OpenSanctions",
         });
       }
