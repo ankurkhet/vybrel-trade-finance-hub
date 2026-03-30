@@ -54,7 +54,7 @@ serve(async (req) => {
         }
         return json({ status: "unhealthy", message: "Failed to obtain OAuth2 token – check Client ID & Secret" });
       } catch (err) {
-        return json({ status: "unhealthy", message: `Auth error: ${err.message}` });
+        return json({ status: "unhealthy", message: `Auth error: ${(err as Error).message}` });
       }
     }
 
