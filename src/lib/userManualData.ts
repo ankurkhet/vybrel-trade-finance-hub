@@ -748,6 +748,8 @@ For a repayment:
     content: `
 # Disbursements & Maker-Checker
 
+![Disbursement Memo with Fee Calculation](/screenshots/orig_disbursement.jpg)
+
 Navigate to **Disbursements** to manage financing payouts.
 
 ## Creating a Disbursement Memo
