@@ -645,6 +645,8 @@ The generated memo follows a 20+ section professional format including:
     content: `
 # Invoice Processing
 
+![Invoice Management](/screenshots/orig_invoices.jpg)
+
 Navigate to **Invoices** to view and manage all financing requests.
 
 ## Invoice List
