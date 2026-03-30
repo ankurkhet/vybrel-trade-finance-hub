@@ -570,6 +570,8 @@ Each committee member can:
     content: `
 # AI Credit Memo Generation
 
+![Credit Memo Editor](/screenshots/orig_credit_memo.jpg)
+
 Navigate to **Credit Memos** to manage AI-assisted credit assessments.
 
 ## Overview
