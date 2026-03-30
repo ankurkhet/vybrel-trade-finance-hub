@@ -51,7 +51,7 @@ serve(async (req) => {
           healthMessage = tlData.message || "Unknown";
         } catch (err) {
           healthStatus = "unhealthy";
-          healthMessage = `TrueLayer health check error: ${err.message}`;
+          healthMessage = `TrueLayer health check error: ${(err as Error).message}`;
         }
 
         await supabase
