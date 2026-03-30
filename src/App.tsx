@@ -67,6 +67,7 @@ import Disbursements from "./pages/originator/Disbursements";
 import Repayments from "./pages/originator/Repayments";
 import OriginatorLenderManagement from "./pages/originator/LenderManagement";
 import FunderOnboarding from "./pages/funder/Onboarding";
+import HelpCenter from "./pages/HelpCenter";
 
 const queryClient = new QueryClient();
 
@@ -96,6 +97,7 @@ const App = () => (
               {/* Protected routes */}
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+              <Route path="/help" element={<ProtectedRoute><HelpCenter /></ProtectedRoute>} />
 
               {/* Admin */}
               <Route path="/admin/organizations" element={<ProtectedRoute requiredRoles={["admin"]}><AdminOrganizations /></ProtectedRoute>} />

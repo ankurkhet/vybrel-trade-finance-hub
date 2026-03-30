@@ -36,6 +36,7 @@ import {
   UserPlus,
   MessageSquare,
   Handshake,
+  HelpCircle,
 } from "lucide-react";
 import { Gavel, Workflow, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -120,6 +121,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     // Counterparty — visible to non-admin, non-originator users
     { icon: FileCheck, label: "Verify Invoices", path: "/counterparty/dashboard", show: !isAdmin && !isOriginatorAdmin && !isBroker },
     // Common
+    { icon: HelpCircle, label: "Help Center", path: "/help", show: true },
     { icon: Settings, label: "Settings", path: "/settings", show: true },
   ].filter((item) => item.show);
 
