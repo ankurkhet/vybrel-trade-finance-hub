@@ -1028,6 +1028,8 @@ Before any onboarding steps are accessible, you must sign the Non-Disclosure Agr
 - Health check ensures TrueLayer connectivity before verification
 
 ### Step 7: Document Checklist
+
+![Document Checklist](/screenshots/borr_onboarding_documents.jpg)
 - Upload required KYC/KYB documents
 - Individual documents: Passport, Driving Licence, Proof of Address
 - Company documents: Certificate of Incorporation, Memorandum of Association, Bank Statements, etc.
