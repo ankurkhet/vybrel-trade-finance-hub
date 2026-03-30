@@ -423,6 +423,8 @@ Plans can be viewed by anyone (including anonymous users) but only managed by Ad
     content: `
 # Borrower Management
 
+![Borrower List](/screenshots/orig_borrower_list.jpg)
+
 Navigate to **Borrowers** to view and manage all borrowers in your organization.
 
 ## Borrower List
