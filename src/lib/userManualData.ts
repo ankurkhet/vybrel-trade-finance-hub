@@ -64,7 +64,7 @@ Vybrel is a multi-tenant trade finance platform connecting **Originators** (who 
     content: `
 # Login & Authentication
 
-![Login Screen](/screenshots/auth_login_form.jpg)
+![Role Selection Screen](/screenshots/auth_role_selection.png)
 
 ## Role Selection Screen
 
