@@ -1257,6 +1257,8 @@ Navigate to **Onboarding & KYC** to complete your funder registration.
     content: `
 # Marketplace & Portfolio
 
+![Invoice Marketplace](/screenshots/funder_marketplace.jpg)
+
 ## MSA Requirement (GAP-23)
 
 Before accessing the marketplace, the system checks for an **active Master Service Agreement (MSA)**:
