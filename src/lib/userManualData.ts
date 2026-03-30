@@ -1404,6 +1404,8 @@ Email delivery requires a **configured custom email domain** for the organizatio
     content: `
 # Settings & Security
 
+![Settings - Security & MFA](/screenshots/common_settings.jpg)
+
 Navigate to **Settings** from the sidebar.
 
 ## Profile Settings
