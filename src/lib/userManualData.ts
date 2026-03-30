@@ -1056,6 +1056,8 @@ Before any onboarding steps are accessible, you must sign the Non-Disclosure Agr
     content: `
 # Invoice Submission & Tracking
 
+![AI-Powered Invoice Submission Wizard](/screenshots/borr_invoice_wizard.jpg)
+
 ## Invoice Submission Wizard
 
 Navigate to **My Invoices** → Click **"Submit Invoice"** to open the wizard.
