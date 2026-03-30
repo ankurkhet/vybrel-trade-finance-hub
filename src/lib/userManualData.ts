@@ -1320,6 +1320,8 @@ Credit limits are managed by originators and referred to funders:
     content: `
 # Counterparty Invoice Verification
 
+![Counterparty Verification Page](/screenshots/counterparty_verify.jpg)
+
 ## Dual-Path Verification Model
 
 ### Path 1: External Token-Based Verification (No Login Required)
