@@ -233,13 +233,13 @@ serve(async (req) => {
           }
         }
       } catch (err) {
-        results.push({ registry: registry.registry_name, error: err.message });
+        results.push({ registry: registry.registry_name, error: (err as Error).message });
 
         await supabase
           .from("registry_api_configs")
           .update({
             health_status: "unhealthy",
-            health_message: err.message,
+            health_message: (err as Error).message,
             last_health_check: new Date().toISOString(),
           })
           .eq("id", registry.id);
