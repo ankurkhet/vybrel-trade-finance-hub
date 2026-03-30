@@ -488,6 +488,8 @@ The detail page provides a comprehensive 360° view with tabs:
     content: `
 # Credit Committee
 
+![Credit Committee Voting](/screenshots/orig_credit_committee.jpg)
+
 Navigate to **Credit Committee** to manage credit decision workflows.
 
 ## Committee Configuration
