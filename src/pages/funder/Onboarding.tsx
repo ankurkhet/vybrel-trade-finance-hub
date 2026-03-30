@@ -83,7 +83,7 @@ export default function FunderOnboarding() {
   const loadKYC = async () => {
     setLoading(true);
     const { data } = await supabase
-      .from("funder_kyc" as any)
+      .from("funder_kyc")
       .select("*")
       .eq("user_id", user!.id)
       .maybeSingle();
@@ -154,9 +154,9 @@ export default function FunderOnboarding() {
 
     let error;
     if (existingId) {
-      ({ error } = await supabase.from("funder_kyc" as any).update(payload).eq("id", existingId));
+      ({ error } = await supabase.from("funder_kyc").update(payload as any).eq("id", existingId));
     } else {
-      ({ error } = await supabase.from("funder_kyc" as any).insert(payload));
+      ({ error } = await supabase.from("funder_kyc").insert(payload as any));
     }
 
     if (error) {

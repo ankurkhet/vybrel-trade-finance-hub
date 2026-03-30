@@ -229,7 +229,7 @@ export default function LenderManagement() {
                          <TableCell>{terms ? `${terms.master_base_rate_type} (${terms.master_base_rate_value}%)` : '—'}</TableCell>
                          <TableCell>{terms ? `${terms.master_margin_pct}%` : '—'}</TableCell>
                          <TableCell className="font-semibold text-primary">{terms ? `${totalRate}%` : '—'}</TableCell>
-                         <TableCell>{terms ? new Date(terms.effective_date).toLocaleDateString() : '—'}</TableCell>
+                         <TableCell>{terms ? new Date(terms.created_at).toLocaleDateString() : '—'}</TableCell>
                          <TableCell>
                            {terms ? (
                              <Badge variant="default" className="text-xs bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">Configured</Badge>
