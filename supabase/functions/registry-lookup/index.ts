@@ -535,7 +535,7 @@ async function fetchCompanyData(
         }
       } catch (err) {
         results.company_profile = {
-          message: `Unable to connect to registry: ${err.message}`,
+          message: `Unable to connect to registry: ${(err as Error).message}`,
           searched_name: companyName,
         };
       }
