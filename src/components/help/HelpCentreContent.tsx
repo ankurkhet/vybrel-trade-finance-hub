@@ -276,12 +276,15 @@ export default function HelpCentreContent({ embedded }: HelpCentreContentProps) 
             <style>
               {`
                 @media print {
-                  .no-print { display: none !important; }
-                  body { background: white !important; }
-                  #help-center-root { max-width: 100% !important; padding: 0 !important; }
+                  .no-print, nav, [data-sidebar], header.sticky { display: none !important; }
+                  body, html { background: white !important; color: black !important; }
+                  #help-center-root { max-width: 100% !important; padding: 0 !important; height: auto !important; overflow: visible !important; }
+                  #help-center-root > div { display: block !important; overflow: visible !important; height: auto !important; }
                   .prose { max-width: none !important; }
-                  img { page-break-inside: avoid; }
-                  article { page-break-after: always; }
+                  img { page-break-inside: avoid; max-width: 80% !important; }
+                  article { page-break-inside: avoid; page-break-after: always; }
+                  h1, h2, h3 { page-break-after: avoid; }
+                  table { page-break-inside: avoid; }
                 }
               `}
             </style>
