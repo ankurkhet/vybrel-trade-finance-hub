@@ -295,6 +295,7 @@ export default function HelpCentreContent({ embedded }: HelpCentreContentProps) 
                         prose-strong:text-foreground prose-strong:font-semibold
                         prose-code:text-primary prose-code:bg-primary/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none
                         prose-blockquote:border-primary/30 prose-blockquote:bg-primary/5 prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:rounded-r-lg prose-blockquote:not-italic
+                        prose-img:rounded-xl prose-img:border prose-img:border-border/40 prose-img:shadow-lg prose-img:shadow-black/5 prose-img:my-6
                       "
                     >
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>

@@ -64,6 +64,8 @@ Vybrel is a multi-tenant trade finance platform connecting **Originators** (who 
     content: `
 # Login & Authentication
 
+![Login Screen](/screenshots/auth_login_form.jpg)
+
 ## Role Selection Screen
 
 When you navigate to the login page, you are presented with a **role selection grid** containing six role cards:
@@ -121,6 +123,8 @@ New users receive an invitation email with a secure token link. The flow:
     content: `
 # Dashboard & Navigation
 
+![Originator Dashboard](/screenshots/dashboard_originator.jpg)
+
 ## Adaptive Dashboard
 
 The dashboard dynamically adjusts based on your assigned roles:
@@ -164,6 +168,8 @@ For Originators, the "Total Overdue" widget displays an ageing analysis:
     roles: ["admin"],
     content: `
 # Managing Originators & Organizations
+
+![Organizations Management](/screenshots/admin_organizations.jpg)
 
 ## Organization Lifecycle
 
@@ -215,6 +221,8 @@ Each organization must upload compliance documents:
     content: `
 # User Governance & Roles
 
+![User Management](/screenshots/admin_users.jpg)
+
 ## All Users View
 
 Navigate to **All Users** to see a searchable, filterable table of every user on the platform:
@@ -255,6 +263,8 @@ Admins can configure email domain restrictions to control which email domains ar
     roles: ["admin"],
     content: `
 # Workflow Studio
+
+![Workflow Studio Canvas](/screenshots/admin_workflow_studio.jpg)
 
 Navigate to **Workflow Studio** from the sidebar. This is a visual workflow builder for managing platform-wide business logic without code changes.
 
@@ -413,6 +423,8 @@ Plans can be viewed by anyone (including anonymous users) but only managed by Ad
     content: `
 # Borrower Management
 
+![Borrower List](/screenshots/orig_borrower_list.jpg)
+
 Navigate to **Borrowers** to view and manage all borrowers in your organization.
 
 ## Borrower List
@@ -475,6 +487,8 @@ The detail page provides a comprehensive 360° view with tabs:
     roles: ["originator_admin", "credit_committee_member"],
     content: `
 # Credit Committee
+
+![Credit Committee Voting](/screenshots/orig_credit_committee.jpg)
 
 Navigate to **Credit Committee** to manage credit decision workflows.
 
@@ -556,6 +570,8 @@ Each committee member can:
     content: `
 # AI Credit Memo Generation
 
+![Credit Memo Editor](/screenshots/orig_credit_memo.jpg)
+
 Navigate to **Credit Memos** to manage AI-assisted credit assessments.
 
 ## Overview
@@ -628,6 +644,8 @@ The generated memo follows a 20+ section professional format including:
     roles: ["originator_admin", "account_manager", "operations_manager"],
     content: `
 # Invoice Processing
+
+![Invoice Management](/screenshots/orig_invoices.jpg)
 
 Navigate to **Invoices** to view and manage all financing requests.
 
@@ -730,6 +748,8 @@ For a repayment:
     content: `
 # Disbursements & Maker-Checker
 
+![Disbursement Memo with Fee Calculation](/screenshots/orig_disbursement.jpg)
+
 Navigate to **Disbursements** to manage financing payouts.
 
 ## Creating a Disbursement Memo
@@ -782,6 +802,8 @@ The \`generate-settlement\` edge function creates professional settlement docume
     roles: ["originator_admin", "operations_manager"],
     content: `
 # Repayments & Collections
+
+![Collections with Waterfall Breakdown](/screenshots/orig_collections.jpg)
 
 ## Collections
 
@@ -946,6 +968,8 @@ Navigate to **Branding** or **Branding Profiles** to customize the platform appe
     content: `
 # Self-Service Onboarding Wizard
 
+![Borrower Onboarding - Company Info](/screenshots/borr_onboarding_company.jpg)
+
 Navigate to **Onboarding** to complete your account setup.
 
 ## Step 0: NDA Signing Gate
@@ -976,6 +1000,8 @@ Before any onboarding steps are accessible, you must sign the Non-Disclosure Agr
 - Group Structure: Parent company name and shareholding %
 
 ### Step 3: Directors & Shareholders
+
+![Directors & Shareholders Step](/screenshots/borr_onboarding_directors.jpg)
 - Add multiple directors with: First/Middle/Last name, DOB, Nationality, Email, Phone
 - Role: Director, Secretary, PSC (Person of Significant Control)
 - Shareholding percentage per director
@@ -1002,6 +1028,8 @@ Before any onboarding steps are accessible, you must sign the Non-Disclosure Agr
 - Health check ensures TrueLayer connectivity before verification
 
 ### Step 7: Document Checklist
+
+![Document Checklist](/screenshots/borr_onboarding_documents.jpg)
 - Upload required KYC/KYB documents
 - Individual documents: Passport, Driving Licence, Proof of Address
 - Company documents: Certificate of Incorporation, Memorandum of Association, Bank Statements, etc.
@@ -1031,6 +1059,8 @@ Before any onboarding steps are accessible, you must sign the Non-Disclosure Agr
     roles: ["borrower"],
     content: `
 # Invoice Submission & Tracking
+
+![AI-Powered Invoice Submission Wizard](/screenshots/borr_invoice_wizard.jpg)
 
 ## Invoice Submission Wizard
 
@@ -1140,6 +1170,8 @@ Each document goes through these states:
     content: `
 # Settlement Advices & Reports
 
+![Settlement Advices with Waterfall](/screenshots/borr_settlements.jpg)
+
 ## Settlement Advices
 
 Navigate to **Settlements** to view your financing transaction history.
@@ -1176,6 +1208,8 @@ Navigate to **My Profile** to view and update your:
     roles: ["funder"],
     content: `
 # Funder KYC & Onboarding
+
+![Funder KYC Onboarding Form](/screenshots/funder_onboarding.jpg)
 
 Navigate to **Onboarding & KYC** to complete your funder registration.
 
@@ -1226,6 +1260,8 @@ Navigate to **Onboarding & KYC** to complete your funder registration.
     roles: ["funder"],
     content: `
 # Marketplace & Portfolio
+
+![Invoice Marketplace](/screenshots/funder_marketplace.jpg)
 
 ## MSA Requirement (GAP-23)
 
@@ -1287,6 +1323,8 @@ Credit limits are managed by originators and referred to funders:
     roles: ["all"],
     content: `
 # Counterparty Invoice Verification
+
+![Counterparty Verification Page](/screenshots/counterparty_verify.jpg)
 
 ## Dual-Path Verification Model
 
@@ -1369,6 +1407,8 @@ Email delivery requires a **configured custom email domain** for the organizatio
     roles: ["all"],
     content: `
 # Settings & Security
+
+![Settings - Security & MFA](/screenshots/common_settings.jpg)
 
 Navigate to **Settings** from the sidebar.
 
