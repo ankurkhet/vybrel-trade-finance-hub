@@ -49,7 +49,7 @@ serve(async (req) => {
         return jsonResponse({
           valid: false,
           iban: cleanIban,
-          error: err.message,
+          error: (err as Error).message,
           source: "OpenIBAN",
         });
       }
