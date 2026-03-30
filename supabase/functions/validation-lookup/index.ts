@@ -229,7 +229,7 @@ serve(async (req) => {
           const data = await res.json();
           return jsonResponse({ status: data.valid === true ? "healthy" : "unhealthy", message: "OpenIBAN test validation" });
         } catch (err) {
-          return jsonResponse({ status: "unhealthy", message: err.message });
+          return jsonResponse({ status: "unhealthy", message: (err as Error).message });
         }
       }
 
