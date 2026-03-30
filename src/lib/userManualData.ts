@@ -221,6 +221,8 @@ Each organization must upload compliance documents:
     content: `
 # User Governance & Roles
 
+![User Management](/screenshots/admin_users.jpg)
+
 ## All Users View
 
 Navigate to **All Users** to see a searchable, filterable table of every user on the platform:
