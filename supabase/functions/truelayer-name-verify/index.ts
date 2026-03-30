@@ -54,7 +54,7 @@ serve(async (req) => {
         }
         return json({ status: "unhealthy", message: "Failed to obtain OAuth2 token – check Client ID & Secret" });
       } catch (err) {
-        return json({ status: "unhealthy", message: `Auth error: ${err.message}` });
+        return json({ status: "unhealthy", message: `Auth error: ${(err as Error).message}` });
       }
     }
 
@@ -174,7 +174,7 @@ serve(async (req) => {
     return json({ error: "Invalid action. Use 'verify_name' or 'health_check'" }, 400);
   } catch (err) {
     console.error("TrueLayer function error:", err);
-    return json({ error: err.message }, 500);
+    return json({ error: (err as Error).message }, 500);
   }
 });
 

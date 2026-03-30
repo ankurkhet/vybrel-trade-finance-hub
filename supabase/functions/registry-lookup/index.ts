@@ -51,7 +51,7 @@ serve(async (req) => {
           healthMessage = tlData.message || "Unknown";
         } catch (err) {
           healthStatus = "unhealthy";
-          healthMessage = `TrueLayer health check error: ${err.message}`;
+          healthMessage = `TrueLayer health check error: ${(err as Error).message}`;
         }
 
         await supabase
@@ -115,7 +115,7 @@ serve(async (req) => {
           }
         } catch (err) {
           healthStatus = "unhealthy";
-          healthMessage = `Connection error: ${err.message}`;
+          healthMessage = `Connection error: ${(err as Error).message}`;
         }
       }
 
@@ -233,13 +233,13 @@ serve(async (req) => {
           }
         }
       } catch (err) {
-        results.push({ registry: registry.registry_name, error: err.message });
+        results.push({ registry: registry.registry_name, error: (err as Error).message });
 
         await supabase
           .from("registry_api_configs")
           .update({
             health_status: "unhealthy",
-            health_message: err.message,
+            health_message: (err as Error).message,
             last_health_check: new Date().toISOString(),
           })
           .eq("id", registry.id);
@@ -252,7 +252,7 @@ serve(async (req) => {
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: (err as Error).message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -535,7 +535,7 @@ async function fetchCompanyData(
         }
       } catch (err) {
         results.company_profile = {
-          message: `Unable to connect to registry: ${err.message}`,
+          message: `Unable to connect to registry: ${(err as Error).message}`,
           searched_name: companyName,
         };
       }
