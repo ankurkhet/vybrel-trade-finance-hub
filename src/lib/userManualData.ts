@@ -169,6 +169,8 @@ For Originators, the "Total Overdue" widget displays an ageing analysis:
     content: `
 # Managing Originators & Organizations
 
+![Organizations Management](/screenshots/admin_organizations.jpg)
+
 ## Organization Lifecycle
 
 Navigate to **Originators** in the sidebar. This view shows all originator organizations on the platform.
