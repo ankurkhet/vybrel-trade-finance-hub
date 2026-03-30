@@ -115,7 +115,7 @@ serve(async (req) => {
           }
         } catch (err) {
           healthStatus = "unhealthy";
-          healthMessage = `Connection error: ${err.message}`;
+          healthMessage = `Connection error: ${(err as Error).message}`;
         }
       }
 
