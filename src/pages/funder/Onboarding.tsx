@@ -154,7 +154,7 @@ export default function FunderOnboarding() {
 
     let error;
     if (existingId) {
-      ({ error } = await supabase.from("funder_kyc" as any).update(payload).eq("id", existingId));
+      ({ error } = await supabase.from("funder_kyc").update(payload as any).eq("id", existingId));
     } else {
       ({ error } = await supabase.from("funder_kyc" as any).insert(payload));
     }
