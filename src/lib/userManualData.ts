@@ -123,6 +123,8 @@ New users receive an invitation email with a secure token link. The flow:
     content: `
 # Dashboard & Navigation
 
+![Originator Dashboard](/screenshots/dashboard_originator.jpg)
+
 ## Adaptive Dashboard
 
 The dashboard dynamically adjusts based on your assigned roles:
