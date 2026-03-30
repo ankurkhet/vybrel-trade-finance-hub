@@ -1000,6 +1000,8 @@ Before any onboarding steps are accessible, you must sign the Non-Disclosure Agr
 - Group Structure: Parent company name and shareholding %
 
 ### Step 3: Directors & Shareholders
+
+![Directors & Shareholders Step](/screenshots/borr_onboarding_directors.jpg)
 - Add multiple directors with: First/Middle/Last name, DOB, Nationality, Email, Phone
 - Role: Director, Secretary, PSC (Person of Significant Control)
 - Shareholding percentage per director
