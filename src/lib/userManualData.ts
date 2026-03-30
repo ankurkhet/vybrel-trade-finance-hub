@@ -968,6 +968,8 @@ Navigate to **Branding** or **Branding Profiles** to customize the platform appe
     content: `
 # Self-Service Onboarding Wizard
 
+![Borrower Onboarding - Company Info](/screenshots/borr_onboarding_company.jpg)
+
 Navigate to **Onboarding** to complete your account setup.
 
 ## Step 0: NDA Signing Gate
