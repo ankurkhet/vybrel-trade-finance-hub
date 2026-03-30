@@ -64,6 +64,8 @@ Vybrel is a multi-tenant trade finance platform connecting **Originators** (who 
     content: `
 # Login & Authentication
 
+![Login Screen](/screenshots/auth_login_form.jpg)
+
 ## Role Selection Screen
 
 When you navigate to the login page, you are presented with a **role selection grid** containing six role cards:
