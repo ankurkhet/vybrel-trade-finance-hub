@@ -264,6 +264,8 @@ Admins can configure email domain restrictions to control which email domains ar
     content: `
 # Workflow Studio
 
+![Workflow Studio Canvas](/screenshots/admin_workflow_studio.jpg)
+
 Navigate to **Workflow Studio** from the sidebar. This is a visual workflow builder for managing platform-wide business logic without code changes.
 
 ## Supported Workflow Types
