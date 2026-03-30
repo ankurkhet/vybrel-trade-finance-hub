@@ -1376,6 +1376,203 @@ export type Database = {
           },
         ]
       }
+      funder_kyc: {
+        Row: {
+          aml_policy_confirmed: boolean | null
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_iban: string | null
+          bank_name: string | null
+          bank_sort_code: string | null
+          bank_swift: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          country_of_incorporation: string | null
+          created_at: string
+          entity_name: string
+          entity_type: string
+          id: string
+          licence_number: string | null
+          notes: string | null
+          organization_id: string | null
+          pep_screening_confirmed: boolean | null
+          registered_address: string | null
+          registration_number: string | null
+          regulator_name: string | null
+          regulatory_status: string | null
+          sanctions_screening_confirmed: boolean | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aml_policy_confirmed?: boolean | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_sort_code?: string | null
+          bank_swift?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          country_of_incorporation?: string | null
+          created_at?: string
+          entity_name?: string
+          entity_type?: string
+          id?: string
+          licence_number?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          pep_screening_confirmed?: boolean | null
+          registered_address?: string | null
+          registration_number?: string | null
+          regulator_name?: string | null
+          regulatory_status?: string | null
+          sanctions_screening_confirmed?: boolean | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aml_policy_confirmed?: boolean | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_sort_code?: string | null
+          bank_swift?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          country_of_incorporation?: string | null
+          created_at?: string
+          entity_name?: string
+          entity_type?: string
+          id?: string
+          licence_number?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          pep_screening_confirmed?: boolean | null
+          registered_address?: string | null
+          registration_number?: string | null
+          regulator_name?: string | null
+          regulatory_status?: string | null
+          sanctions_screening_confirmed?: boolean | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      funder_limits: {
+        Row: {
+          base_rate_type: string | null
+          base_rate_value: number | null
+          borrower_id: string
+          counterparty_name: string | null
+          created_at: string
+          currency: string
+          funder_user_id: string
+          id: string
+          limit_amount: number
+          margin_pct: number | null
+          organization_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          base_rate_type?: string | null
+          base_rate_value?: number | null
+          borrower_id: string
+          counterparty_name?: string | null
+          created_at?: string
+          currency?: string
+          funder_user_id: string
+          id?: string
+          limit_amount?: number
+          margin_pct?: number | null
+          organization_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          base_rate_type?: string | null
+          base_rate_value?: number | null
+          borrower_id?: string
+          counterparty_name?: string | null
+          created_at?: string
+          currency?: string
+          funder_user_id?: string
+          id?: string
+          limit_amount?: number
+          margin_pct?: number | null
+          organization_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funder_limits_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funder_limits_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      funder_relationships: {
+        Row: {
+          agreement_status: string
+          created_at: string
+          funder_user_id: string
+          id: string
+          master_base_rate_type: string | null
+          master_base_rate_value: number | null
+          master_margin_pct: number | null
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          agreement_status?: string
+          created_at?: string
+          funder_user_id: string
+          id?: string
+          master_base_rate_type?: string | null
+          master_base_rate_value?: number | null
+          master_margin_pct?: number | null
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          agreement_status?: string
+          created_at?: string
+          funder_user_id?: string
+          id?: string
+          master_base_rate_type?: string | null
+          master_base_rate_value?: number | null
+          master_margin_pct?: number | null
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funder_relationships_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       funding_offers: {
         Row: {
           accepted_at: string | null
