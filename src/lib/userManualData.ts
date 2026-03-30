@@ -1166,6 +1166,8 @@ Each document goes through these states:
     content: `
 # Settlement Advices & Reports
 
+![Settlement Advices with Waterfall](/screenshots/borr_settlements.jpg)
+
 ## Settlement Advices
 
 Navigate to **Settlements** to view your financing transaction history.
