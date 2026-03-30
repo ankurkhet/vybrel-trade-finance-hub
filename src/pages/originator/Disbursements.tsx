@@ -120,7 +120,7 @@ export default function Disbursements() {
         // GAP-14/29: Fetch product-level fee config and apply if available
         const applyRates = async () => {
           const { data: feeConfigs } = await supabase
-            .from("fee_configs")
+            .from("product_fee_configs")
             .select("originator_fee_pct, platform_fee_pct, default_discount_rate")
             .eq("organization_id", profile!.organization_id!)
             .eq("product_type", inv.product_type || "receivables_purchase")
