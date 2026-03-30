@@ -1,102 +1,51 @@
 
 
-# Plan: Add Screenshots with Mock Data to Help Centre
+# Revised Plan: Real Screenshots + PDF/Print Fix
 
-## Summary
+## Screenshot Strategy
 
-Capture real screenshots of every key page in the running app, populated with logical mock data, and embed them into each Help Centre article.
+Your all-roles login lets me capture every page. To handle the sidebar realism problem:
 
-## Phase 1: Seed Mock Data
+**Crop each screenshot to the main content area only** (exclude the sidebar). This way:
+- Screenshots are role-neutral and accurate
+- No misleading navigation items visible
+- Content area is what matters for training purposes
+- Cleaner, more focused visuals
 
-Create a temporary seed script (edge function or direct SQL) that inserts realistic, interconnected data:
+I'll navigate to each page, take a full screenshot, then programmatically crop out the sidebar (~256px left strip) before saving.
 
-| Entity | Mock Data |
-|--------|-----------|
-| **Borrower** | "Wilson Trading Co" — onboarding complete, credit limit £500,000 |
-| **Invoices** | 6 invoices: 2 pending (£45,000, £32,500), 1 approved (£78,200), 1 funded (£120,000), 1 settled (£55,000), 1 partially_settled (£95,000) |
-| **Counterparties** | "Tesco Plc", "Sainsbury's Ltd", "Marks & Spencer Group" |
-| **Contracts** | 2 active facility agreements (£250K, £500K) |
-| **Directors** | 3 directors with shareholding %, DOB, nationality |
-| **Documents** | Mix of approved/pending/rejected with version history |
-| **Credit Memo** | AI-generated draft with risk rating and proposed limit |
-| **Credit Committee** | 1 application with 2 approve votes, 1 pending |
-| **Disbursement Memo** | 1 pending approval (£96,000 advance on £120K invoice) |
-| **Collections** | 2 confirmed collections |
-| **Funder** | "Meridian Capital Partners" — KYC approved, 1 active MSA, portfolio with 3 funded deals |
-| **Fee Config** | Originator fee 1.5%, platform fee 0.5%, discount rate 3.2% |
-| **Organizations** | 2 orgs: 1 approved, 1 under_review |
+## Execution
 
-All numbers are internally consistent (e.g., disbursement = 80% of invoice × fees).
+### Step 1 — Capture & crop ~20 real screenshots
+- Navigate to each key page via browser automation at 1280x720
+- Screenshot each page
+- Crop to content area using a Python script (PIL/Pillow)
+- Save cropped PNGs to `public/screenshots/`
 
-## Phase 2: Capture Screenshots (~25 screens)
+Pages to capture (grouped by portal section shown in content area):
+- Auth/Login page (no sidebar, full capture)
+- Dashboard (originator view)
+- Admin: Organizations, Users, Workflow Studio, Registry APIs
+- Originator: Borrowers list, Borrower detail, Credit Committee, Credit Memos, Invoices, Disbursements, Collections, Fee Config
+- Borrower: Onboarding steps, Invoice wizard, Settlements
+- Funder: Onboarding, Marketplace
+- Settings, Help Centre
 
-Log in as each role via browser automation, navigate to each page, and save screenshots to `public/screenshots/`.
+### Step 2 — Fix PDF export pagination
+Replace the single-canvas approach in `HelpCentreContent.tsx` with A4-paginated export:
+- Render content to canvas at scale 2
+- Slice into A4-height strips (842px at 72dpi)
+- Add each strip as a separate PDF page
+- Proper margins and page numbering
 
-### Getting Started (3 screenshots)
-1. `auth_role_selection.png` — Login page with 6 role cards
-2. `auth_login_form.png` — Credential entry with password toggle
-3. `dashboard_originator.png` — Originator dashboard with populated widgets (borrowers: 12, invoices: 47, outstanding: £1.2M, overdue ageing buckets)
+### Step 3 — Fix Print CSS
+Enhance `@media print` styles to hide sidebar/search/controls and add page breaks between articles.
 
-### Admin (5 screenshots)
-4. `admin_organizations.png` — Org list with status badges
-5. `admin_org_detail.png` — Detail panel showing contacts + doc review
-6. `admin_users.png` — User table with roles, filters active
-7. `admin_workflow_studio.png` — Visual canvas with invoice lifecycle nodes
-8. `admin_registry_apis.png` — Registry list with health indicators
+### Step 4 — Update userManualData.ts
+Replace current placeholder image references with paths to the new real screenshots.
 
-### Originator (8 screenshots)
-9. `orig_borrower_list.png` — Borrower table with status filters
-10. `orig_borrower_detail.png` — 360° view with KYC tab active
-11. `orig_credit_committee.png` — Application with votes and quorum bar
-12. `orig_credit_memo.png` — AI-generated memo in editor
-13. `orig_invoices.png` — Invoice table with status badges and match scores
-14. `orig_disbursement.png` — Disbursement form showing fee calculations
-15. `orig_collections.png` — Collections with waterfall breakdown
-16. `orig_fee_config.png` — Fee configuration with payment instructions
-
-### Borrower (5 screenshots)
-17. `borr_onboarding_company.png` — Step 2 (Company Info) filled with registry auto-populate
-18. `borr_onboarding_directors.png` — Step 3 with 3 directors listed
-19. `borr_onboarding_documents.png` — Step 7 document checklist with upload statuses
-20. `borr_invoice_wizard.png` — Invoice submission wizard Step 2 (AI analysis results)
-21. `borr_settlements.png` — Settlement advices with financial breakdown
-
-### Funder (2 screenshots)
-22. `funder_onboarding.png` — KYC form with entity info tab
-23. `funder_marketplace.png` — Available invoices with bid button
-
-### Counterparty (1 screenshot)
-24. `counterparty_verify.png` — Token-based verification page with invoice details
-
-### Common (1 screenshot)
-25. `common_settings.png` — Settings page with MFA enrollment section
-
-## Phase 3: Embed in Help Centre Content
-
-Update each section in `userManualData.ts` to include markdown image references at the relevant step. Example:
-
-```markdown
-## Originator Dashboard
-
-![Originator Dashboard](/screenshots/dashboard_originator.png)
-
-The dashboard shows your key metrics at a glance...
-```
-
-Images placed after the heading they illustrate, before the explanatory text.
-
-## Phase 4: Responsive Image Styling
-
-Update `HelpCentreContent.tsx` markdown renderer to style embedded images:
-- Max-width 100%, rounded corners, subtle border and shadow
-- Click-to-expand lightbox (optional, using the existing `DocumentPreviewModal`)
-- Proper alt text for accessibility
-
-## Technical Notes
-
-- Screenshots saved at 1280×720 viewport for consistency
-- All screenshots use the app's actual UI components — not mockups
-- Mock data uses GBP (£) currency consistent with UK trade finance context
-- The seed data script will be a one-time edge function call, not permanent
-- Old blank screenshots in `public/screenshots/` will be replaced
+## Files Modified
+- `public/screenshots/*.png` — replaced with real cropped captures
+- `src/components/help/HelpCentreContent.tsx` — PDF pagination + print CSS
+- `src/lib/userManualData.ts` — updated image paths
 
