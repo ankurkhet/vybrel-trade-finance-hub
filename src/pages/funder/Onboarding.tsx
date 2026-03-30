@@ -83,7 +83,7 @@ export default function FunderOnboarding() {
   const loadKYC = async () => {
     setLoading(true);
     const { data } = await supabase
-      .from("funder_kyc" as any)
+      .from("funder_kyc")
       .select("*")
       .eq("user_id", user!.id)
       .maybeSingle();
