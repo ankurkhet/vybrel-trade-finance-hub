@@ -66,6 +66,7 @@ import CreditMemoDetail from "./pages/originator/CreditMemoDetail";
 import Disbursements from "./pages/originator/Disbursements";
 import Repayments from "./pages/originator/Repayments";
 import OriginatorLenderManagement from "./pages/originator/LenderManagement";
+import FunderOnboarding from "./pages/funder/Onboarding";
 
 const queryClient = new QueryClient();
 
@@ -152,6 +153,7 @@ const App = () => (
               <Route path="/funder/portfolio" element={<ProtectedRoute requiredRoles={["funder"]}><FunderPortfolio /></ProtectedRoute>} />
               <Route path="/funder/reports" element={<ProtectedRoute requiredRoles={["funder"]}><FunderReports /></ProtectedRoute>} />
               <Route path="/funder/settlements" element={<ProtectedRoute requiredRoles={["funder"]}><FunderSettlements /></ProtectedRoute>} />
+              <Route path="/funder/onboarding" element={<ProtectedRoute requiredRoles={["funder"]}><FunderOnboarding /></ProtectedRoute>} />
 
               {/* Counterparty */}
               <Route path="/counterparty/dashboard" element={<ProtectedRoute><CounterpartyDashboard /></ProtectedRoute>} />

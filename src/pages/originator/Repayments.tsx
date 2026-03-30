@@ -93,6 +93,7 @@ export default function Repayments() {
       retained_reimbursement: retainedReimb,
       payment_reference: repaymentForm.payment_reference || null,
       status: "pending",
+      created_by: profile!.user_id,
     } as any);
 
     if (error) toast.error(error.message);
@@ -111,6 +112,11 @@ export default function Repayments() {
   };
 
   const handleApprove = async (memo: any) => {
+    // GAP-34: Maker-checker — cannot approve your own repayment memo
+    if (memo.created_by === profile?.user_id) {
+      toast.error("Maker-Checker Rule: You cannot approve a repayment you created.");
+      return;
+    }
     setApproving(true);
     const { error } = await supabase.from("repayment_memos").update({
       status: "approved", approved_by: profile?.user_id, approved_at: new Date().toISOString(),

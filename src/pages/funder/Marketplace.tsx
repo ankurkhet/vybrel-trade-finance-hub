@@ -20,6 +20,8 @@ export default function LimitAssessment() {
   const [assessDialog, setAssessDialog] = useState<any>(null);
   const [limitAmount, setLimitAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // GAP-23: Active MSA check
+  const [hasActiveMsa, setHasActiveMsa] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetchLimits();
@@ -35,6 +37,15 @@ export default function LimitAssessment() {
   const fetchLimits = async () => {
     setLoading(true);
     if (!user?.id) return;
+    
+    // GAP-23: Check if funder has an active MSA with any originator
+    const { data: msaData } = await supabase
+      .from("funder_relationships")
+      .select("id")
+      .eq("funder_user_id", user.id)
+      .eq("agreement_status", "active")
+      .limit(1);
+    setHasActiveMsa((msaData?.length ?? 0) > 0);
     
     // Fetch limits referred to this Funder
     const { data, error } = await supabase
@@ -84,6 +95,19 @@ export default function LimitAssessment() {
           <h1 className="text-2xl font-bold text-foreground">Limit Assessment</h1>
           <p className="text-sm text-muted-foreground">Review and approve credit limit referrals from Originators</p>
         </div>
+
+        {/* GAP-23: MSA Guard Banner */}
+        {hasActiveMsa === false && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-5 flex items-start gap-4">
+            <ShieldCheck className="h-6 w-6 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-amber-800 dark:text-amber-300">Master Service Agreement Required</p>
+              <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
+                You do not yet have an active MSA with any Originator. Please contact your Originator to configure the Master Agreement and rates before you can review and approve limit referrals.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

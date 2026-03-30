@@ -46,7 +46,7 @@ export default function BorrowerMyProfile() {
 
     const [{ data: dirs }, { data: facs }, { data: lnds }, { data: docs }] = await Promise.all([
       supabase.from("borrower_directors").select("*").eq("borrower_id", b.id).order("created_at"),
-      supabase.from("facility_requests").select("*").eq("borrower_id", b.id).order("created_at"),
+      supabase.from("facility_requests").select("id, facility_type, amount_requested, currency, approved_amount, approved_tenor_months, status, final_discounting_rate, final_advance_rate, overdue_fee_pct, created_at").eq("borrower_id", b.id).order("created_at"),
       supabase.from("borrower_lenders").select("*").eq("borrower_id", b.id).order("created_at"),
       supabase.from("documents").select("*").eq("borrower_id", b.id).eq("is_deleted", false).order("created_at", { ascending: false }),
     ]);

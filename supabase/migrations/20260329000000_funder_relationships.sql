@@ -34,9 +34,10 @@ CREATE POLICY "originator_select_funder_relationships" ON public.funder_relation
 CREATE POLICY "originator_admin_modify_funder_relationships" ON public.funder_relationships
     FOR ALL USING (
         organization_id IN (
-            SELECT organization_id FROM public.profiles 
-            WHERE (id = auth.uid() OR user_id = auth.uid()) 
-            AND role = 'originator_admin'
+            SELECT p.organization_id FROM public.profiles p
+            INNER JOIN public.user_roles ur ON ur.user_id = p.user_id
+            WHERE (p.id = auth.uid() OR p.user_id = auth.uid()) 
+            AND ur.role = 'originator_admin'
         )
     );
 

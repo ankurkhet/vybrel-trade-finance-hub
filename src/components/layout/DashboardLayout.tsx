@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import {
   LayoutDashboard,
   Users,
@@ -111,6 +112,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Receipt, label: "Settlements", path: "/borrower/settlements", show: isBorrower },
     { icon: BarChart3, label: "My Reports", path: "/borrower/reports", show: isBorrower },
     // Funder
+    { icon: Shield, label: "Onboarding & KYC", path: "/funder/onboarding", show: isFunder },
     { icon: Banknote, label: "Marketplace", path: "/funder/marketplace", show: isFunder },
     { icon: Wallet, label: "Portfolio", path: "/funder/portfolio", show: isFunder },
     { icon: Receipt, label: "Settlements", path: "/funder/settlements", show: isFunder },
@@ -187,6 +189,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </Button>
 
           <div className="flex-1" />
+
+          <NotificationBell />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

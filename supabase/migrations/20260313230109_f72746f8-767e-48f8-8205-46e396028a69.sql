@@ -1,10 +1,9 @@
-
--- ===========================================
--- PHASE 1 DATABASE SCHEMA
--- ===========================================
+-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Enum types
-CREATE TYPE public.app_role AS ENUM ('admin', 'originator_admin', 'originator_user', 'borrower', 'funder');
+CREATE TYPE public.app_role AS ENUM ('super_admin', 'admin', 'originator_admin', 'originator_user', 'borrower', 'funder');
 CREATE TYPE public.labelling_mode AS ENUM ('white_label', 'joint_label', 'platform_label');
 CREATE TYPE public.onboarding_status AS ENUM ('invited', 'registered', 'documents_pending', 'documents_submitted', 'under_review', 'approved', 'rejected');
 CREATE TYPE public.document_type AS ENUM ('kyc', 'financial_statement', 'incorporation', 'contract', 'invoice', 'credit_memo', 'nda', 'other');

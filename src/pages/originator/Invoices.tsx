@@ -62,6 +62,53 @@ export default function Invoices() {
     setUpdating(false);
   };
 
+  const handleApproveDocAcceptance = async (inv: any) => {
+    setUpdating(true);
+    // Update both the acceptance record and the invoice
+    const { error: accErr } = await supabase
+      .from("invoice_acceptances" as any)
+      .update({ status: "accepted_via_document" })
+      .eq("invoice_id", inv.id)
+      .eq("status", "pending_document_review");
+
+    if (accErr) { toast.error(accErr.message); setUpdating(false); return; }
+
+    const { error: invErr } = await supabase
+      .from("invoices")
+      .update({ acceptance_status: "accepted_via_document" } as any)
+      .eq("id", inv.id);
+
+    if (invErr) toast.error(invErr.message);
+    else {
+      await supabase.from("audit_logs").insert({
+        user_id: profile?.user_id, user_email: profile?.email,
+        action: "counterparty_doc_accepted", resource_type: "invoice", resource_id: inv.id,
+        details: { invoice_number: inv.invoice_number },
+      });
+      toast.success("Document acceptance approved — invoice can now be funded");
+      setReviewInvoice(null);
+      fetchInvoices();
+    }
+    setUpdating(false);
+  };
+
+  const handleRejectDocAcceptance = async (inv: any) => {
+    setUpdating(true);
+    await supabase.from("invoice_acceptances" as any)
+      .update({ status: "rejected" })
+      .eq("invoice_id", inv.id)
+      .eq("status", "pending_document_review");
+
+    await supabase.from("invoices")
+      .update({ acceptance_status: "pending" } as any)
+      .eq("id", inv.id);
+
+    toast.warning("Document acceptance rejected — borrower must re-submit");
+    setReviewInvoice(null);
+    fetchInvoices();
+    setUpdating(false);
+  };
+
   const canApprove = (inv: any) => {
     if (inv.status !== "pending") return false;
     if (inv.requires_counterparty_acceptance) {
@@ -96,6 +143,8 @@ export default function Invoices() {
         return <Badge variant="default" className="text-xs"><CheckCircle2 className="mr-1 h-3 w-3" />CP Accepted</Badge>;
       case "accepted_via_document":
         return <Badge variant="default" className="text-xs"><FileCheck className="mr-1 h-3 w-3" />Doc Accepted</Badge>;
+      case "pending_document_review":
+        return <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 border-amber-300"><Clock className="mr-1 h-3 w-3" />Doc Pending Review</Badge>;
       case "rejected":
         return <Badge variant="destructive" className="text-xs"><XCircle className="mr-1 h-3 w-3" />CP Rejected</Badge>;
       default:
@@ -289,7 +338,26 @@ export default function Invoices() {
               )}
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="flex-wrap gap-2">
+            {/* GAP-15: Ops Manager Doc Acceptance Review */}
+            {reviewInvoice && (reviewInvoice.acceptance_status === "pending_document_review") && (
+              <div className="w-full rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-3 mb-2">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-2">Ops Manager Review Required</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mb-3">
+                  The borrower has uploaded acceptance evidence. Review and decide whether to approve or reject this documentation.
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="text-destructive border-destructive/30"
+                    onClick={() => handleRejectDocAcceptance(reviewInvoice)} disabled={updating}>
+                    <XCircle className="mr-1 h-3 w-3" /> Reject Evidence
+                  </Button>
+                  <Button size="sm" onClick={() => handleApproveDocAcceptance(reviewInvoice)} disabled={updating}>
+                    {updating && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                    <FileCheck className="mr-1 h-3 w-3" /> Approve Evidence
+                  </Button>
+                </div>
+              </div>
+            )}
             {reviewInvoice && canApprove(reviewInvoice) && (
               <>
                 <Button variant="outline" className="text-destructive" onClick={() => handleStatusUpdate(reviewInvoice.id, "rejected")} disabled={updating}>

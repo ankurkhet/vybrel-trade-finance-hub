@@ -48,7 +48,7 @@ const ALL_WIDGETS: WidgetDef[] = [
   { id: "orig_invoices", title: "Invoices", icon: CreditCard, subtitle: "Pending invoices", role: "originator", navigateTo: "/originator/invoices", supportsChart: true },
   { id: "orig_limits", title: "Total Limits", icon: Shield, subtitle: "Aggregate credit limits", role: "originator", supportsChart: false },
   { id: "orig_outstanding", title: "Total Outstanding", icon: Receipt, subtitle: "Unpaid invoices", role: "originator", supportsChart: false },
-  { id: "orig_overdue", title: "Total Overdue", icon: BarChart3, subtitle: "Past due date", role: "originator", supportsChart: false },
+  { id: "orig_overdue", title: "Total Overdue", icon: BarChart3, subtitle: "Past due date", role: "originator", supportsChart: true },
   { id: "orig_memos", title: "Credit Memos", icon: Brain, subtitle: "Drafts pending review", role: "originator", supportsChart: false },
   // Borrower
   { id: "borr_docs", title: "Documents", icon: Upload, subtitle: "Uploaded documents", role: "borrower", navigateTo: "/borrower/documents", supportsChart: false },
@@ -206,25 +206,48 @@ export default function Dashboard() {
           { name: "Draft", value: data?.filter((c) => c.status === "draft").length ?? 0 },
         ]);
       });
-      supabase.from("invoices").select("id, status, amount, due_date").then(({ data }) => {
-        const pending = data?.filter((i) => i.status === "pending").length ?? 0;
+      supabase.from("invoices").select("id, status, amount, due_date, accrued_late_fees").then(({ data }) => {
+        const invs = (data || []) as any[];
+        const pending = invs.filter((i) => i.status === "pending").length;
         set("orig_invoices", String(pending), [
           { name: "Pending", value: pending },
-          { name: "Approved", value: data?.filter((i) => i.status === "approved").length ?? 0 },
-          { name: "Funded", value: data?.filter((i) => i.status === "funded").length ?? 0 },
-          { name: "Rejected", value: data?.filter((i) => i.status === "rejected").length ?? 0 },
+          { name: "Approved", value: invs.filter((i) => i.status === "approved").length },
+          { name: "Funded", value: invs.filter((i) => i.status === "funded").length },
+          { name: "Rejected", value: invs.filter((i) => i.status === "rejected").length },
         ]);
         // Outstanding = not settled/rejected
-        const outstanding = (data || [])
+        const outstanding = invs
           .filter((i) => i.status !== "settled" && i.status !== "rejected")
-          .reduce((sum, i) => sum + Number(i.amount), 0);
+          .reduce((sum, i) => sum + Number(i.amount) + Number(i.accrued_late_fees || 0), 0);
         set("orig_outstanding", outstanding > 0 ? `£${(outstanding / 1000).toFixed(0)}K` : "£0");
-        // Overdue = past due_date and not settled
+        
+        // Overdue = past due_date and funded/partially_settled (GAP-25)
         const now = new Date();
-        const overdue = (data || [])
-          .filter((i) => i.status !== "settled" && i.status !== "rejected" && i.due_date && new Date(i.due_date) < now)
-          .reduce((sum, i) => sum + Number(i.amount), 0);
-        set("orig_overdue", overdue > 0 ? `£${(overdue / 1000).toFixed(0)}K` : "£0");
+        const buckets = { "0-30": 0, "31-60": 0, "61-90": 0, "90+": 0 };
+        let totalOverdue = 0;
+
+        invs.forEach(i => {
+           if (i.status === "funded" || i.status === "partially_settled") {
+             if (i.due_date && new Date(i.due_date) < now) {
+                const diffDays = Math.floor((now.getTime() - new Date(i.due_date).getTime()) / (1000 * 60 * 60 * 24));
+                const amt = Number(i.amount) + Number(i.accrued_late_fees || 0);
+                totalOverdue += amt;
+                if (diffDays <= 30) buckets["0-30"] += amt;
+                else if (diffDays <= 60) buckets["31-60"] += amt;
+                else if (diffDays <= 90) buckets["61-90"] += amt;
+                else buckets["90+"] += amt;
+             }
+           }
+        });
+        
+        const chartData = [
+          { name: "0-30d", value: buckets["0-30"] },
+          { name: "31-60d", value: buckets["31-60"] },
+          { name: "61-90d", value: buckets["61-90"] },
+          { name: "90+d", value: buckets["90+"] }
+        ];
+
+        set("orig_overdue", totalOverdue > 0 ? `£${(totalOverdue / 1000).toFixed(0)}K` : "£0", chartData);
       });
       supabase.from("credit_memos").select("id", { count: "exact", head: true }).eq("status", "draft").then(({ count }) => {
         set("orig_memos", String(count ?? 0));

@@ -213,6 +213,7 @@ export default function Collections() {
                   <TabsList className="bg-transparent">
                     <TabsTrigger value="collections">Collections</TabsTrigger>
                     <TabsTrigger value="settlements">Settlement Advices</TabsTrigger>
+                    <TabsTrigger value="waterfall">Waterfall</TabsTrigger>
                     <TabsTrigger value="awaiting">Awaiting Collection ({fundedInvoices.length})</TabsTrigger>
                   </TabsList>
                 </div>
@@ -297,6 +298,122 @@ export default function Collections() {
                       </TableBody>
                     </Table>
                   )}
+                </TabsContent>
+
+                {/* GAP-16/30: Settlement Waterfall Tab */}
+                <TabsContent value="waterfall" className="m-0 p-4">
+                  {settlements.length === 0 ? (
+                    <div className="flex flex-col items-center py-12">
+                      <ArrowRight className="h-10 w-10 text-muted-foreground mb-3" />
+                      <p className="text-sm text-muted-foreground">No settlements yet — record a collection first</p>
+                    </div>
+                  ) : (() => {
+                    // Compute waterfall: for each settlement, sum fee breakdown by party
+                    const waterfallByInvoice = new Map<string, { invoice: string; collected: number; currency: string; funderPrincipal: number; funderYield: number; originatorMargin: number; borrowerNet: number; platformFee: number; }>();
+                    
+                    settlements.forEach((sa: any) => {
+                      const invNum = (sa.invoices as any)?.invoice_number || sa.invoice_id?.slice(0,8) || "—";
+                      const existing = waterfallByInvoice.get(invNum) || {
+                        invoice: invNum,
+                        collected: Number(sa.gross_amount || 0),
+                        currency: sa.currency || "GBP",
+                        funderPrincipal: 0, funderYield: 0, originatorMargin: 0, borrowerNet: 0, platformFee: 0,
+                      };
+
+                      if (sa.advice_type === "funder_settlement") {
+                        // Funder gets principal + yield
+                        const breakdown = (sa.fee_breakdown as any[]) || [];
+                        breakdown.forEach((item: any) => {
+                          if (item.type === "net") existing.funderPrincipal += Math.abs(item.amount || 0);
+                          if (item.label?.toLowerCase().includes("yield") || item.label?.toLowerCase().includes("fee")) {
+                            existing.funderYield += Math.abs(item.amount || 0);
+                          }
+                        });
+                        if (existing.funderPrincipal === 0) existing.funderPrincipal = Number(sa.net_amount || 0);
+                      } else {
+                        // Borrower settlement
+                        const breakdown = (sa.fee_breakdown as any[]) || [];
+                        let origFee = 0, platFee = 0;
+                        breakdown.forEach((item: any) => {
+                          const lbl = (item.label || "").toLowerCase();
+                          if (lbl.includes("originator")) origFee += Math.abs(item.amount || 0);
+                          else if (lbl.includes("platform")) platFee += Math.abs(item.amount || 0);
+                        });
+                        existing.originatorMargin += origFee;
+                        existing.platformFee += platFee;
+                        existing.borrowerNet += Number(sa.net_amount || 0);
+                      }
+
+                      waterfallByInvoice.set(invNum, existing);
+                    });
+
+                    const waterfallRows = Array.from(waterfallByInvoice.values());
+                    const totals = waterfallRows.reduce((t, r) => ({
+                      collected: t.collected + r.collected,
+                      funder: t.funder + r.funderPrincipal,
+                      originator: t.originator + r.originatorMargin,
+                      platform: t.platform + r.platformFee,
+                      borrower: t.borrower + r.borrowerNet,
+                    }), { collected: 0, funder: 0, originator: 0, platform: 0, borrower: 0 });
+
+                    const cur = waterfallRows[0]?.currency || "GBP";
+                    const fmt = (n: number) => `${cur} ${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+                    return (
+                      <div className="space-y-4">
+                        {/* Summary Cards */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          <div className="rounded-lg border p-3 bg-blue-50/50 dark:bg-blue-900/10">
+                            <p className="text-xs text-muted-foreground mb-1">Funder Returns</p>
+                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{fmt(totals.funder)}</p>
+                          </div>
+                          <div className="rounded-lg border p-3 bg-green-50/50 dark:bg-green-900/10">
+                            <p className="text-xs text-muted-foreground mb-1">Originator Margin</p>
+                            <p className="text-lg font-bold text-green-700 dark:text-green-300">{fmt(totals.originator)}</p>
+                          </div>
+                          <div className="rounded-lg border p-3 bg-purple-50/50 dark:bg-purple-900/10">
+                            <p className="text-xs text-muted-foreground mb-1">Borrower Reimbursement</p>
+                            <p className="text-lg font-bold text-purple-700 dark:text-purple-300">{fmt(totals.borrower)}</p>
+                          </div>
+                          <div className="rounded-lg border p-3 bg-amber-50/50 dark:bg-amber-900/10">
+                            <p className="text-xs text-muted-foreground mb-1">Total Collected</p>
+                            <p className="text-lg font-bold text-amber-700 dark:text-amber-300">{fmt(totals.collected)}</p>
+                          </div>
+                        </div>
+
+                        {/* Waterfall Table */}
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Invoice</TableHead>
+                              <TableHead className="text-right">Collected</TableHead>
+                              <TableHead className="text-right text-blue-600">→ Funder</TableHead>
+                              <TableHead className="text-right text-green-600">→ Originator</TableHead>
+                              <TableHead className="text-right text-purple-600">→ Borrower</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {waterfallRows.map((row, i) => (
+                              <TableRow key={i}>
+                                <TableCell className="font-medium">{row.invoice}</TableCell>
+                                <TableCell className="text-right">{fmt(row.collected)}</TableCell>
+                                <TableCell className="text-right text-blue-600 font-medium">{fmt(row.funderPrincipal)}</TableCell>
+                                <TableCell className="text-right text-green-600 font-medium">{fmt(row.originatorMargin)}</TableCell>
+                                <TableCell className="text-right text-purple-600 font-medium">{fmt(row.borrowerNet)}</TableCell>
+                              </TableRow>
+                            ))}
+                            <TableRow className="bg-muted/50 font-bold">
+                              <TableCell>TOTAL</TableCell>
+                              <TableCell className="text-right">{fmt(totals.collected)}</TableCell>
+                              <TableCell className="text-right text-blue-600">{fmt(totals.funder)}</TableCell>
+                              <TableCell className="text-right text-green-600">{fmt(totals.originator)}</TableCell>
+                              <TableCell className="text-right text-purple-600">{fmt(totals.borrower)}</TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </div>
+                    );
+                  })()}
                 </TabsContent>
 
                 {/* Awaiting Collection Tab */}

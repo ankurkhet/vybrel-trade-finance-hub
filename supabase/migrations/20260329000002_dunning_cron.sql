@@ -36,20 +36,22 @@ $$;
 -- Assuming it is enabled, we conditionally schedule it:
 DO $$
 BEGIN
-    IF EXISTS (
+    IF NOT EXISTS (
         SELECT 1
         FROM pg_extension
         WHERE extname = 'pg_cron'
     ) THEN
-        -- Safely unschedule if it exists
-        PERFORM cron.unschedule('daily_interest_accrual');
-        
-        -- Schedule it to run every day at midnight (UTC)
-        PERFORM cron.schedule(
-            'daily_interest_accrual',
-            '0 0 * * *',
-            'SELECT public.accrue_daily_interest();'
-        );
+        RAISE EXCEPTION 'pg_cron extension is NOT enabled. Please enable it in the Supabase Dashboard -> Database -> Extensions before running this migration. (GAP-32 Validation)';
     END IF;
+
+    -- Safely unschedule if it exists
+    PERFORM cron.unschedule('daily_interest_accrual');
+    
+    -- Schedule it to run every day at midnight (UTC)
+    PERFORM cron.schedule(
+        'daily_interest_accrual',
+        '0 0 * * *',
+        'SELECT public.accrue_daily_interest();'
+    );
 END
 $$;

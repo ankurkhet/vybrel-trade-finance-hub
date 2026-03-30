@@ -174,16 +174,16 @@ export default function BorrowerInvoices() {
       return;
     }
 
-    // Create acceptance record
+    // Create acceptance record — status goes to pending_document_review for Ops Manager
     const { error: accError } = await supabase.from("invoice_acceptances" as any).insert({
       invoice_id: uploadDialogInvoice.id,
       organization_id: borrower.organization_id,
       method: "document_upload",
-      status: "accepted_via_document",
+      status: "pending_document_review",
       accepted_by_user_id: user!.id,
       accepted_by_email: user!.email,
       document_id: doc!.id,
-      notes: `Acceptance document uploaded by borrower: ${file.name}`,
+      notes: `Acceptance document uploaded by borrower: ${file.name}. Awaiting Ops Manager review.`,
     });
 
     if (accError) {
@@ -192,12 +192,12 @@ export default function BorrowerInvoices() {
       return;
     }
 
-    // Update invoice acceptance status
+    // Update invoice acceptance status to pending_document_review
     await supabase.from("invoices")
-      .update({ acceptance_status: "accepted_via_document" } as any)
+      .update({ acceptance_status: "pending_document_review" } as any)
       .eq("id", uploadDialogInvoice.id);
 
-    toast.success("Acceptance document uploaded — invoice marked as accepted via document");
+    toast.success("Acceptance document uploaded — awaiting Operations Manager review before invoice can be funded");
     setUploadDialogInvoice(null);
     setUploading(false);
     fetchData();

@@ -30,6 +30,9 @@ export default function Contracts() {
   const [currency, setCurrency] = useState("USD");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  // GAP-20: Template binding
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
 
   useEffect(() => {
     if (profile?.organization_id) fetchData();
@@ -37,15 +40,20 @@ export default function Contracts() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [contractsRes, borrowersRes] = await Promise.all([
+    const [contractsRes, borrowersRes, templatesRes] = await Promise.all([
       supabase.from("contracts").select("*, borrowers(company_name)")
         .eq("organization_id", profile.organization_id)
         .order("created_at", { ascending: false }),
       supabase.from("borrowers").select("id, company_name")
         .eq("organization_id", profile.organization_id),
+      // GAP-20: Load available templates for binding
+      supabase.from("document_templates" as any).select("id, template_name, template_type")
+        .eq("organization_id", profile.organization_id)
+        .eq("is_active", true),
     ]);
     setContracts(contractsRes.data || []);
     setBorrowers(borrowersRes.data || []);
+    setTemplates((templatesRes.data as any[]) || []);
     setLoading(false);
   };
 
@@ -66,7 +74,9 @@ export default function Contracts() {
       start_date: startDate || null,
       end_date: endDate || null,
       status: "active",
-    });
+      // GAP-20: Bind template
+      template_id: selectedTemplateId && selectedTemplateId !== "_none" ? selectedTemplateId : null,
+    } as any);
 
     if (error) toast.error(error.message);
     else {
@@ -86,6 +96,7 @@ export default function Contracts() {
     setCurrency("USD");
     setStartDate("");
     setEndDate("");
+    setSelectedTemplateId("");
   };
 
   const filtered = contracts.filter((c) =>
@@ -214,6 +225,26 @@ export default function Contracts() {
                 <Label>End Date</Label>
                 <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
+            </div>
+            {/* GAP-20: Document Template Binding */}
+            <div className="space-y-2">
+              <Label>Document Template</Label>
+              <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={templates.length === 0 ? "No templates uploaded" : "Select a template (optional)"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">None</SelectItem>
+                  {templates.map((t: any) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.template_name} ({t.template_type?.replace(/_/g, " ")})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {templates.length === 0 && (
+                <p className="text-xs text-amber-600">No document templates found. Upload templates in Document Templates to bind them to contracts.</p>
+              )}
             </div>
           </div>
           <DialogFooter>
