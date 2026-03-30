@@ -1205,6 +1205,8 @@ Navigate to **My Profile** to view and update your:
     content: `
 # Funder KYC & Onboarding
 
+![Funder KYC Onboarding Form](/screenshots/funder_onboarding.jpg)
+
 Navigate to **Onboarding & KYC** to complete your funder registration.
 
 ## KYC Form (Tabbed Interface)
