@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ShieldCheck, Loader2, Search, TrendingUp, DollarSign, Clock } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { ShieldCheck, Loader2, Search, DollarSign, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -18,10 +20,17 @@ export default function LimitAssessment() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [assessDialog, setAssessDialog] = useState<any>(null);
-  const [limitAmount, setLimitAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  // GAP-23: Active MSA check
   const [hasActiveMsa, setHasActiveMsa] = useState<boolean | null>(null);
+  const [msaRates, setMsaRates] = useState<any>(null);
+  const [otherFunderLimits, setOtherFunderLimits] = useState<any[]>([]);
+
+  // Assessment form state
+  const [formOverall, setFormOverall] = useState("");
+  const [formRP, setFormRP] = useState("");
+  const [formRF, setFormRF] = useState("");
+  const [formPF, setFormPF] = useState("");
+  const [formScope, setFormScope] = useState("specific_counterparty");
 
   useEffect(() => {
     fetchLimits();
@@ -38,7 +47,6 @@ export default function LimitAssessment() {
     setLoading(true);
     if (!user?.id) return;
     
-    // GAP-23: Check if funder has an active MSA with any originator
     const { data: msaData } = await supabase
       .from("funder_relationships")
       .select("id")
@@ -47,7 +55,6 @@ export default function LimitAssessment() {
       .limit(1);
     setHasActiveMsa((msaData?.length ?? 0) > 0);
     
-    // Fetch limits referred to this Funder
     const { data, error } = await supabase
       .from("funder_limits")
       .select("*, borrowers(company_name)")
@@ -62,12 +69,49 @@ export default function LimitAssessment() {
     setLoading(false);
   };
 
+  const openAssessDialog = async (lim: any) => {
+    setAssessDialog(lim);
+    setFormOverall(lim.overall_limit?.toString() || lim.limit_amount?.toString() || "");
+    setFormRP(lim.limit_receivables_purchase?.toString() || "");
+    setFormRF(lim.limit_reverse_factoring?.toString() || "");
+    setFormPF(lim.limit_payable_finance?.toString() || "");
+    setFormScope(lim.scope || "specific_counterparty");
+
+    // Fetch MSA rates for this org
+    const { data: msa } = await supabase
+      .from("funder_relationships")
+      .select("*")
+      .eq("funder_user_id", user!.id)
+      .eq("organization_id", lim.organization_id)
+      .eq("agreement_status", "active")
+      .limit(1);
+    setMsaRates(msa?.[0] || null);
+
+    // Fetch anonymized other-funder limits for same borrower
+    const { data: otherLimits } = await supabase
+      .from("funder_limits")
+      .select("overall_limit, limit_receivables_purchase, limit_reverse_factoring, limit_payable_finance, counterparty_name, scope, currency, status")
+      .eq("borrower_id", lim.borrower_id)
+      .eq("status", "approved")
+      .neq("funder_user_id", user!.id);
+    setOtherFunderLimits(otherLimits || []);
+  };
+
   const handleApproveLimit = async () => {
-    if (!assessDialog || !limitAmount || !user) return;
+    if (!assessDialog || !user) return;
+    if (!formOverall && !formRP && !formRF && !formPF) {
+      toast.error("Please specify at least one limit amount");
+      return;
+    }
     setSubmitting(true);
 
     const { error } = await supabase.from("funder_limits").update({
-      limit_amount: parseFloat(limitAmount),
+      overall_limit: formOverall ? parseFloat(formOverall) : null,
+      limit_amount: parseFloat(formOverall || "0"),
+      limit_receivables_purchase: formRP ? parseFloat(formRP) : null,
+      limit_reverse_factoring: formRF ? parseFloat(formRF) : null,
+      limit_payable_finance: formPF ? parseFloat(formPF) : null,
+      scope: formScope,
       status: "approved",
       updated_at: new Date().toISOString(),
     }).eq("id", assessDialog.id);
@@ -75,9 +119,25 @@ export default function LimitAssessment() {
     if (error) {
        toast.error(error.message);
     } else {
-      toast.success("Credit Limit Approved and Locked!");
+      toast.success("Credit Limit Approved!");
       setAssessDialog(null);
-      setLimitAmount("");
+      fetchLimits();
+    }
+    setSubmitting(false);
+  };
+
+  const handleRejectLimit = async () => {
+    if (!assessDialog) return;
+    setSubmitting(true);
+    const { error } = await supabase.from("funder_limits").update({
+      status: "rejected",
+      updated_at: new Date().toISOString(),
+    }).eq("id", assessDialog.id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Limit referral declined");
+      setAssessDialog(null);
       fetchLimits();
     }
     setSubmitting(false);
@@ -96,7 +156,6 @@ export default function LimitAssessment() {
           <p className="text-sm text-muted-foreground">Review and approve credit limit referrals from Originators</p>
         </div>
 
-        {/* GAP-23: MSA Guard Banner */}
         {hasActiveMsa === false && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-5 flex items-start gap-4">
             <ShieldCheck className="h-6 w-6 text-amber-600 shrink-0 mt-0.5" />
@@ -109,16 +168,13 @@ export default function LimitAssessment() {
           </div>
         )}
 
-        {/* Summary Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
               <div className="rounded-lg bg-primary/10 p-2"><ShieldCheck className="h-5 w-5 text-primary" /></div>
               <div>
                 <p className="text-xs text-muted-foreground">Pending Referrals</p>
-                <p className="text-xl font-bold text-foreground">
-                  {limits.filter(l => l.status === 'pending').length}
-                </p>
+                <p className="text-xl font-bold text-foreground">{limits.filter(l => l.status === 'pending').length}</p>
               </div>
             </CardContent>
           </Card>
@@ -128,21 +184,19 @@ export default function LimitAssessment() {
               <div>
                 <p className="text-xs text-muted-foreground">Total Capital Deployed</p>
                 <p className="text-xl font-bold text-foreground">
-                  ${limits.filter(l => l.status === 'approved').reduce((s, i) => s + Number(i.limit_amount || 0), 0).toLocaleString()}
+                  {limits.filter(l => l.status === 'approved').reduce((s, i) => s + Number(i.overall_limit || i.limit_amount || 0), 0).toLocaleString()}
                 </p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Search */}
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search Borrowers or Counterparties..." value={search}
             onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
 
-        {/* Table */}
         <Card>
           <CardContent className="p-0">
             {loading ? (
@@ -157,9 +211,11 @@ export default function LimitAssessment() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Borrower</TableHead>
-                    <TableHead>Limit Target (Counterparty)</TableHead>
-                    <TableHead>Indexing Rate</TableHead>
-                    <TableHead>Requested / Approved Limit</TableHead>
+                    <TableHead>Scope</TableHead>
+                    <TableHead>Overall</TableHead>
+                    <TableHead>Recv. Purchase</TableHead>
+                    <TableHead>Rev. Factoring</TableHead>
+                    <TableHead>Pay. Finance</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
@@ -175,16 +231,14 @@ export default function LimitAssessment() {
                           </span>
                         ) : (
                           <span className="text-purple-600 bg-purple-50 px-2 py-1 rounded-md border border-purple-100 text-xs font-semibold">
-                            Global Borrower Limit
+                            All Counterparties
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <span className="font-medium">{lim.base_rate_type}</span> + {lim.margin_pct}% Mgn
-                      </TableCell>
-                      <TableCell className="font-medium text-foreground">
-                        {lim.currency} {Number(lim.limit_amount).toLocaleString()}
-                      </TableCell>
+                      <TableCell className="font-mono text-xs">{lim.overall_limit ? `${lim.currency} ${Number(lim.overall_limit).toLocaleString()}` : `${lim.currency} ${Number(lim.limit_amount).toLocaleString()}`}</TableCell>
+                      <TableCell className="font-mono text-xs">{lim.limit_receivables_purchase ? `${lim.currency} ${Number(lim.limit_receivables_purchase).toLocaleString()}` : "—"}</TableCell>
+                      <TableCell className="font-mono text-xs">{lim.limit_reverse_factoring ? `${lim.currency} ${Number(lim.limit_reverse_factoring).toLocaleString()}` : "—"}</TableCell>
+                      <TableCell className="font-mono text-xs">{lim.limit_payable_finance ? `${lim.currency} ${Number(lim.limit_payable_finance).toLocaleString()}` : "—"}</TableCell>
                       <TableCell>
                         <Badge variant={lim.status === 'pending' ? "secondary" : lim.status === 'approved' ? "outline" : "destructive"}>
                           {lim.status.toUpperCase()}
@@ -192,10 +246,7 @@ export default function LimitAssessment() {
                       </TableCell>
                       <TableCell>
                         {lim.status === 'pending' && (
-                          <Button size="sm" onClick={() => {
-                            setAssessDialog(lim);
-                            setLimitAmount(lim.limit_amount?.toString() || "");
-                          }}>
+                          <Button size="sm" onClick={() => openAssessDialog(lim)}>
                             Assess Limit
                           </Button>
                         )}
@@ -211,47 +262,101 @@ export default function LimitAssessment() {
 
       {/* Assess Dialog */}
       <Dialog open={!!assessDialog} onOpenChange={() => setAssessDialog(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Approve Credit Limit</DialogTitle>
+            <DialogTitle>Assess Credit Limit</DialogTitle>
             <DialogDescription>
-              Assigning limit for <strong className="text-foreground">{assessDialog?.borrowers?.company_name}</strong>
+              Assessing limit for <strong className="text-foreground">{assessDialog?.borrowers?.company_name}</strong>
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* MSA Rates - Read Only */}
             <div className="bg-muted p-4 rounded-md space-y-2">
-               <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Target Scope</span>
-                  <span className="font-semibold text-foreground">
-                     {assessDialog?.counterparty_name || "Global Borrower Limit"}
-                  </span>
-               </div>
-               <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Originator Indexing Rate</span>
-                  <span className="font-semibold text-foreground">
-                     {assessDialog?.base_rate_type} + {assessDialog?.margin_pct}% Mgn = Total Funder Return
-                  </span>
-               </div>
+              <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> MASTER SERVICE AGREEMENT RATES (Read-Only)</p>
+              <div className="grid grid-cols-3 gap-3 mt-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Base Rate Type</Label>
+                  <Input value={msaRates?.master_base_rate_type || assessDialog?.base_rate_type || "—"} disabled className="mt-1 bg-muted" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Base Rate Value (%)</Label>
+                  <Input value={msaRates?.master_base_rate_value ?? assessDialog?.base_rate_value ?? "—"} disabled className="mt-1 bg-muted" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Funder Margin (%)</Label>
+                  <Input value={msaRates?.master_margin_pct ?? assessDialog?.margin_pct ?? "—"} disabled className="mt-1 bg-muted" />
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground italic">Rates governed by Master Service Agreement and cannot be changed at deal level.</p>
             </div>
-            
-            <p className="text-xs text-muted-foreground italic mb-2">Note: As per master contract, all base rates and margins are read-only and established by the Originator configuration.</p>
 
-            <div className="space-y-2 pt-2 border-t">
-              <Label>Approved Limit Amount ({assessDialog?.currency}) *</Label>
-              <Input 
-                type="number" 
-                value={limitAmount} 
-                onChange={(e) => setLimitAmount(e.target.value)} 
-                className="font-mono text-lg"
-              />
+            {/* Anonymized Other Funder Limits */}
+            {otherFunderLimits.length > 0 && (
+              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 p-4 rounded-md space-y-2">
+                <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1">
+                  <Info className="h-3 w-3" /> Other Funder Approved Limits for This Borrower
+                </p>
+                {otherFunderLimits.map((ol, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs border-b border-blue-100 dark:border-blue-900 pb-1 last:border-0">
+                    <span className="text-blue-600 dark:text-blue-400">Funder {String.fromCharCode(65 + idx)}</span>
+                    <span className="font-mono">
+                      {ol.currency} {Number(ol.overall_limit || 0).toLocaleString()}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {ol.counterparty_name ? `Specific: ${ol.counterparty_name}` : "All Counterparties"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Separator />
+
+            {/* Scope Selector */}
+            <div className="space-y-2">
+              <Label>Limit Scope</Label>
+              <Select value={formScope} onValueChange={setFormScope}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="specific_counterparty">Specific Counterparty (as stated in referral)</SelectItem>
+                  <SelectItem value="all_counterparties">All Counterparties for this Borrower</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Per-Product Limit Inputs */}
+            <div className="border-t pt-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-3">APPROVED LIMITS (overall and/or per-product)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Overall Limit ({assessDialog?.currency})</Label>
+                  <Input type="number" value={formOverall} onChange={(e) => setFormOverall(e.target.value)} className="font-mono" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Receivables Purchase ({assessDialog?.currency})</Label>
+                  <Input type="number" value={formRP} onChange={(e) => setFormRP(e.target.value)} className="font-mono" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Reverse Factoring ({assessDialog?.currency})</Label>
+                  <Input type="number" value={formRF} onChange={(e) => setFormRF(e.target.value)} className="font-mono" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Payable Finance ({assessDialog?.currency})</Label>
+                  <Input type="number" value={formPF} onChange={(e) => setFormPF(e.target.value)} className="font-mono" />
+                </div>
+              </div>
             </div>
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setAssessDialog(null)}>Cancel</Button>
-            <Button onClick={handleApproveLimit} disabled={submitting || !limitAmount}>
+            <Button variant="destructive" onClick={handleRejectLimit} disabled={submitting}>
+              Decline
+            </Button>
+            <Button onClick={handleApproveLimit} disabled={submitting || (!formOverall && !formRP && !formRF && !formPF)}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Approve Limit Allocation
+              Approve Limit
             </Button>
           </DialogFooter>
         </DialogContent>
