@@ -1471,14 +1471,20 @@ export type Database = {
           base_rate_type: string | null
           base_rate_value: number | null
           borrower_id: string
+          counterparty_id: string | null
           counterparty_name: string | null
           created_at: string
           currency: string
           funder_user_id: string
           id: string
           limit_amount: number
+          limit_payable_finance: number | null
+          limit_receivables_purchase: number | null
+          limit_reverse_factoring: number | null
           margin_pct: number | null
           organization_id: string
+          overall_limit: number | null
+          scope: string | null
           status: string
           updated_at: string
         }
@@ -1486,14 +1492,20 @@ export type Database = {
           base_rate_type?: string | null
           base_rate_value?: number | null
           borrower_id: string
+          counterparty_id?: string | null
           counterparty_name?: string | null
           created_at?: string
           currency?: string
           funder_user_id: string
           id?: string
           limit_amount?: number
+          limit_payable_finance?: number | null
+          limit_receivables_purchase?: number | null
+          limit_reverse_factoring?: number | null
           margin_pct?: number | null
           organization_id: string
+          overall_limit?: number | null
+          scope?: string | null
           status?: string
           updated_at?: string
         }
@@ -1501,14 +1513,20 @@ export type Database = {
           base_rate_type?: string | null
           base_rate_value?: number | null
           borrower_id?: string
+          counterparty_id?: string | null
           counterparty_name?: string | null
           created_at?: string
           currency?: string
           funder_user_id?: string
           id?: string
           limit_amount?: number
+          limit_payable_finance?: number | null
+          limit_receivables_purchase?: number | null
+          limit_reverse_factoring?: number | null
           margin_pct?: number | null
           organization_id?: string
+          overall_limit?: number | null
+          scope?: string | null
           status?: string
           updated_at?: string
         }
@@ -1518,6 +1536,13 @@ export type Database = {
             columns: ["borrower_id"]
             isOneToOne: false
             referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funder_limits_counterparty_id_fkey"
+            columns: ["counterparty_id"]
+            isOneToOne: false
+            referencedRelation: "counterparties"
             referencedColumns: ["id"]
           },
           {
