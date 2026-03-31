@@ -151,6 +151,7 @@ export function CreditCommitteeApplications() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Application #</TableHead>
+                  <TableHead>Borrower</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Debtor</TableHead>
                   <TableHead>Status</TableHead>
