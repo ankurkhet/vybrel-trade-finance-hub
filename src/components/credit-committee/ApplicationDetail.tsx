@@ -11,8 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Send, RotateCcw, MessageSquare } from "lucide-react";
+import { ArrowLeft, Send, RotateCcw, MessageSquare, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { ReferToFunderDialog } from "./ReferToFunderDialog";
 
 interface Props {
   applicationId: string;
