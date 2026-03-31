@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.address-lookup]
 verify_jwt = false
+
+[functions.fetch-market-rates]
+verify_jwt = false

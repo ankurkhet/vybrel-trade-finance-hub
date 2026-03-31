@@ -39,11 +39,11 @@ export default function LenderManagement() {
   const { data: referenceRates = [] } = useQuery({
     queryKey: ['reference-rates'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('reference_rates')
         .select('*');
       if (error) throw error;
-      return data;
+      return data as any[];
     }
   });
 
