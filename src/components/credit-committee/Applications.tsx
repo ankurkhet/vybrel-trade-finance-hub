@@ -163,6 +163,7 @@ export function CreditCommitteeApplications() {
                 {applications.map((app: any) => (
                   <TableRow key={app.id} className="cursor-pointer" onClick={() => navigate(`/originator/credit-committee/applications/${app.id}`)}>
                     <TableCell className="font-mono text-xs">{app.application_number}</TableCell>
+                    <TableCell className="font-medium">{app.borrowers?.company_name || app.debtor_name || "—"}</TableCell>
                     <TableCell className="capitalize">{(app.type || "").replace("_", " ")}</TableCell>
                     <TableCell>{app.debtor_name || "—"}</TableCell>
                     <TableCell><Badge variant={statusVariant(app.status) as any}>{app.status.replace("_", " ")}</Badge></TableCell>
