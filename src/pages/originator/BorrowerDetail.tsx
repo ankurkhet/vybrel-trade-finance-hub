@@ -34,6 +34,7 @@ import { DocumentPreviewModal, useDocumentPreview } from "@/components/ui/docume
 import { emptyCompanyForm, COUNTRIES, FACILITY_TYPES, ONBOARDING_STATUSES } from "@/lib/onboarding-types";
 import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 import { ChangeTracker } from "@/components/onboarding/ChangeTracker";
+import { KycApprovalDialog } from "@/components/kyc/KycApprovalDialog";
 
 export default function BorrowerDetail() {
   const { id } = useParams<{ id: string }>();
@@ -86,6 +87,7 @@ export default function BorrowerDetail() {
   const [requestUpdateDialog, setRequestUpdateDialog] = useState(false);
   const [requestUpdateSection, setRequestUpdateSection] = useState("");
   const [requestUpdateMessage, setRequestUpdateMessage] = useState("");
+  const [kycDialog, setKycDialog] = useState(false);
 
   const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -376,8 +378,12 @@ export default function BorrowerDetail() {
                 <Badge variant={statusColor(borrower.onboarding_status) as any} className="capitalize text-xs">
                   {borrower.onboarding_status.replace(/_/g, " ")}
                 </Badge>
-                <Badge variant={borrower.kyc_completed ? "default" : "outline"} className="text-xs">
-                  KYC: {borrower.kyc_completed ? "Complete" : "Pending"}
+                <Badge
+                  variant={borrower.kyc_completed ? "default" : "outline"}
+                  className="text-xs cursor-pointer hover:opacity-80"
+                  onClick={() => setKycDialog(true)}
+                >
+                  KYC: {borrower.kyc_completed ? "Complete ✓" : "Pending — Review"}
                 </Badge>
                 {borrower.country && (
                   <span className="text-xs text-muted-foreground">
@@ -1079,6 +1085,15 @@ export default function BorrowerDetail() {
           mimeType={preview.mimeType}
         />
       )}
+
+      <KycApprovalDialog
+        open={kycDialog}
+        onOpenChange={setKycDialog}
+        borrower={borrower}
+        documents={documents}
+        profile={profile}
+        onComplete={loadAll}
+      />
     </DashboardLayout>
   );
 }
