@@ -34,6 +34,7 @@ import { DocumentPreviewModal, useDocumentPreview } from "@/components/ui/docume
 import { emptyCompanyForm, COUNTRIES, FACILITY_TYPES, ONBOARDING_STATUSES } from "@/lib/onboarding-types";
 import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 import { ChangeTracker } from "@/components/onboarding/ChangeTracker";
+import { KycApprovalDialog } from "@/components/kyc/KycApprovalDialog";
 
 export default function BorrowerDetail() {
   const { id } = useParams<{ id: string }>();
