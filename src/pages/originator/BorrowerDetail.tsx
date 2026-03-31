@@ -87,6 +87,7 @@ export default function BorrowerDetail() {
   const [requestUpdateDialog, setRequestUpdateDialog] = useState(false);
   const [requestUpdateSection, setRequestUpdateSection] = useState("");
   const [requestUpdateMessage, setRequestUpdateMessage] = useState("");
+  const [kycDialog, setKycDialog] = useState(false);
 
   const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
