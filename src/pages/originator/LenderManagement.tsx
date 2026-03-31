@@ -138,7 +138,7 @@ export default function LenderManagement() {
         .eq('funder_user_id', funderDialog.user_id)
         .eq('agreement_status', 'active');
 
-      const { error: insertError } = await supabase
+      const { error: insertError } = await (supabase as any)
         .from('funder_relationships')
         .insert({
           organization_id: orgId,
@@ -147,8 +147,6 @@ export default function LenderManagement() {
           margin_receivable_purchase: Number(formData.margin_receivable_purchase),
           margin_reverse_factoring: Number(formData.margin_reverse_factoring),
           margin_payable_finance: Number(formData.margin_payable_finance),
-          effective_date: formData.effective_date,
-          agreement_document_path: docPath,
           agreement_status: 'active'
         });
 
