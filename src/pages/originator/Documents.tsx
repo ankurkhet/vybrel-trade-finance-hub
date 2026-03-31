@@ -13,11 +13,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Upload, Loader2, CheckCircle2, XCircle, Clock, FileText, AlertCircle,
-  ChevronDown, ChevronRight, History, Search, Users, Building2, Eye
+  ChevronDown, ChevronRight, History, Search, Users, Building2, Eye, ShieldCheck
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 const ORG_DOC_TYPES = [
   { value: "certificate_of_incorporation", label: "Certificate of Incorporation" },
@@ -80,6 +81,10 @@ export default function OriginatorDocuments() {
   const [borrowerDocsLoading, setBorrowerDocsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Funder docs state
+  const [selectedFunder, setSelectedFunder] = useState<string>("");
+  const [funderReviewDialog, setFunderReviewDialog] = useState<any>(null);
+
   // Document review dialog
   const [docReviewDialog, setDocReviewDialog] = useState<BorrowerDoc | null>(null);
   const [docAction, setDocAction] = useState<"approved" | "rejected">("approved");
@@ -123,6 +128,19 @@ export default function OriginatorDocuments() {
     setBorrowerDocs((docs || []) as BorrowerDoc[]);
     setBorrowerDocsLoading(false);
   };
+
+  // Fetch Funders for KYC Audit
+  const { data: funders = [], isLoading: fundersLoading, refetch: refetchFunders } = useQuery({
+    queryKey: ['org-funders-documents', profile?.organization_id],
+    queryFn: async () => {
+      const { data: roleRecords } = await supabase.from('user_roles').select('user_id').eq('role', 'funder');
+      const funderUserIds = roleRecords?.map((r: any) => r.user_id) || [];
+      const { data: profiles } = await supabase.from('profiles').select('*').eq('organization_id', profile?.organization_id).in('user_id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
+      const { data: funderDocs } = await supabase.from('funder_kyc').select('*').order('created_at', { ascending: false });
+      return (profiles || []).map(f => ({ ...f, documents: ((funderDocs as any[]) || []).filter(d => d.funder_user_id === f.user_id) }));
+    },
+    enabled: !!profile?.organization_id && activeTab === "funders"
+  });
 
   const handleOrgUpload = async (docType: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -170,6 +188,19 @@ export default function OriginatorDocuments() {
     setDocReviewDialog(null);
     setDocRejectionReason("");
     fetchBorrowerDocs();
+  };
+
+  const handleFunderDocReview = async (docId: string, status: string) => {
+    const { error } = await supabase.from('funder_kyc').update({ 
+      kyc_status: status,
+      kyc_reviewed_at: new Date().toISOString(),
+      kyc_reviewed_by: user?.id
+    } as any).eq('id', docId);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(`Document ${status}`);
+      refetchFunders();
+    }
   };
 
   const toggleType = (type: string) => {
@@ -245,10 +276,13 @@ export default function OriginatorDocuments() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="borrowers" className="gap-1.5">
-              <Users className="h-3.5 w-3.5" /> Borrower Documents
+              <Users className="h-3.5 w-3.5" /> Borrower Docs
+            </TabsTrigger>
+            <TabsTrigger value="funders" className="gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5" /> Funder Audit
             </TabsTrigger>
             <TabsTrigger value="organization" className="gap-1.5">
-              <Building2 className="h-3.5 w-3.5" /> Organization Documents
+              <Building2 className="h-3.5 w-3.5" /> Org Profile
             </TabsTrigger>
           </TabsList>
 
@@ -365,6 +399,80 @@ export default function OriginatorDocuments() {
                   </CardContent>
                 </Card>
               ))
+            )}
+          </TabsContent>
+
+          {/* === Funder Documents Tab === */}
+          <TabsContent value="funders" className="mt-4 space-y-4">
+            <div className="flex justify-between items-center bg-muted/30 p-4 rounded-lg border border-dashed">
+                <div className="flex gap-2 items-center text-primary">
+                    <ShieldCheck className="h-5 w-5" />
+                    <div>
+                        <h3 className="text-sm font-bold">Funder KYC Audit Desk</h3>
+                        <p className="text-[10px] text-muted-foreground">Verify institutional credentials of connecting Lenders.</p>
+                    </div>
+                </div>
+                <Select value={selectedFunder} onValueChange={setSelectedFunder}>
+                    <SelectTrigger className="w-[300px] h-9"><SelectValue placeholder="Filter by Funder" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Participating Funders</SelectItem>
+                        {funders.map((f: any) => (<SelectItem key={f.user_id} value={f.user_id}>{f.full_name || f.email}</SelectItem>))}
+                    </SelectContent>
+                </Select>
+            </div>
+
+            {fundersLoading ? (
+               <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            ) : (
+                funders.filter((f: any) => selectedFunder === "all" || !selectedFunder || f.user_id === selectedFunder).map((f: any) => (
+                    <Card key={f.user_id} className="overflow-hidden border-l-4 border-l-primary/50">
+                        <CardHeader className="py-4 bg-muted/20">
+                            <CardTitle className="text-sm flex items-center justify-between">
+                                <span className="flex items-center gap-2"><Users className="h-4 w-4 text-primary" /> {f.full_name || f.email}</span>
+                                <Badge variant="outline" className="text-[10px] uppercase font-bold">{f.documents.length} KYC Packets</Badge>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <Table>
+                                <TableHeader className="bg-muted/10">
+                                    <TableRow>
+                                        <TableHead className="text-[10px] py-1">Doc Type</TableHead>
+                                        <TableHead className="text-[10px] py-1">Filename</TableHead>
+                                        <TableHead className="text-[10px] py-1">Status</TableHead>
+                                        <TableHead className="text-right text-[10px] py-1">Decision</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {f.documents.length === 0 ? (
+                                        <TableRow><TableCell colSpan={4} className="text-xs text-center py-6 text-muted-foreground">No KYC documents submitted yet.</TableCell></TableRow>
+                                    ) : (
+                                        f.documents.map((doc: any) => (
+                                            <TableRow key={doc.id}>
+                                                <TableCell className="text-xs font-semibold py-3">{doc.kyc_type.replace(/_/g, ' ')}</TableCell>
+                                                <TableCell><button className="text-xs text-primary underline" onClick={() => window.open(doc.file_path, '_blank')}>{doc.file_name || 'View File'}</button></TableCell>
+                                                <TableCell>
+                                                    <Badge className="text-[10px] capitalize" variant={doc.kyc_status === 'approved' ? 'default' : doc.kyc_status === 'rejected' ? 'destructive' : 'secondary'}>
+                                                        {doc.kyc_status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex justify-end gap-1">
+                                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:text-green-700" onClick={() => handleFunderDocReview(doc.id, 'approved')}>
+                                                            <CheckCircle2 className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleFunderDocReview(doc.id, 'rejected')}>
+                                                            <XCircle className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                ))
             )}
           </TabsContent>
 
