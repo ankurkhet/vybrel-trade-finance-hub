@@ -1532,9 +1532,13 @@ export type Database = {
       funder_relationships: {
         Row: {
           agreement_status: string
+          base_rate_type: string | null
           created_at: string
           funder_user_id: string
           id: string
+          margin_payable_finance: number | null
+          margin_receivable_purchase: number | null
+          margin_reverse_factoring: number | null
           master_base_rate_type: string | null
           master_base_rate_value: number | null
           master_margin_pct: number | null
@@ -1543,9 +1547,13 @@ export type Database = {
         }
         Insert: {
           agreement_status?: string
+          base_rate_type?: string | null
           created_at?: string
           funder_user_id: string
           id?: string
+          margin_payable_finance?: number | null
+          margin_receivable_purchase?: number | null
+          margin_reverse_factoring?: number | null
           master_base_rate_type?: string | null
           master_base_rate_value?: number | null
           master_margin_pct?: number | null
@@ -1554,9 +1562,13 @@ export type Database = {
         }
         Update: {
           agreement_status?: string
+          base_rate_type?: string | null
           created_at?: string
           funder_user_id?: string
           id?: string
+          margin_payable_finance?: number | null
+          margin_receivable_purchase?: number | null
+          margin_reverse_factoring?: number | null
           master_base_rate_type?: string | null
           master_base_rate_value?: number | null
           master_margin_pct?: number | null
@@ -2361,6 +2373,33 @@ export type Database = {
           },
         ]
       }
+      reference_rates: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_updated: string | null
+          rate_name: string
+          rate_value: number
+          source: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_updated?: string | null
+          rate_name: string
+          rate_value: number
+          source?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_updated?: string | null
+          rate_name?: string
+          rate_value?: number
+          source?: string | null
+        }
+        Relationships: []
+      }
       registry_api_configs: {
         Row: {
           api_base_url: string
@@ -2947,6 +2986,7 @@ export type Database = {
         | "accepted"
         | "rejected"
         | "accepted_via_document"
+        | "pending_document_review"
       ai_analysis_status: "pending" | "processing" | "completed" | "failed"
       ai_analysis_type:
         | "document_analysis"
@@ -3138,6 +3178,7 @@ export const Constants = {
         "accepted",
         "rejected",
         "accepted_via_document",
+        "pending_document_review",
       ],
       ai_analysis_status: ["pending", "processing", "completed", "failed"],
       ai_analysis_type: [
