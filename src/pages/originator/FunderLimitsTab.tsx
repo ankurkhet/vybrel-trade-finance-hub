@@ -14,39 +14,62 @@ import { Badge } from "@/components/ui/badge";
 export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: string, organizationId: string }) {
   const [limits, setLimits] = useState<any[]>([]);
   const [funders, setFunders] = useState<any[]>([]);
+  const [counterparties, setCounterparties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [msaTerms, setMsaTerms] = useState<any>(null);
   
   const [referDialog, setReferDialog] = useState(false);
   const [formData, setFormData] = useState({
     funder_user_id: "",
-    counterparty_name: "", // optional
+    counterparty_id: "",
     limit_amount: "",
     currency: "GBP",
     base_rate_type: "Fixed Rate",
     base_rate_value: "",
-    margin_pct: ""
+    margin_pct: "",
+    overall_limit: "",
+    limit_receivables_purchase: "",
+    limit_reverse_factoring: "",
+    limit_payable_finance: "",
+    scope: "specific_counterparty",
   });
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchFunders();
     fetchLimits();
+    fetchCounterparties();
   }, [borrowerId]);
 
+  const fetchCounterparties = async () => {
+    const { data } = await supabase
+      .from("borrower_counterparties")
+      .select("counterparty_id, counterparties(id, company_name)")
+      .eq("borrower_id", borrowerId)
+      .eq("organization_id", organizationId);
+    if (data) {
+      setCounterparties(data.map((bc: any) => bc.counterparties).filter(Boolean));
+    }
+  };
+
   const fetchFunders = async () => {
-    // Fetch funder user_ids from user_roles (consistent with GAP-13 fix)
-    const { data: roleRecords } = await supabase
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "funder");
-    const funderIds = (roleRecords || []).map((r: any) => r.user_id);
+    // Fix cross-tenant: query funder_relationships for THIS org, then get profiles
+    const { data: rels } = await supabase
+      .from("funder_relationships")
+      .select("funder_user_id")
+      .eq("organization_id", organizationId)
+      .eq("agreement_status", "active");
+    const funderIds = (rels || []).map((r: any) => r.funder_user_id);
+
+    if (funderIds.length === 0) {
+      setFunders([]);
+      return;
+    }
 
     const { data } = await supabase
       .from("profiles")
-      .select("user_id, full_name, role")
-      .eq("organization_id", organizationId)
-      .in("user_id", funderIds.length ? funderIds : ["00000000-0000-0000-0000-000000000000"]);
+      .select("user_id, full_name")
+      .in("user_id", funderIds);
     if (data) setFunders(data);
   };
 
@@ -69,6 +92,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
       .select('*')
       .eq('organization_id', organizationId)
       .eq('funder_user_id', funderId)
+      .eq('agreement_status', 'active')
       .order('created_at', { ascending: false })
       .limit(1);
       
@@ -87,18 +111,41 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      funder_user_id: "", counterparty_id: "", limit_amount: "", currency: "GBP",
+      base_rate_type: "Fixed Rate", base_rate_value: "", margin_pct: "",
+      overall_limit: "", limit_receivables_purchase: "", limit_reverse_factoring: "",
+      limit_payable_finance: "", scope: "specific_counterparty",
+    });
+    setMsaTerms(null);
+  };
+
   const handleRefer = async () => {
-    if (!formData.funder_user_id || !formData.limit_amount) {
-      toast.error("Funder and Requested Limit Amount are required");
+    if (!formData.funder_user_id) {
+      toast.error("Please select a Funder");
+      return;
+    }
+    if (!formData.overall_limit && !formData.limit_receivables_purchase && !formData.limit_reverse_factoring && !formData.limit_payable_finance) {
+      toast.error("Please specify at least one limit amount (overall or per-product)");
       return;
     }
     setSubmitting(true);
-    const payload = {
+
+    const selectedCp = counterparties.find(c => c.id === formData.counterparty_id);
+
+    const payload: any = {
       organization_id: organizationId,
       borrower_id: borrowerId,
       funder_user_id: formData.funder_user_id,
-      counterparty_name: formData.counterparty_name || null,
-      limit_amount: parseFloat(formData.limit_amount),
+      counterparty_id: formData.counterparty_id || null,
+      counterparty_name: selectedCp?.company_name || null,
+      limit_amount: parseFloat(formData.overall_limit || "0"),
+      overall_limit: formData.overall_limit ? parseFloat(formData.overall_limit) : null,
+      limit_receivables_purchase: formData.limit_receivables_purchase ? parseFloat(formData.limit_receivables_purchase) : null,
+      limit_reverse_factoring: formData.limit_reverse_factoring ? parseFloat(formData.limit_reverse_factoring) : null,
+      limit_payable_finance: formData.limit_payable_finance ? parseFloat(formData.limit_payable_finance) : null,
+      scope: formData.counterparty_id ? "specific_counterparty" : "all_counterparties",
       currency: formData.currency,
       base_rate_type: formData.base_rate_type,
       base_rate_value: parseFloat(formData.base_rate_value || "0"),
@@ -112,10 +159,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
     } else {
       toast.success("Limit Request referred to Funder");
       setReferDialog(false);
-      setFormData({
-        funder_user_id: "", counterparty_name: "", limit_amount: "", currency: "GBP",
-        base_rate_type: "Fixed Rate", base_rate_value: "", margin_pct: ""
-      });
+      resetForm();
       fetchLimits();
     }
     setSubmitting(false);
@@ -128,9 +172,9 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
       <CardHeader className="flex flex-row items-center justify-between py-4">
         <div>
           <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Funder Limit Allocations</CardTitle>
-          <CardDescription>Manage referred credit limits spanning this Borrower and their Counterparties</CardDescription>
+          <CardDescription>Manage referred credit limits. You can refer the same deal to multiple funders.</CardDescription>
         </div>
-        <Button size="sm" onClick={() => setReferDialog(true)}><Plus className="h-4 w-4 mr-2" /> Request Funder Limit</Button>
+        <Button size="sm" onClick={() => { resetForm(); setReferDialog(true); }}><Plus className="h-4 w-4 mr-2" /> Request Funder Limit</Button>
       </CardHeader>
       <CardContent>
         {limits.length === 0 ? (
@@ -143,8 +187,11 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
               <TableRow>
                 <TableHead>Funder</TableHead>
                 <TableHead>Limit Scope</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Requested Index Rate</TableHead>
+                <TableHead>Overall</TableHead>
+                <TableHead>Recv. Purchase</TableHead>
+                <TableHead>Rev. Factoring</TableHead>
+                <TableHead>Pay. Finance</TableHead>
+                <TableHead>Index Rate</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -159,12 +206,15 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
                       </span>
                     ) : (
                       <span className="text-purple-600 bg-purple-50 px-2 py-1 rounded-md border border-purple-100 text-xs font-semibold">
-                        Global Borrower Limit
+                        All Counterparties
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="font-mono">{l.currency} {Number(l.limit_amount).toLocaleString()}</TableCell>
-                  <TableCell>{l.base_rate_type} + {l.margin_pct}% Mgn</TableCell>
+                  <TableCell className="font-mono text-xs">{l.overall_limit ? `${l.currency} ${Number(l.overall_limit).toLocaleString()}` : "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">{l.limit_receivables_purchase ? `${l.currency} ${Number(l.limit_receivables_purchase).toLocaleString()}` : "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">{l.limit_reverse_factoring ? `${l.currency} ${Number(l.limit_reverse_factoring).toLocaleString()}` : "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">{l.limit_payable_finance ? `${l.currency} ${Number(l.limit_payable_finance).toLocaleString()}` : "—"}</TableCell>
+                  <TableCell className="text-xs">{l.base_rate_type} + {l.margin_pct}%</TableCell>
                   <TableCell>
                     <Badge variant={l.status === 'pending' ? "secondary" : l.status === 'approved' ? "outline" : "destructive"}>
                       {l.status}
@@ -178,11 +228,11 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
       </CardContent>
 
       <Dialog open={referDialog} onOpenChange={setReferDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Refer Limit to Funder</DialogTitle>
             <DialogDescription>
-              Submit a requested exposure profile to a Funder for assessment. Internal Originator margins are kept completely hidden.
+              Submit a requested exposure profile. You may refer the same borrower to multiple funders. Internal originator margins are hidden.
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-4">
@@ -191,27 +241,47 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
               <Select value={formData.funder_user_id} onValueChange={handleFunderSelect}>
                 <SelectTrigger><SelectValue placeholder="Choose funder..." /></SelectTrigger>
                 <SelectContent>
-                  {funders.length === 0 && <SelectItem value="none" disabled>No active funders</SelectItem>}
+                  {funders.length === 0 && <SelectItem value="none" disabled>No active funders with MSA</SelectItem>}
                   {funders.map(f => <SelectItem key={f.user_id} value={f.user_id}>{f.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Counterparty Restraint (Optional)</Label>
-              <Input 
-                placeholder="Leave blank for Global Borrower Limit" 
-                value={formData.counterparty_name} 
-                onChange={(e) => setFormData(f => ({...f, counterparty_name: e.target.value}))} 
-              />
+              <Label>Counterparty (Optional)</Label>
+              <Select value={formData.counterparty_id} onValueChange={(v) => setFormData(f => ({...f, counterparty_id: v === "all" ? "" : v}))}>
+                <SelectTrigger><SelectValue placeholder="All Counterparties (Global)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Counterparties (Global)</SelectItem>
+                  {counterparties.map(cp => <SelectItem key={cp.id} value={cp.id}>{cp.company_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="col-span-2 border-t pt-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-3">REQUESTED LIMITS (specify overall and/or per-product)</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Overall Limit ({formData.currency})</Label>
+              <Input type="number" placeholder="0" value={formData.overall_limit} onChange={(e) => setFormData(f => ({...f, overall_limit: e.target.value}))} />
             </div>
             <div className="space-y-2">
-              <Label>Requested Limit Amount *</Label>
-              <Input 
-                type="number" 
-                value={formData.limit_amount} 
-                onChange={(e) => setFormData(f => ({...f, limit_amount: e.target.value}))} 
-              />
+              <Label>Receivables Purchase ({formData.currency})</Label>
+              <Input type="number" placeholder="0" value={formData.limit_receivables_purchase} onChange={(e) => setFormData(f => ({...f, limit_receivables_purchase: e.target.value}))} />
             </div>
+            <div className="space-y-2">
+              <Label>Reverse Factoring ({formData.currency})</Label>
+              <Input type="number" placeholder="0" value={formData.limit_reverse_factoring} onChange={(e) => setFormData(f => ({...f, limit_reverse_factoring: e.target.value}))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Payable Finance ({formData.currency})</Label>
+              <Input type="number" placeholder="0" value={formData.limit_payable_finance} onChange={(e) => setFormData(f => ({...f, limit_payable_finance: e.target.value}))} />
+            </div>
+
+            <div className="col-span-2 border-t pt-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-3">INDEXING RATES (from MSA)</p>
+            </div>
+
             <div className="space-y-2">
               <Label className="flex items-center gap-2">Base Rate Type {msaTerms && <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 ml-2">MSA Default</Badge>}</Label>
               <Select value={formData.base_rate_type} onValueChange={(val) => setFormData(f => ({...f, base_rate_type: val}))}>
@@ -226,19 +296,11 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-2">Base Rate Value (%) {msaTerms && <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 ml-2">MSA Default</Badge>}</Label>
-              <Input 
-                type="number" step="0.01" 
-                value={formData.base_rate_value} 
-                onChange={(e) => setFormData(f => ({...f, base_rate_value: e.target.value}))} 
-              />
+              <Input type="number" step="0.01" value={formData.base_rate_value} onChange={(e) => setFormData(f => ({...f, base_rate_value: e.target.value}))} />
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-2">Funder Margin (%) {msaTerms && <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 ml-2">MSA Default</Badge>}</Label>
-              <Input 
-                type="number" step="0.01" 
-                value={formData.margin_pct} 
-                onChange={(e) => setFormData(f => ({...f, margin_pct: e.target.value}))} 
-              />
+              <Input type="number" step="0.01" value={formData.margin_pct} onChange={(e) => setFormData(f => ({...f, margin_pct: e.target.value}))} />
             </div>
           </div>
           <DialogFooter>

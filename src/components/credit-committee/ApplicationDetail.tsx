@@ -79,6 +79,10 @@ export function ApplicationDetail({ applicationId }: Props) {
 
   const [voteChoice, setVoteChoice] = useState("");
   const [voteNotes, setVoteNotes] = useState("");
+  const [voteOverallLimit, setVoteOverallLimit] = useState("");
+  const [voteLimitRP, setVoteLimitRP] = useState("");
+  const [voteLimitRF, setVoteLimitRF] = useState("");
+  const [voteLimitPF, setVoteLimitPF] = useState("");
   const [infoQuestion, setInfoQuestion] = useState("");
   const [infoAnswer, setInfoAnswer] = useState("");
   const [infoDialogOpen, setInfoDialogOpen] = useState(false);
