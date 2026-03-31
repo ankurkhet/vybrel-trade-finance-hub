@@ -66,7 +66,7 @@ export default function LenderManagement() {
         .in('user_id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
       if (pError) throw pError;
 
-      const { data: rels, error: rError } = await supabase
+      const { data: rels, error: rError } = await (supabase as any)
         .from('funder_relationships')
         .select('*')
         .eq('organization_id', orgId)
