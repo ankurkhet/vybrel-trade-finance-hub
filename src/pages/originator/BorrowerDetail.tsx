@@ -1085,6 +1085,15 @@ export default function BorrowerDetail() {
           mimeType={preview.mimeType}
         />
       )}
+
+      <KycApprovalDialog
+        open={kycDialog}
+        onOpenChange={setKycDialog}
+        borrower={borrower}
+        documents={documents}
+        profile={profile}
+        onComplete={loadAll}
+      />
     </DashboardLayout>
   );
 }
