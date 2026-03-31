@@ -243,6 +243,10 @@ export function ApplicationDetail({ applicationId }: Props) {
       toast.success("Vote recorded");
       setVoteChoice("");
       setVoteNotes("");
+      setVoteOverallLimit("");
+      setVoteLimitRP("");
+      setVoteLimitRF("");
+      setVoteLimitPF("");
       queryClient.invalidateQueries({ queryKey: ["cc-minutes", applicationId] });
       queryClient.invalidateQueries({ queryKey: ["cc-application", applicationId] });
     },
