@@ -378,8 +378,12 @@ export default function BorrowerDetail() {
                 <Badge variant={statusColor(borrower.onboarding_status) as any} className="capitalize text-xs">
                   {borrower.onboarding_status.replace(/_/g, " ")}
                 </Badge>
-                <Badge variant={borrower.kyc_completed ? "default" : "outline"} className="text-xs">
-                  KYC: {borrower.kyc_completed ? "Complete" : "Pending"}
+                <Badge
+                  variant={borrower.kyc_completed ? "default" : "outline"}
+                  className="text-xs cursor-pointer hover:opacity-80"
+                  onClick={() => setKycDialog(true)}
+                >
+                  KYC: {borrower.kyc_completed ? "Complete ✓" : "Pending — Review"}
                 </Badge>
                 {borrower.country && (
                   <span className="text-xs text-muted-foreground">
