@@ -60,11 +60,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     ? profile.full_name.split(" ").map((n: string) => n[0]).join("").toUpperCase()
     : "U";
 
-  const navItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", show: true },
+  type NavItem = { icon: any; label: string; path: string; show: boolean; section?: string };
+
+  const navItems: NavItem[] = [
+    // Common top
+    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", show: true, section: "Main" },
     { icon: MessageSquare, label: "Messages", path: "/messages", show: true },
     // Admin
-    { icon: Building2, label: "Originators", path: "/admin/organizations", show: isAdmin },
+    { icon: Building2, label: "Originators", path: "/admin/organizations", show: isAdmin, section: "Platform Admin" },
     { icon: Users, label: "All Users", path: "/admin/users", show: isAdmin },
     { icon: BarChart3, label: "Platform Reports", path: "/admin/reports", show: isAdmin },
     { icon: Package, label: "Products", path: "/admin/products", show: isAdmin },
@@ -72,32 +75,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Workflow, label: "Workflow Studio", path: "/admin/workflow-studio", show: isAdmin },
     { icon: Globe, label: "Registry APIs", path: "/admin/registry-apis", show: isAdmin },
     // Originator
-    { icon: Users, label: "Borrowers", path: "/originator/borrowers", show: isOriginatorAdmin },
-    { icon: FileText, label: "Contracts", path: "/originator/contracts", show: isOriginatorAdmin },
-    { icon: CreditCard, label: "Invoices", path: "/originator/invoices", show: isOriginatorAdmin },
+    { icon: Users, label: "Borrowers", path: "/originator/borrowers", show: isOriginatorAdmin || (isAccountManager && !isOriginatorAdmin), section: "Originator" },
+    { icon: FileText, label: "Contracts", path: "/originator/contracts", show: isOriginatorAdmin || (isAccountManager && !isOriginatorAdmin) },
+    { icon: CreditCard, label: "Invoices", path: "/originator/invoices", show: isOriginatorAdmin || (isAccountManager && !isOriginatorAdmin) },
     { icon: Brain, label: "AI Insights", path: "/originator/ai-insights", show: isOriginatorAdmin },
-    { icon: Upload, label: "KYC/KYB Docs", path: "/originator/documents", show: isOriginatorAdmin },
+    { icon: Upload, label: "KYC/KYB Docs", path: "/originator/documents", show: isOriginatorAdmin || (isAccountManager && !isOriginatorAdmin) },
     { icon: FileCheck, label: "Templates", path: "/originator/document-templates", show: isOriginatorAdmin },
     { icon: Receipt, label: "Collections", path: "/originator/collections", show: isOriginatorAdmin || isOperationsManager },
     { icon: ArrowDownUp, label: "Fee Config", path: "/originator/fee-config", show: isOriginatorAdmin },
     { icon: Users, label: "Counterparties", path: "/originator/counterparties", show: isOriginatorAdmin },
     { icon: UserPlus, label: "Invite Users", path: "/originator/invite", show: isOriginatorAdmin },
     { icon: BarChart3, label: "Reports", path: "/originator/reports", show: isOriginatorAdmin },
-    { icon: Palette, label: "Branding", path: "/originator/branding", show: isOriginatorAdmin },
-    { icon: Palette, label: "Branding Profiles", path: "/originator/branding-profiles", show: isOriginatorAdmin },
+    { icon: Palette, label: "Branding", path: "/originator/branding-profiles", show: isOriginatorAdmin },
     { icon: FileText, label: "Credit Memos", path: "/originator/credit-memos", show: isOriginatorAdmin },
     { icon: Gavel, label: "Credit Committee", path: "/originator/credit-committee", show: isOriginatorAdmin },
-    { icon: Gavel, label: "Committee Config", path: "/originator/credit-committee/config", show: isOriginatorAdmin },
     { icon: Banknote, label: "Disbursements", path: "/originator/disbursements", show: isOriginatorAdmin || isOperationsManager },
     { icon: ArrowDownUp, label: "Repayments", path: "/originator/repayments", show: isOriginatorAdmin || isOperationsManager },
     { icon: Handshake, label: "Lender Management", path: "/originator/lender-management", show: isOriginatorAdmin },
-    // Account Manager
-    { icon: Users, label: "Borrowers", path: "/originator/borrowers", show: isAccountManager && !isOriginatorAdmin },
-    { icon: FileText, label: "Contracts", path: "/originator/contracts", show: isAccountManager && !isOriginatorAdmin },
-    { icon: CreditCard, label: "Invoices", path: "/originator/invoices", show: isAccountManager && !isOriginatorAdmin },
-    { icon: Upload, label: "KYC/KYB Docs", path: "/originator/documents", show: isAccountManager && !isOriginatorAdmin },
     // Broker
-    { icon: Users, label: "Borrowers", path: "/broker/borrowers", show: isBroker },
+    { icon: Users, label: "Borrowers", path: "/broker/borrowers", show: isBroker, section: "Broker" },
     { icon: FileText, label: "Contracts", path: "/broker/contracts", show: isBroker },
     { icon: CreditCard, label: "Invoices", path: "/broker/invoices", show: isBroker },
     { icon: Receipt, label: "Collections", path: "/broker/collections", show: isBroker },
@@ -106,22 +102,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: BarChart3, label: "Reports", path: "/broker/reports", show: isBroker },
     { icon: Palette, label: "Branding", path: "/broker/branding", show: isBroker },
     // Borrower
-    { icon: Building2, label: "My Profile", path: "/borrower/profile", show: isBorrower },
+    { icon: Building2, label: "My Profile", path: "/borrower/profile", show: isBorrower, section: "Borrower" },
     { icon: FileCheck, label: "Onboarding", path: "/borrower/onboarding", show: isBorrower },
     { icon: Upload, label: "My Documents", path: "/borrower/documents", show: isBorrower },
     { icon: CreditCard, label: "My Invoices", path: "/borrower/invoices", show: isBorrower },
+    { icon: FileCheck, label: "Verify Invoices", path: "/counterparty/dashboard", show: isBorrower },
     { icon: Receipt, label: "Settlements", path: "/borrower/settlements", show: isBorrower },
     { icon: BarChart3, label: "My Reports", path: "/borrower/reports", show: isBorrower },
     // Funder
-    { icon: Shield, label: "Onboarding & KYC", path: "/funder/onboarding", show: isFunder },
+    { icon: Shield, label: "Onboarding & KYC", path: "/funder/onboarding", show: isFunder, section: "Funder" },
     { icon: Banknote, label: "Marketplace", path: "/funder/marketplace", show: isFunder },
     { icon: Wallet, label: "Portfolio", path: "/funder/portfolio", show: isFunder },
     { icon: Receipt, label: "Settlements", path: "/funder/settlements", show: isFunder },
     { icon: BarChart3, label: "Reports", path: "/funder/reports", show: isFunder },
-    // Counterparty — visible to non-admin, non-originator users
-    { icon: FileCheck, label: "Verify Invoices", path: "/counterparty/dashboard", show: !isAdmin && !isOriginatorAdmin && !isBroker },
+    // Counterparty (non-borrower counterparties who have accounts)
+    { icon: FileCheck, label: "Verify Invoices", path: "/counterparty/dashboard", show: !isAdmin && !isOriginatorAdmin && !isBroker && !isBorrower && !isFunder, section: "Counterparty" },
     // Common
-    { icon: HelpCircle, label: "Help Center", path: "/help", show: true },
+    { icon: HelpCircle, label: "Help Center", path: "/help", show: true, section: "Common" },
     { icon: Settings, label: "Settings", path: "/settings", show: true },
   ].filter((item) => item.show);
 
@@ -139,23 +136,32 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <span className="text-lg font-semibold tracking-tight">Vybrel</span>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={() => setSidebarOpen(false)}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                location.pathname === item.path
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          ))}
+        <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
+          {navItems.map((item, idx) => {
+            const showSection = item.section && (idx === 0 || navItems[idx - 1]?.section !== item.section);
+            return (
+              <div key={item.path}>
+                {showSection && idx > 0 && (
+                  <div className="pt-4 pb-1 px-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">{item.section}</p>
+                  </div>
+                )}
+                <Link
+                  to={item.path}
+                  onClick={() => setSidebarOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                    location.pathname === item.path
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              </div>
+            );
+          })}
         </nav>
 
         <div className="border-t border-sidebar-border p-3">

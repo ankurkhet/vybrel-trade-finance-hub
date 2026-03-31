@@ -39,11 +39,11 @@ export default function LenderManagement() {
   const { data: referenceRates = [] } = useQuery({
     queryKey: ['reference-rates'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('reference_rates')
         .select('*');
       if (error) throw error;
-      return data;
+      return data as any[];
     }
   });
 
@@ -66,7 +66,7 @@ export default function LenderManagement() {
         .in('user_id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
       if (pError) throw pError;
 
-      const { data: rels, error: rError } = await supabase
+      const { data: rels, error: rError } = await (supabase as any)
         .from('funder_relationships')
         .select('*')
         .eq('organization_id', orgId)
@@ -138,7 +138,7 @@ export default function LenderManagement() {
         .eq('funder_user_id', funderDialog.user_id)
         .eq('agreement_status', 'active');
 
-      const { error: insertError } = await supabase
+      const { error: insertError } = await (supabase as any)
         .from('funder_relationships')
         .insert({
           organization_id: orgId,
@@ -147,8 +147,6 @@ export default function LenderManagement() {
           margin_receivable_purchase: Number(formData.margin_receivable_purchase),
           margin_reverse_factoring: Number(formData.margin_reverse_factoring),
           margin_payable_finance: Number(formData.margin_payable_finance),
-          effective_date: formData.effective_date,
-          agreement_document_path: docPath,
           agreement_status: 'active'
         });
 
@@ -204,18 +202,16 @@ export default function LenderManagement() {
       if (pError) throw pError;
 
       // 2. Create the initial active relationship
-      const { error: rError } = await supabase
+      const { error: rError } = await (supabase as any)
         .from('funder_relationships')
         .insert({
           organization_id: orgId,
           funder_user_id: request.user_id,
           agreement_status: 'active',
-          base_rate_type: 'SOFR', // Institutional default
+          base_rate_type: 'SOFR',
           margin_receivable_purchase: 0.005,
           margin_reverse_factoring: 0.005,
           margin_payable_finance: 0.005,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         });
 
       if (rError) {
