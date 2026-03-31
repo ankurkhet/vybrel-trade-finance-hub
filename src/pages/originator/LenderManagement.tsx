@@ -202,18 +202,16 @@ export default function LenderManagement() {
       if (pError) throw pError;
 
       // 2. Create the initial active relationship
-      const { error: rError } = await supabase
+      const { error: rError } = await (supabase as any)
         .from('funder_relationships')
         .insert({
           organization_id: orgId,
           funder_user_id: request.user_id,
           agreement_status: 'active',
-          base_rate_type: 'SOFR', // Institutional default
+          base_rate_type: 'SOFR',
           margin_receivable_purchase: 0.005,
           margin_reverse_factoring: 0.005,
           margin_payable_finance: 0.005,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         });
 
       if (rError) {
