@@ -164,7 +164,19 @@ export function ApplicationDetail({ applicationId }: Props) {
 
   const submitVoteMutation = useMutation({
     mutationFn: async () => {
-      const newVote = { user_id: user!.id, vote: voteChoice, notes: voteNotes, voted_at: new Date().toISOString() };
+      const productLimits: any = {};
+      if (voteLimitRP) productLimits.receivables_purchase = parseFloat(voteLimitRP);
+      if (voteLimitRF) productLimits.reverse_factoring = parseFloat(voteLimitRF);
+      if (voteLimitPF) productLimits.payable_finance = parseFloat(voteLimitPF);
+
+      const newVote: any = {
+        user_id: user!.id,
+        vote: voteChoice,
+        notes: voteNotes,
+        voted_at: new Date().toISOString(),
+        overall_limit: voteOverallLimit ? parseFloat(voteOverallLimit) : null,
+        product_limits: Object.keys(productLimits).length > 0 ? productLimits : null,
+      };
       const updatedVotes = [...votes.filter((v: any) => v.user_id !== user!.id), newVote];
 
       if (minutes) {
