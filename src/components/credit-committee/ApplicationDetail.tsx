@@ -565,6 +565,21 @@ export function ApplicationDetail({ applicationId }: Props) {
               </Button>
             )}
 
+            {application.status === "approved" && isOriginatorAdmin && application.borrower_id && (
+              <>
+                <Button className="w-full" onClick={() => setReferFunderOpen(true)}>
+                  <ShieldCheck className="mr-1 h-4 w-4" /> Refer to Funder
+                </Button>
+                <ReferToFunderDialog
+                  open={referFunderOpen}
+                  onOpenChange={setReferFunderOpen}
+                  borrowerId={application.borrower_id}
+                  organizationId={application.organization_id}
+                  approvedMetadata={application.metadata as any}
+                />
+              </>
+            )}
+
             {isCommitteeMember && ["submitted", "under_review", "reopened"].includes(application.status) && (
               <Dialog open={infoDialogOpen} onOpenChange={setInfoDialogOpen}>
                 <DialogTrigger asChild>
