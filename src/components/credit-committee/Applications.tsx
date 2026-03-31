@@ -43,7 +43,7 @@ export function CreditCommitteeApplications() {
       if (!profile?.organization_id) return [];
       let q = supabase
         .from("credit_committee_applications")
-        .select("*")
+        .select("*, borrowers(company_name)")
         .eq("organization_id", profile.organization_id)
         .order("created_at", { ascending: false });
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
@@ -151,6 +151,7 @@ export function CreditCommitteeApplications() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Application #</TableHead>
+                  <TableHead>Borrower</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Debtor</TableHead>
                   <TableHead>Status</TableHead>
@@ -162,6 +163,7 @@ export function CreditCommitteeApplications() {
                 {applications.map((app: any) => (
                   <TableRow key={app.id} className="cursor-pointer" onClick={() => navigate(`/originator/credit-committee/applications/${app.id}`)}>
                     <TableCell className="font-mono text-xs">{app.application_number}</TableCell>
+                    <TableCell className="font-medium">{app.borrowers?.company_name || app.debtor_name || "—"}</TableCell>
                     <TableCell className="capitalize">{(app.type || "").replace("_", " ")}</TableCell>
                     <TableCell>{app.debtor_name || "—"}</TableCell>
                     <TableCell><Badge variant={statusVariant(app.status) as any}>{app.status.replace("_", " ")}</Badge></TableCell>
