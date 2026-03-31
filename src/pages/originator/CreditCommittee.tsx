@@ -4,9 +4,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreditCommitteeDashboard } from "@/components/credit-committee/Dashboard";
 import { CreditCommitteeApplications } from "@/components/credit-committee/Applications";
 import { CreditCommitteeMinutes } from "@/components/credit-committee/Minutes";
+import { CreditCommitteeSettings } from "@/components/credit-committee/Settings";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function CreditCommittee() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const { isOriginatorAdmin } = useAuth();
 
   return (
     <DashboardLayout>
@@ -21,6 +24,7 @@ export default function CreditCommittee() {
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="applications">Applications</TabsTrigger>
             <TabsTrigger value="minutes">Minutes</TabsTrigger>
+            {isOriginatorAdmin && <TabsTrigger value="configuration">Configuration</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="dashboard" className="mt-6">
@@ -34,6 +38,12 @@ export default function CreditCommittee() {
           <TabsContent value="minutes" className="mt-6">
             <CreditCommitteeMinutes />
           </TabsContent>
+
+          {isOriginatorAdmin && (
+            <TabsContent value="configuration" className="mt-6">
+              <CreditCommitteeSettings />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </DashboardLayout>

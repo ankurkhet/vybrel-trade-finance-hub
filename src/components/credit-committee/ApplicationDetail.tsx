@@ -79,6 +79,10 @@ export function ApplicationDetail({ applicationId }: Props) {
 
   const [voteChoice, setVoteChoice] = useState("");
   const [voteNotes, setVoteNotes] = useState("");
+  const [voteOverallLimit, setVoteOverallLimit] = useState("");
+  const [voteLimitRP, setVoteLimitRP] = useState("");
+  const [voteLimitRF, setVoteLimitRF] = useState("");
+  const [voteLimitPF, setVoteLimitPF] = useState("");
   const [infoQuestion, setInfoQuestion] = useState("");
   const [infoAnswer, setInfoAnswer] = useState("");
   const [infoDialogOpen, setInfoDialogOpen] = useState(false);
@@ -160,7 +164,19 @@ export function ApplicationDetail({ applicationId }: Props) {
 
   const submitVoteMutation = useMutation({
     mutationFn: async () => {
-      const newVote = { user_id: user!.id, vote: voteChoice, notes: voteNotes, voted_at: new Date().toISOString() };
+      const productLimits: any = {};
+      if (voteLimitRP) productLimits.receivables_purchase = parseFloat(voteLimitRP);
+      if (voteLimitRF) productLimits.reverse_factoring = parseFloat(voteLimitRF);
+      if (voteLimitPF) productLimits.payable_finance = parseFloat(voteLimitPF);
+
+      const newVote: any = {
+        user_id: user!.id,
+        vote: voteChoice,
+        notes: voteNotes,
+        voted_at: new Date().toISOString(),
+        overall_limit: voteOverallLimit ? parseFloat(voteOverallLimit) : null,
+        product_limits: Object.keys(productLimits).length > 0 ? productLimits : null,
+      };
       const updatedVotes = [...votes.filter((v: any) => v.user_id !== user!.id), newVote];
 
       if (minutes) {
@@ -227,6 +243,10 @@ export function ApplicationDetail({ applicationId }: Props) {
       toast.success("Vote recorded");
       setVoteChoice("");
       setVoteNotes("");
+      setVoteOverallLimit("");
+      setVoteLimitRP("");
+      setVoteLimitRF("");
+      setVoteLimitPF("");
       queryClient.invalidateQueries({ queryKey: ["cc-minutes", applicationId] });
       queryClient.invalidateQueries({ queryKey: ["cc-application", applicationId] });
     },
@@ -401,6 +421,29 @@ export function ApplicationDetail({ applicationId }: Props) {
                   ))}
                 </div>
                 <Textarea placeholder="Notes (optional)" value={voteNotes} onChange={(e) => setVoteNotes(e.target.value)} />
+                
+                <div className="border-t pt-3">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">RECOMMENDED LIMITS (optional — overall and/or per-product)</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Overall Limit</Label>
+                      <Input type="number" placeholder="0" value={voteOverallLimit} onChange={(e) => setVoteOverallLimit(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Receivables Purchase</Label>
+                      <Input type="number" placeholder="0" value={voteLimitRP} onChange={(e) => setVoteLimitRP(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Reverse Factoring</Label>
+                      <Input type="number" placeholder="0" value={voteLimitRF} onChange={(e) => setVoteLimitRF(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Payable Finance</Label>
+                      <Input type="number" placeholder="0" value={voteLimitPF} onChange={(e) => setVoteLimitPF(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+
                 <Button
                   disabled={!voteChoice || submitVoteMutation.isPending}
                   onClick={() => submitVoteMutation.mutate()}
@@ -413,11 +456,19 @@ export function ApplicationDetail({ applicationId }: Props) {
 
           {myVote && (
             <Card>
-              <CardContent className="p-4">
+              <CardContent className="p-4 space-y-1">
                 <p className="text-sm text-muted-foreground">
                   You voted: <span className="font-medium capitalize text-foreground">{myVote.vote.replace(/_/g, " ")}</span>
                   {myVote.notes && ` — "${myVote.notes}"`}
                 </p>
+                {(myVote.overall_limit || myVote.product_limits) && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {myVote.overall_limit && <span className="mr-3">Overall: {Number(myVote.overall_limit).toLocaleString()}</span>}
+                    {myVote.product_limits?.receivables_purchase && <span className="mr-3">RP: {Number(myVote.product_limits.receivables_purchase).toLocaleString()}</span>}
+                    {myVote.product_limits?.reverse_factoring && <span className="mr-3">RF: {Number(myVote.product_limits.reverse_factoring).toLocaleString()}</span>}
+                    {myVote.product_limits?.payable_finance && <span>PF: {Number(myVote.product_limits.payable_finance).toLocaleString()}</span>}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
