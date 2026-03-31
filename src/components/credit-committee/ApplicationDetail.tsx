@@ -11,8 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Send, RotateCcw, MessageSquare } from "lucide-react";
+import { ArrowLeft, Send, RotateCcw, MessageSquare, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { ReferToFunderDialog } from "./ReferToFunderDialog";
 
 interface Props {
   applicationId: string;
@@ -86,6 +87,7 @@ export function ApplicationDetail({ applicationId }: Props) {
   const [infoQuestion, setInfoQuestion] = useState("");
   const [infoAnswer, setInfoAnswer] = useState("");
   const [infoDialogOpen, setInfoDialogOpen] = useState(false);
+  const [referFunderOpen, setReferFunderOpen] = useState(false);
 
   const { data: application, isLoading } = useQuery({
     queryKey: ["cc-application", applicationId],
@@ -561,6 +563,21 @@ export function ApplicationDetail({ applicationId }: Props) {
               <Button variant="outline" className="w-full" onClick={() => reRaiseMutation.mutate()} disabled={reRaiseMutation.isPending}>
                 <RotateCcw className="mr-1 h-4 w-4" /> Re-raise for Review
               </Button>
+            )}
+
+            {application.status === "approved" && isOriginatorAdmin && application.borrower_id && (
+              <>
+                <Button className="w-full" onClick={() => setReferFunderOpen(true)}>
+                  <ShieldCheck className="mr-1 h-4 w-4" /> Refer to Funder
+                </Button>
+                <ReferToFunderDialog
+                  open={referFunderOpen}
+                  onOpenChange={setReferFunderOpen}
+                  borrowerId={application.borrower_id}
+                  organizationId={application.organization_id}
+                  approvedMetadata={application.metadata as any}
+                />
+              </>
             )}
 
             {isCommitteeMember && ["submitted", "under_review", "reopened"].includes(application.status) && (
