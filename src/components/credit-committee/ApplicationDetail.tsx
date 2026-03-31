@@ -87,6 +87,7 @@ export function ApplicationDetail({ applicationId }: Props) {
   const [infoQuestion, setInfoQuestion] = useState("");
   const [infoAnswer, setInfoAnswer] = useState("");
   const [infoDialogOpen, setInfoDialogOpen] = useState(false);
+  const [referFunderOpen, setReferFunderOpen] = useState(false);
 
   const { data: application, isLoading } = useQuery({
     queryKey: ["cc-application", applicationId],
