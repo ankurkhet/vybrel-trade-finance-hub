@@ -43,7 +43,7 @@ export function CreditCommitteeApplications() {
       if (!profile?.organization_id) return [];
       let q = supabase
         .from("credit_committee_applications")
-        .select("*")
+        .select("*, borrowers(company_name)")
         .eq("organization_id", profile.organization_id)
         .order("created_at", { ascending: false });
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
