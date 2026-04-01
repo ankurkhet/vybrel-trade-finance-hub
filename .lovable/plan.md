@@ -1,25 +1,57 @@
 
 
-# Add "Refer to Funder" Button on Approved CC Applications
+# Fix Multi-Tenancy in Funder Referral + Add AI Help Chatbot
 
-## Problem
-After the Credit Committee approves a credit limit, there is no direct action on the CC Application Detail page to refer it to a funder. The originator admin must manually navigate to the Borrower Detail page → Funder Limits tab to do this.
+## Part 1: Multi-Tenancy Fix — Funder Profile Visibility
 
-## Solution
-Add a "Refer to Funder" button on the CC Application Detail page that appears when the application status is **approved** and the user is an originator admin. This button opens an inline referral dialog (reusing the same logic from `FunderLimitsTab`) with limits pre-populated from the CC approval.
+### Problem
+When an originator admin queries funder profiles via `profiles.in("user_id", funderIds)`, RLS blocks the read because funders may belong to a different `organization_id` on their profile. The `funder_relationships` query itself is correctly scoped by `organization_id`, but the subsequent profile lookup leaks or fails across tenants.
 
-## Changes
+### Solution
+Create a `SECURITY DEFINER` database function that safely returns funder names scoped through the `funder_relationships` table, bypassing the profile RLS constraint while maintaining tenant isolation.
 
-### File: `src/components/credit-committee/ApplicationDetail.tsx`
+**Migration:**
+```sql
+CREATE OR REPLACE FUNCTION public.get_org_funder_profiles(_org_id uuid)
+RETURNS TABLE(user_id uuid, full_name text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT DISTINCT p.user_id, p.full_name
+  FROM funder_relationships fr
+  JOIN profiles p ON p.user_id = fr.funder_user_id
+  WHERE fr.organization_id = _org_id
+    AND fr.agreement_status = 'active'
+$$;
+```
 
-1. **Add a "Refer to Funder" button** in the action sidebar, visible when `status === 'approved'` and user is originator admin
-2. **Add an inline referral dialog** with:
-   - Funder selector (fetched from `funder_relationships` for the application's org)
-   - Counterparty selector (optional, from borrower's counterparties)
-   - Per-product limit inputs pre-populated from the CC vote metadata (`approved_limits`)
-   - Read-only MSA rates (base rate + margin) fetched from `funder_relationships`
-3. **On submit**, insert a row into `funder_limits` with borrower_id, counterparty_id, per-product limits, scope, and MSA rates
-4. The dialog can be opened multiple times to refer to different funders
+**Files changed:**
+| File | Change |
+|------|--------|
+| `src/components/credit-committee/ReferToFunderDialog.tsx` | Replace `profiles.in()` with `supabase.rpc("get_org_funder_profiles", { _org_id: organizationId })` |
+| `src/pages/originator/FunderLimitsTab.tsx` | Same RPC fix for funder profile lookup |
 
-No migration needed — uses existing `funder_limits` table structure.
+---
+
+## Part 2: AI Help Chatbot
+
+### Solution
+Create a floating chatbot widget accessible from all pages. It uses the existing `userManualData.ts` and `helpContent.ts` as knowledge base, the user's current roles from `useAuth`, and an edge function calling AI to answer "how to" questions. If the user lacks a role for something, the bot advises contacting their admin.
+
+**New files:**
+| File | Purpose |
+|------|---------|
+| `src/components/help/AIChatbot.tsx` | Floating chatbot UI — toggle button (bottom-right), chat panel with message history, input field |
+| `supabase/functions/help-chatbot/index.ts` | Edge function that receives the user's question + roles, builds a system prompt from the user manual data, and calls the AI gateway to generate a response |
+
+**Modified files:**
+| File | Change |
+|------|---------|
+| `src/App.tsx` | Add `<AIChatbot />` inside the `AuthProvider` so it's available on all authenticated pages |
+
+### Chatbot behavior
+- Floating button with chat icon in bottom-right corner
+- Opens a panel with conversation history (session-only, no DB persistence)
+- System prompt includes: full user manual content, user's current roles, and instructions to advise contacting admin if role is missing
+- Uses markdown rendering for responses
+- Edge function calls Lovable AI (gemini-2.5-flash) with the manual as context
 
