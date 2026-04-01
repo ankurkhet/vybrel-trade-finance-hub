@@ -53,24 +53,9 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
   };
 
   const fetchFunders = async () => {
-    // Fix cross-tenant: query funder_relationships for THIS org, then get profiles
-    const { data: rels } = await supabase
-      .from("funder_relationships")
-      .select("funder_user_id")
-      .eq("organization_id", organizationId)
-      .eq("agreement_status", "active");
-    const funderIds = (rels || []).map((r: any) => r.funder_user_id);
-
-    if (funderIds.length === 0) {
-      setFunders([]);
-      return;
-    }
-
-    const { data } = await supabase
-      .from("profiles")
-      .select("user_id, full_name")
-      .in("user_id", funderIds);
+    const { data } = await supabase.rpc("get_org_funder_profiles", { _org_id: organizationId });
     if (data) setFunders(data);
+    else setFunders([]);
   };
 
   const fetchLimits = async () => {
