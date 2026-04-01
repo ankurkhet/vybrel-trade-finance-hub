@@ -7,6 +7,7 @@ import { SecurityHeaders } from "@/components/security/SecurityHeaders";
 import { BrandingProvider } from "@/components/branding/BrandingProvider";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { AIChatbot } from "@/components/help/AIChatbot";
 
 // Public pages
 import Index from "./pages/Index";
@@ -167,6 +168,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
+          <AIChatbot />
         </AuthProvider>
       </BrandingProvider>
     </TooltipProvider>

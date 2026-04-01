@@ -2991,6 +2991,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_org_funder_profiles: {
+        Args: { _org_id: string }
+        Returns: {
+          full_name: string
+          user_id: string
+        }[]
+      }
       get_user_organization_id: { Args: { _user_id: string }; Returns: string }
       get_user_roles: {
         Args: { _user_id: string }

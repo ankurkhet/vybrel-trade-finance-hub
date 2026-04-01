@@ -55,18 +55,9 @@ export function ReferToFunderDialog({ open, onOpenChange, borrowerId, organizati
   }, [open]);
 
   const fetchFunders = async () => {
-    const { data: rels } = await supabase
-      .from("funder_relationships")
-      .select("funder_user_id")
-      .eq("organization_id", organizationId)
-      .eq("agreement_status", "active");
-    const funderIds = (rels || []).map((r: any) => r.funder_user_id);
-    if (funderIds.length === 0) { setFunders([]); return; }
-    const { data } = await supabase
-      .from("profiles")
-      .select("user_id, full_name")
-      .in("user_id", funderIds);
+    const { data } = await supabase.rpc("get_org_funder_profiles", { _org_id: organizationId });
     if (data) setFunders(data);
+    else setFunders([]);
   };
 
   const fetchCounterparties = async () => {
