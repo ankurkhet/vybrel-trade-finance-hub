@@ -2378,6 +2378,7 @@ export type Database = {
       }
       product_fee_configs: {
         Row: {
+          broker_fee_pct: number | null
           created_at: string
           default_discount_rate: number
           id: string
@@ -2392,6 +2393,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          broker_fee_pct?: number | null
           created_at?: string
           default_discount_rate?: number
           id?: string
@@ -2406,6 +2408,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          broker_fee_pct?: number | null
           created_at?: string
           default_discount_rate?: number
           id?: string
@@ -3070,6 +3073,20 @@ export type Database = {
         Returns: boolean
       }
       accrue_daily_interest: { Args: never; Returns: undefined }
+      check_funder_eligibility: {
+        Args: {
+          _borrower_id: string
+          _funder_user_id: string
+          _invoice_amount: number
+          _organization_id: string
+          _product_type?: string
+        }
+        Returns: {
+          available_limit: number
+          eligible: boolean
+          message: string
+        }[]
+      }
       compute_facility_rate: {
         Args: {
           _funder_base_rate: number
@@ -3077,6 +3094,14 @@ export type Database = {
           _originator_margin: number
         }
         Returns: number
+      }
+      get_borrower_exposure: {
+        Args: { _borrower_id: string; _organization_id: string }
+        Returns: {
+          total_collected: number
+          total_funded: number
+          total_invoices: number
+        }[]
       }
       get_org_funder_profiles: {
         Args: { _org_id: string }
