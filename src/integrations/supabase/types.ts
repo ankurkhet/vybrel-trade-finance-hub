@@ -1204,6 +1204,53 @@ export type Database = {
           },
         ]
       }
+      document_templates: {
+        Row: {
+          content: string | null
+          created_at: string
+          created_by: string | null
+          file_path: string | null
+          id: string
+          is_active: boolean
+          name: string
+          organization_id: string
+          template_type: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          file_path?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          organization_id: string
+          template_type?: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          file_path?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          organization_id?: string
+          template_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           borrower_id: string | null
@@ -1914,6 +1961,7 @@ export type Database = {
             | Database["public"]["Enums"]["acceptance_status"]
             | null
           acceptance_token: string | null
+          accrued_late_fees: number | null
           amount: number
           borrower_id: string
           contract_id: string | null
@@ -1927,6 +1975,7 @@ export type Database = {
           id: string
           invoice_number: string
           issue_date: string
+          last_dunning_date: string | null
           match_details: Json | null
           match_score: number | null
           organization_id: string
@@ -1940,6 +1989,7 @@ export type Database = {
             | Database["public"]["Enums"]["acceptance_status"]
             | null
           acceptance_token?: string | null
+          accrued_late_fees?: number | null
           amount: number
           borrower_id: string
           contract_id?: string | null
@@ -1953,6 +2003,7 @@ export type Database = {
           id?: string
           invoice_number: string
           issue_date: string
+          last_dunning_date?: string | null
           match_details?: Json | null
           match_score?: number | null
           organization_id: string
@@ -1966,6 +2017,7 @@ export type Database = {
             | Database["public"]["Enums"]["acceptance_status"]
             | null
           acceptance_token?: string | null
+          accrued_late_fees?: number | null
           amount?: number
           borrower_id?: string
           contract_id?: string | null
@@ -1979,6 +2031,7 @@ export type Database = {
           id?: string
           invoice_number?: string
           issue_date?: string
+          last_dunning_date?: string | null
           match_details?: Json | null
           match_score?: number | null
           organization_id?: string
@@ -2991,6 +3044,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      accrue_daily_interest: { Args: never; Returns: undefined }
       get_org_funder_profiles: {
         Args: { _org_id: string }
         Returns: {
