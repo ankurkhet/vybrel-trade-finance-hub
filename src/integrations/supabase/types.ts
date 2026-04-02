@@ -1110,6 +1110,7 @@ export type Database = {
           payment_reference: string | null
           retained_amount: number
           status: string
+          status_enum: Database["public"]["Enums"]["disbursement_status"] | null
           total_fee: number | null
           updated_at: string
         }
@@ -1140,6 +1141,9 @@ export type Database = {
           payment_reference?: string | null
           retained_amount: number
           status?: string
+          status_enum?:
+            | Database["public"]["Enums"]["disbursement_status"]
+            | null
           total_fee?: number | null
           updated_at?: string
         }
@@ -1170,6 +1174,9 @@ export type Database = {
           payment_reference?: string | null
           retained_amount?: number
           status?: string
+          status_enum?:
+            | Database["public"]["Enums"]["disbursement_status"]
+            | null
           total_fee?: number | null
           updated_at?: string
         }
@@ -1350,6 +1357,7 @@ export type Database = {
       }
       facility_requests: {
         Row: {
+          advance_rate: number | null
           amount_requested: number | null
           approved_amount: number | null
           approved_at: string | null
@@ -1359,9 +1367,14 @@ export type Database = {
           created_at: string
           currency: string
           facility_type: string
+          final_discounting_rate: number | null
+          funder_base_rate: number | null
+          funder_margin: number | null
           id: string
           metadata: Json | null
           organization_id: string
+          originator_margin: number | null
+          overdue_fee_pct: number | null
           pricing_notes: string | null
           rejection_reason: string | null
           status: string
@@ -1369,6 +1382,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          advance_rate?: number | null
           amount_requested?: number | null
           approved_amount?: number | null
           approved_at?: string | null
@@ -1378,9 +1392,14 @@ export type Database = {
           created_at?: string
           currency?: string
           facility_type: string
+          final_discounting_rate?: number | null
+          funder_base_rate?: number | null
+          funder_margin?: number | null
           id?: string
           metadata?: Json | null
           organization_id: string
+          originator_margin?: number | null
+          overdue_fee_pct?: number | null
           pricing_notes?: string | null
           rejection_reason?: string | null
           status?: string
@@ -1388,6 +1407,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          advance_rate?: number | null
           amount_requested?: number | null
           approved_amount?: number | null
           approved_at?: string | null
@@ -1397,9 +1417,14 @@ export type Database = {
           created_at?: string
           currency?: string
           facility_type?: string
+          final_discounting_rate?: number | null
+          funder_base_rate?: number | null
+          funder_margin?: number | null
           id?: string
           metadata?: Json | null
           organization_id?: string
+          originator_margin?: number | null
+          overdue_fee_pct?: number | null
           pricing_notes?: string | null
           rejection_reason?: string | null
           status?: string
@@ -3045,6 +3070,14 @@ export type Database = {
         Returns: boolean
       }
       accrue_daily_interest: { Args: never; Returns: undefined }
+      compute_facility_rate: {
+        Args: {
+          _funder_base_rate: number
+          _funder_margin: number
+          _originator_margin: number
+        }
+        Returns: number
+      }
       get_org_funder_profiles: {
         Args: { _org_id: string }
         Returns: {
@@ -3096,6 +3129,12 @@ export type Database = {
         | "approved"
         | "rejected"
         | "submitted_to_committee"
+      disbursement_status:
+        | "draft"
+        | "pending_approval"
+        | "approved"
+        | "disbursed"
+        | "cancelled"
       document_type:
         | "kyc"
         | "financial_statement"
@@ -3291,6 +3330,13 @@ export const Constants = {
         "approved",
         "rejected",
         "submitted_to_committee",
+      ],
+      disbursement_status: [
+        "draft",
+        "pending_approval",
+        "approved",
+        "disbursed",
+        "cancelled",
       ],
       document_type: [
         "kyc",
