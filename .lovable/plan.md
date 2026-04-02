@@ -1,179 +1,95 @@
+
+
 # Gap Analysis Verification & Remediation Plan
 
-## Verification Results — What's Accurate vs. Inaccurate
+## Accuracy Assessment
 
-### Module 1: Multi-tenancy & Role Architecture (Claude says 72%)
+I verified every claim against the live database schema and actual migration files. Here's what's accurate and what's not.
 
-| Gap Claimed | Verified? | Notes |
+### Corrections to Claude's Analysis
+
+| Claimed Gap | Verdict | Detail |
 |---|---|---|
-| `funder_limits` RLS uses `profiles.id = auth.uid()` — data leak | **FALSE** | Actual RLS uses `funder_user_id = auth.uid()` — correct pattern, no leak |
-| Duplicate `funder_relationships` table across migrations | **TRUE** | Migration 20260329 uses `CREATE TABLE IF NOT EXISTS`, migration 20260330 uses `CREATE TABLE` — will fail on clean deploy |
-| `document_templates` RLS references `user_roles.organization_id` which doesn't exist | **PARTIALLY TRUE** | The `user_roles` table has no `organization_id` column (only id, user_id, role). However, the `document_templates` table itself doesn't exist in the DB — the migration likely failed silently. So the RLS is broken AND the table is missing |
-| `operations_manager` role has no RLS policies | **TRUE** | Role exists in enum but zero RLS policies reference it |
+| **`funder_limits` RLS uses `profiles.id` instead of `profiles.user_id`** — data leak | **FALSE** | Actual RLS uses `funder_user_id = auth.uid()` directly. No data leak exists. |
+| **Dunning score 58%** | **WORSE — closer to 45%** | `invoices.accrued_late_fees` and `invoices.last_dunning_date` columns do **not exist** in the live schema. The cron function silently fails every night. |
+| **`document_templates` RLS silently fails** | **WORSE** | The entire `document_templates` table does not exist in the live DB — the migration itself failed (likely due to the `user_roles.organization_id` reference). |
+| **`facility_requests` has `final_discounting_rate`** | **FALSE** | This column does not exist. The table has no rate/discount columns at all — only `amount_requested`, `approved_amount`, `tenor_months`, and `metadata`. |
 
-**Revised score: ~78%** — the funder_limits claim was wrong, which removes the "critical" data leak.
+### Confirmed Accurate Gaps
 
----
-
-### Module 2: Borrower Onboarding & KYB (Claude says 82%)
-
-| Gap Claimed | Verified? | Notes |
-|---|---|---|
-| `fetch_market_rates` uses hardcoded rates | **TRUE** | Edge function has hardcoded SOFR=5.31, SONIA=5.20, etc. |
-| Facility approved amounts not propagated to invoice submission | **TRUE** | `facility_requests` has no `final_discounting_rate` or rate columns — only `amount_requested`, `approved_amount`, `tenor` |
-| No enforcement that borrower needs approved facility before invoice | **TRUE** | No DB-level check exists |
-
-**Score accurate at ~82%.**
-
----
-
-### Module 3: Rate Matrix & Pricing (Claude says 55%)
-
-| Gap Claimed | Verified? | Notes |
-|---|---|---|
-| No Postgres function for rate cascade | **TRUE** | No function computes funder base + margin = cost |
-| `facility_requests` has no `final_discounting_rate` column | **TRUE** | Column does not exist. The table has no rate/discount columns at all |
-| Broker fee not modelled | **TRUE** |
-| `overdue_fee_pct` never set during approval | **PARTIALLY TRUE** | Column exists on `facility_requests` per migration but the table currently shows no such column in live schema — likely the column migration also failed or was on a different table |
-
-**Score accurate at ~55%.**
+- Duplicate `funder_relationships` table (20260329 vs 20260330) — **TRUE**, will break clean deploy
+- Duplicate `funder_kyc` table (20260330 two files) — **TRUE**
+- `operations_manager` role has zero RLS policies — **TRUE**
+- `disbursement_memos.status` is free text, no state machine — **TRUE**
+- `generate-settlement` uses `product_fee_configs.default_discount_rate` only — **TRUE**
+- `audit_logs` has no DELETE/UPDATE prevention — **TRUE**
+- No audit triggers on financial tables — **TRUE**
+- No funder limit check during invoice submission — **TRUE**
+- No email provider wired for notifications — **TRUE**
+- pg_cron migration uses `RAISE EXCEPTION` — **TRUE**, blocks migration chain
+- Hardcoded rates in `fetch-market-rates` — **TRUE**
+- No broker fee model — **TRUE**
 
 ---
 
-### Module 4: Invoice Submission & Eligibility (Claude says 60%)
+## Remediation Plan — Ordered by Impact
 
-| Gap Claimed | Verified? | Notes |
-|---|---|---|
-| No funder limit check during invoice submission | **TRUE** |
-| No concentration/exposure check | **TRUE** |
-| Invoice status not an enum | **TRUE** | `status` is free text |
-| Counterparty notification doesn't send email | **TRUE** | No email provider configured |
+### Sprint 1: Critical (Blocks Production)
 
-**Score accurate at ~60%.**
+**1. Fix duplicate table migrations**
+- New migration wrapping `funder_relationships` and `funder_kyc` with `IF NOT EXISTS` guards and reconciling columns
 
----
+**2. Add missing dunning columns to `invoices`**
+- Add `accrued_late_fees NUMERIC DEFAULT 0` and `last_dunning_date DATE` — without these the nightly cron is non-functional
 
-### Module 5: Funder Onboarding & Limits (Claude says 65%)
+**3. Recreate `document_templates` table**
+- Correct RLS to use `get_user_organization_id(auth.uid())` instead of querying non-existent `user_roles.organization_id`
 
-| Gap Claimed | Verified? | Notes |
-|---|---|---|
-| Duplicate `funder_relationships` + `funder_kyc` across migrations | **TRUE** | Both confirmed duplicated |
-| No auto-rate copy from relationship to limits | **TRUE** |
-| No funder_limits check before marketplace bid | **TRUE** |
+**4. Fix pg_cron migration guard**
+- Replace `RAISE EXCEPTION` with `RAISE NOTICE` + graceful skip
 
-**Score accurate at ~65%.**
+### Sprint 2: Financial Accuracy
 
----
+**5. Add rate columns to `facility_requests`**
+- `final_discounting_rate`, `advance_rate`, `overdue_fee_pct`, `funder_base_rate`, `funder_margin`, `originator_margin`
 
-### Module 6: Settlement & Disbursement Engine (Claude says 35%)
+**6. Fix `generate-settlement` edge function**
+- Look up contracted rate via `disbursement_memos` → `facility_requests`, fall back to `product_fee_configs` only when no facility exists
 
-| Gap Claimed | Verified? | Notes |
-|---|---|---|
-| No disbursement state machine | **TRUE** | `status` is free `text`, no transitions enforced |
-| Settlement uses wrong rate | **TRUE** | `generate-settlement` reads `product_fee_configs.default_discount_rate`, never reads any facility-specific rate |
-| No payment initiation | **TRUE** | TrueLayer only does name verification |
-| No reconciliation layer | **TRUE** |
+**7. Add disbursement state machine**
+- Create `disbursement_status` enum (draft → pending_approval → approved → disbursed → cancelled)
+- Validation trigger to enforce transitions + audit log entry on each change
 
-**Score accurate at ~35%. This is the most critical area.**
+### Sprint 3: Operational Controls
 
----
+**8. Funder limit validation on invoice submission**
+- DB function checking borrower/counterparty exposure against `funder_limits`
 
-### Module 7: Audit Trail (Claude says 45%)
+**9. Audit trail hardening**
+- Append-only enforcement on `audit_logs` (deny DELETE/UPDATE)
+- Generic audit trigger on `disbursement_memos`, `repayment_memos`, `settlement_advices`, `collections`
 
-| Gap Claimed | Verified? | Notes |
-|---|---|---|
-| Audit logs not immutable — no DELETE prevention | **TRUE** | No DELETE policy exists but also no explicit deny. Since no SELECT-only restriction, and no triggers prevent deletion, a service role or admin could delete |
-| No triggers on financial tables | **TRUE** |
-| Dunning has no audit entry | **TRUE** |
+**10. `operations_manager` RLS policies**
+- SELECT + limited UPDATE on financial tables (disbursements, collections, settlements)
 
-**Score accurate at ~45%.**
+### Sprint 4: Enhancements
 
----
-
-### Module 8: Workflow Engine (Claude says 78%)
-
-| Gap Claimed | Verified? | Notes |
-|---|---|---|
-| No auto-trigger from table changes | **TRUE** | Workflow engine is call-based only |
-| Email notifications not wired | **TRUE** |
-
-**Score accurate at ~78%.**
+**11.** Broker fee modelling — `broker_fee_pct` in fee config
+**12.** Dunning escalation stages (7/30/60/90 day thresholds with notifications)
+**13.** Invoice status enum conversion
+**14.** Concentration/exposure calculation function
+**15.** Email provider integration for counterparty notifications
 
 ---
 
-### Module 9: Dunning & Collections (Claude says 58%)
+## Effort Summary
 
-| Gap Claimed | Verified? | Notes |
-|---|---|---|
-| pg_cron migration uses RAISE EXCEPTION | **TRUE** | Will abort entire migration if pg_cron not enabled |
-| Dunning references missing columns | **WORSE THAN CLAIMED** | `invoices.accrued_late_fees` and `invoices.last_dunning_date` do NOT exist in the live schema. The dunning function will silently fail on every run |
-| No escalation stages | **TRUE** |
+| Sprint | Migrations | Edge Functions | UI Changes |
+|---|---|---|---|
+| 1 — Critical | 3 | 0 | 0 |
+| 2 — Financial | 2 | 1 (generate-settlement) | 1-2 forms |
+| 3 — Controls | 3 | 0 | 0 |
+| 4 — Enhancements | 3 | 1 | 2-3 pages |
 
-**Revised score: ~45%** — worse than Claude estimated because the dunning function is completely non-functional.
+Recommend executing Sprints 1 and 2 together as the immediate priority.
 
----
-
-## Remediation Plan — Prioritized by Impact
-
-### Priority 1: Critical (Blocks Production)
-
-**1a. Fix duplicate table migrations**
-- Wrap `funder_relationships` (20260330) and `funder_kyc` (20260330) in `CREATE TABLE IF NOT EXISTS` or drop the duplicate definitions
-- Single migration to reconcile
-
-**1b. Add missing dunning columns to `invoices`**
-- Add `accrued_late_fees NUMERIC DEFAULT 0` and `last_dunning_date DATE` to invoices table
-- Without this, the daily cron function errors silently every night
-
-**1c. Fix `document_templates` table + RLS**
-- Recreate table (migration failed) with correct RLS using `get_user_organization_id()` instead of querying `user_roles.organization_id`
-
-**1d. Fix pg_cron migration**
-- Replace `RAISE EXCEPTION` with `RAISE NOTICE` + skip scheduling gracefully
-
-### Priority 2: High (Financial Accuracy)
-
-**2a. Add rate columns to `facility_requests`**
-- Add `final_discounting_rate`, `advance_rate`, `overdue_fee_pct`, `funder_base_rate`, `funder_margin`, `originator_margin` columns
-
-**2b. Fix `generate-settlement` to use facility rate**
-- Modify edge function to look up `facility_requests.final_discounting_rate` via the `disbursement_memos` join, falling back to `product_fee_configs` only if no facility exists
-
-**2c. Add disbursement state machine**
-- Create enum `disbursement_status` with enforced transitions (draft → pending_approval → approved → disbursed → cancelled)
-- Add validation trigger on `disbursement_memos` to enforce transitions
-
-### Priority 3: Medium (Operational Integrity)
-
-**3a. Add funder limit validation on invoice submission**
-- Create a DB function `check_funder_eligibility(invoice_id, funder_user_id)` that validates limits
-
-**3b. Add audit triggers on financial tables**
-- Create a generic audit trigger function and attach to `disbursement_memos`, `repayment_memos`, `settlement_advices`, `collections`
-
-**3c. Make audit_logs append-only**
-- Add explicit DENY policy for DELETE and UPDATE on `audit_logs`
-
-**3d. Add `operations_manager` RLS policies**
-- Add SELECT + limited UPDATE policies on relevant financial tables
-
-### Priority 4: Lower (Enhancement)
-
-**4a. Broker fee modelling** — Add `broker_fee_pct` to fee config
-**4b. Dunning escalation stages** — Add notification triggers at 7/30/60/90 day thresholds
-**4c. Invoice status enum** — Convert free text to proper enum
-**4d. Concentration checks** — Add exposure calculation function
-**4e. Wire email provider** — Configure email sending for counterparty notifications
-
----
-
-## Estimated Effort
-
-| Priority | Items | Migrations | Edge Function Changes | UI Changes |
-|---|---|---|---|---|
-| P1 Critical | 4 | 3 migrations | 0 | 0 |
-| P2 High | 3 | 2 migrations | 1 edge function | 1-2 forms |
-| P3 Medium | 4 | 3 migrations | 0 | 0 |
-| P4 Lower | 5 | 3 migrations | 1 edge function | 2-3 pages |
-
-I recommend tackling P1 and P2 together as a single sprint, then P3, then P4.
