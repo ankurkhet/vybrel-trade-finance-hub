@@ -3121,6 +3121,7 @@ export type Database = {
         | "broker_admin"
         | "credit_committee_member"
         | "account_manager"
+        | "operations_manager"
       collection_status: "received" | "confirmed" | "disputed" | "reversed"
       credit_memo_status:
         | "draft"
@@ -3321,6 +3322,7 @@ export const Constants = {
         "broker_admin",
         "credit_committee_member",
         "account_manager",
+        "operations_manager",
       ],
       collection_status: ["received", "confirmed", "disputed", "reversed"],
       credit_memo_status: [
