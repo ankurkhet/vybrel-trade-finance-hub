@@ -1110,6 +1110,7 @@ export type Database = {
           payment_reference: string | null
           retained_amount: number
           status: string
+          status_enum: Database["public"]["Enums"]["disbursement_status"] | null
           total_fee: number | null
           updated_at: string
         }
@@ -1140,6 +1141,9 @@ export type Database = {
           payment_reference?: string | null
           retained_amount: number
           status?: string
+          status_enum?:
+            | Database["public"]["Enums"]["disbursement_status"]
+            | null
           total_fee?: number | null
           updated_at?: string
         }
@@ -1170,6 +1174,9 @@ export type Database = {
           payment_reference?: string | null
           retained_amount?: number
           status?: string
+          status_enum?:
+            | Database["public"]["Enums"]["disbursement_status"]
+            | null
           total_fee?: number | null
           updated_at?: string
         }
@@ -1197,6 +1204,53 @@ export type Database = {
           },
           {
             foreignKeyName: "disbursement_memos_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_templates: {
+        Row: {
+          content: string | null
+          created_at: string
+          created_by: string | null
+          file_path: string | null
+          id: string
+          is_active: boolean
+          name: string
+          organization_id: string
+          template_type: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          file_path?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          organization_id: string
+          template_type?: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          file_path?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          organization_id?: string
+          template_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_templates_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1303,6 +1357,7 @@ export type Database = {
       }
       facility_requests: {
         Row: {
+          advance_rate: number | null
           amount_requested: number | null
           approved_amount: number | null
           approved_at: string | null
@@ -1312,9 +1367,14 @@ export type Database = {
           created_at: string
           currency: string
           facility_type: string
+          final_discounting_rate: number | null
+          funder_base_rate: number | null
+          funder_margin: number | null
           id: string
           metadata: Json | null
           organization_id: string
+          originator_margin: number | null
+          overdue_fee_pct: number | null
           pricing_notes: string | null
           rejection_reason: string | null
           status: string
@@ -1322,6 +1382,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          advance_rate?: number | null
           amount_requested?: number | null
           approved_amount?: number | null
           approved_at?: string | null
@@ -1331,9 +1392,14 @@ export type Database = {
           created_at?: string
           currency?: string
           facility_type: string
+          final_discounting_rate?: number | null
+          funder_base_rate?: number | null
+          funder_margin?: number | null
           id?: string
           metadata?: Json | null
           organization_id: string
+          originator_margin?: number | null
+          overdue_fee_pct?: number | null
           pricing_notes?: string | null
           rejection_reason?: string | null
           status?: string
@@ -1341,6 +1407,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          advance_rate?: number | null
           amount_requested?: number | null
           approved_amount?: number | null
           approved_at?: string | null
@@ -1350,9 +1417,14 @@ export type Database = {
           created_at?: string
           currency?: string
           facility_type?: string
+          final_discounting_rate?: number | null
+          funder_base_rate?: number | null
+          funder_margin?: number | null
           id?: string
           metadata?: Json | null
           organization_id?: string
+          originator_margin?: number | null
+          overdue_fee_pct?: number | null
           pricing_notes?: string | null
           rejection_reason?: string | null
           status?: string
@@ -1914,6 +1986,7 @@ export type Database = {
             | Database["public"]["Enums"]["acceptance_status"]
             | null
           acceptance_token: string | null
+          accrued_late_fees: number | null
           amount: number
           borrower_id: string
           contract_id: string | null
@@ -1927,6 +2000,7 @@ export type Database = {
           id: string
           invoice_number: string
           issue_date: string
+          last_dunning_date: string | null
           match_details: Json | null
           match_score: number | null
           organization_id: string
@@ -1940,6 +2014,7 @@ export type Database = {
             | Database["public"]["Enums"]["acceptance_status"]
             | null
           acceptance_token?: string | null
+          accrued_late_fees?: number | null
           amount: number
           borrower_id: string
           contract_id?: string | null
@@ -1953,6 +2028,7 @@ export type Database = {
           id?: string
           invoice_number: string
           issue_date: string
+          last_dunning_date?: string | null
           match_details?: Json | null
           match_score?: number | null
           organization_id: string
@@ -1966,6 +2042,7 @@ export type Database = {
             | Database["public"]["Enums"]["acceptance_status"]
             | null
           acceptance_token?: string | null
+          accrued_late_fees?: number | null
           amount?: number
           borrower_id?: string
           contract_id?: string | null
@@ -1979,6 +2056,7 @@ export type Database = {
           id?: string
           invoice_number?: string
           issue_date?: string
+          last_dunning_date?: string | null
           match_details?: Json | null
           match_score?: number | null
           organization_id?: string
@@ -2300,6 +2378,7 @@ export type Database = {
       }
       product_fee_configs: {
         Row: {
+          broker_fee_pct: number | null
           created_at: string
           default_discount_rate: number
           id: string
@@ -2314,6 +2393,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          broker_fee_pct?: number | null
           created_at?: string
           default_discount_rate?: number
           id?: string
@@ -2328,6 +2408,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          broker_fee_pct?: number | null
           created_at?: string
           default_discount_rate?: number
           id?: string
@@ -2991,6 +3072,37 @@ export type Database = {
         }
         Returns: boolean
       }
+      accrue_daily_interest: { Args: never; Returns: undefined }
+      check_funder_eligibility: {
+        Args: {
+          _borrower_id: string
+          _funder_user_id: string
+          _invoice_amount: number
+          _organization_id: string
+          _product_type?: string
+        }
+        Returns: {
+          available_limit: number
+          eligible: boolean
+          message: string
+        }[]
+      }
+      compute_facility_rate: {
+        Args: {
+          _funder_base_rate: number
+          _funder_margin: number
+          _originator_margin: number
+        }
+        Returns: number
+      }
+      get_borrower_exposure: {
+        Args: { _borrower_id: string; _organization_id: string }
+        Returns: {
+          total_collected: number
+          total_funded: number
+          total_invoices: number
+        }[]
+      }
       get_org_funder_profiles: {
         Args: { _org_id: string }
         Returns: {
@@ -3034,6 +3146,7 @@ export type Database = {
         | "broker_admin"
         | "credit_committee_member"
         | "account_manager"
+        | "operations_manager"
       collection_status: "received" | "confirmed" | "disputed" | "reversed"
       credit_memo_status:
         | "draft"
@@ -3042,6 +3155,12 @@ export type Database = {
         | "approved"
         | "rejected"
         | "submitted_to_committee"
+      disbursement_status:
+        | "draft"
+        | "pending_approval"
+        | "approved"
+        | "disbursed"
+        | "cancelled"
       document_type:
         | "kyc"
         | "financial_statement"
@@ -3228,6 +3347,7 @@ export const Constants = {
         "broker_admin",
         "credit_committee_member",
         "account_manager",
+        "operations_manager",
       ],
       collection_status: ["received", "confirmed", "disputed", "reversed"],
       credit_memo_status: [
@@ -3237,6 +3357,13 @@ export const Constants = {
         "approved",
         "rejected",
         "submitted_to_committee",
+      ],
+      disbursement_status: [
+        "draft",
+        "pending_approval",
+        "approved",
+        "disbursed",
+        "cancelled",
       ],
       document_type: [
         "kyc",

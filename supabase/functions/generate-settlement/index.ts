@@ -28,28 +28,35 @@ function generateAdviceNumber(type: string, index: number): string {
   return `${prefix}-${date}-${String(index).padStart(4, "0")}`;
 }
 
+interface FacilityRate {
+  final_discounting_rate: number | null;
+  advance_rate: number | null;
+  overdue_fee_pct: number | null;
+}
+
 function calculateSettlement(
   grossAmount: number,
   feeConfig: FeeConfig,
   productType: string,
+  facilityRate?: FacilityRate | null,
   discountRate?: number
 ) {
-  const effectiveDiscount = discountRate ?? feeConfig.default_discount_rate;
+  // Priority: 1) explicit discountRate, 2) facility contracted rate, 3) product fee config default
+  const effectiveDiscount =
+    discountRate ??
+    facilityRate?.final_discounting_rate ??
+    feeConfig.default_discount_rate;
 
-  // Product-specific settlement logic
   let originatorFeePct = feeConfig.originator_fee_pct;
   let platformFeePct = feeConfig.platform_fee_pct;
 
   switch (productType) {
     case "receivables_purchase":
-      // Standard: discount applied at funding, originator fee on collection
       break;
     case "reverse_factoring":
-      // Lower originator fee (buyer-initiated, lower risk)
       originatorFeePct = Math.max(originatorFeePct * 0.75, 0);
       break;
     case "payables_finance":
-      // Higher platform fee for payables finance
       platformFeePct = platformFeePct * 1.25;
       break;
   }
@@ -68,13 +75,7 @@ function calculateSettlement(
     { label: "Net Settlement", amount: netAmount, type: "net" },
   ];
 
-  return {
-    discountAmount,
-    originatorFee,
-    platformFee,
-    netAmount,
-    feeBreakdown,
-  };
+  return { discountAmount, originatorFee, platformFee, netAmount, feeBreakdown, effectiveDiscount };
 }
 
 function calculateFunderReturn(
@@ -83,7 +84,6 @@ function calculateFunderReturn(
   daysFunded: number,
   feeConfig: FeeConfig
 ) {
-  // Funder yield = funded amount * discount rate * days / 365
   const annualizedYield = (fundedAmount * discountRate * daysFunded) / (100 * 365);
   const platformFee = (annualizedYield * feeConfig.platform_fee_pct) / 100;
   const netReturn = fundedAmount + annualizedYield - platformFee;
@@ -95,12 +95,7 @@ function calculateFunderReturn(
     { label: "Net Settlement", amount: netReturn, type: "net" },
   ];
 
-  return {
-    yield: annualizedYield,
-    platformFee,
-    netReturn,
-    feeBreakdown,
-  };
+  return { yield: annualizedYield, platformFee, netReturn, feeBreakdown };
 }
 
 Deno.serve(async (req) => {
@@ -145,6 +140,28 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Fetch facility rate via disbursement_memos → facility_requests
+    let facilityRate: FacilityRate | null = null;
+    const { data: disbursementMemo } = await supabase
+      .from("disbursement_memos")
+      .select("facility_request_id")
+      .eq("invoice_id", invoice.id)
+      .not("facility_request_id", "is", null)
+      .limit(1)
+      .single();
+
+    if (disbursementMemo?.facility_request_id) {
+      const { data: facility } = await supabase
+        .from("facility_requests")
+        .select("final_discounting_rate, advance_rate, overdue_fee_pct")
+        .eq("id", disbursementMemo.facility_request_id)
+        .single();
+
+      if (facility) {
+        facilityRate = facility as FacilityRate;
+      }
+    }
+
     // Fetch organization name
     const { data: org } = await supabase
       .from("organizations")
@@ -154,7 +171,7 @@ Deno.serve(async (req) => {
 
     const orgName = org?.name || "Originator";
 
-    // Fetch product fee config
+    // Fetch product fee config (fallback rates)
     const { data: feeConfigData } = await supabase
       .from("product_fee_configs")
       .select("*")
@@ -179,7 +196,8 @@ Deno.serve(async (req) => {
       const settlement = calculateSettlement(
         collection.collected_amount,
         feeConfig,
-        invoice.product_type || "receivables_purchase"
+        invoice.product_type || "receivables_purchase",
+        facilityRate
       );
 
       const borrowerAdvice = {
@@ -203,6 +221,10 @@ Deno.serve(async (req) => {
         payment_instructions: feeConfig.payment_instructions || {},
         status: "issued" as const,
         issued_at: new Date().toISOString(),
+        metadata: {
+          rate_source: facilityRate?.final_discounting_rate ? "facility" : "product_fee_config",
+          effective_discount_rate: settlement.effectiveDiscount,
+        },
       };
 
       const { data: ba, error: baErr } = await supabase
@@ -227,14 +249,19 @@ Deno.serve(async (req) => {
 
     if (fundingOffers && fundingOffers.length > 0) {
       for (const offer of fundingOffers) {
-        // Calculate days funded
         const fundedDate = new Date(offer.accepted_at || offer.offered_at);
         const collectionDate = new Date(collection.collection_date);
         const daysFunded = Math.max(1, Math.ceil((collectionDate.getTime() - fundedDate.getTime()) / (1000 * 60 * 60 * 24)));
 
+        // Use facility rate if available, then offer rate, then default
+        const effectiveFunderRate =
+          facilityRate?.final_discounting_rate ??
+          offer.discount_rate ??
+          feeConfig.default_discount_rate;
+
         const funderReturn = calculateFunderReturn(
           offer.offer_amount,
-          offer.discount_rate || feeConfig.default_discount_rate,
+          effectiveFunderRate,
           daysFunded,
           feeConfig
         );
@@ -269,7 +296,8 @@ Deno.serve(async (req) => {
           issued_at: new Date().toISOString(),
           metadata: {
             days_funded: daysFunded,
-            discount_rate: offer.discount_rate || feeConfig.default_discount_rate,
+            discount_rate: effectiveFunderRate,
+            rate_source: facilityRate?.final_discounting_rate ? "facility" : (offer.discount_rate ? "offer" : "product_fee_config"),
             yield_amount: funderReturn.yield,
           },
         };
