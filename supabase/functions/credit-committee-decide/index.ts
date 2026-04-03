@@ -45,16 +45,36 @@ Deno.serve(async (req) => {
         .eq("organization_id", organization_id)
         .maybeSingle();
 
-      // Get minutes/votes
-      const { data: minutes } = await adminClient
-        .from("credit_committee_minutes")
-        .select("votes")
-        .eq("application_id", application_id)
-        .order("created_at", { ascending: false })
-        .limit(1);
+      // Read from structured credit_committee_votes table first
+      const { data: structuredVotes } = await adminClient
+        .from("credit_committee_votes")
+        .select("*")
+        .eq("application_id", application_id);
 
-      const votes = minutes?.[0]?.votes || [];
-      const votesArr = Array.isArray(votes) ? votes : [];
+      let votesArr: any[] = [];
+
+      if (structuredVotes && structuredVotes.length > 0) {
+        // Use structured votes table (preferred)
+        votesArr = structuredVotes.map((v: any) => ({
+          user_id: v.user_id,
+          vote: v.vote,
+          conditions: v.conditions_text,
+          product_limits: v.product_limits,
+          voted_at: v.voted_at,
+        }));
+      } else {
+        // Backward-compatible: fall back to JSONB in minutes
+        const { data: minutes } = await adminClient
+          .from("credit_committee_minutes")
+          .select("votes")
+          .eq("application_id", application_id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        const votes = minutes?.[0]?.votes || [];
+        votesArr = Array.isArray(votes) ? votes : [];
+      }
+
       const approves = votesArr.filter((v: any) => v.vote === "approve" || v.vote === "approve_with_conditions").length;
       const rejects = votesArr.filter((v: any) => v.vote === "reject").length;
 
@@ -67,19 +87,21 @@ Deno.serve(async (req) => {
       else if (rejects >= needed) decision = "rejected";
 
       if (decision) {
+        // Update application status
         await adminClient.from("credit_committee_applications").update({
           status: decision,
           decision,
           reviewed_at: new Date().toISOString(),
         }).eq("id", application_id);
 
-        // Auto-generate minutes text
+        // Get application details
         const { data: app } = await adminClient
           .from("credit_committee_applications")
-          .select("application_number, type, debtor_name")
+          .select("application_number, type, debtor_name, borrower_id, metadata, credit_memo_id")
           .eq("id", application_id)
           .single();
 
+        // Auto-generate minutes text
         const minutesText = `Credit Committee Decision - ${app?.application_number}\n` +
           `Type: ${app?.type}\nSubject: ${app?.debtor_name || "N/A"}\n` +
           `Decision: ${decision.toUpperCase()}\n` +
@@ -87,10 +109,41 @@ Deno.serve(async (req) => {
           `Quorum required: ${needed}\n` +
           `Date: ${new Date().toISOString()}`;
 
-        if (minutes?.[0]) {
+        // Update or create minutes
+        const { data: existingMinutes } = await adminClient
+          .from("credit_committee_minutes")
+          .select("id")
+          .eq("application_id", application_id)
+          .limit(1);
+
+        if (existingMinutes && existingMinutes.length > 0) {
           await adminClient.from("credit_committee_minutes").update({
             minutes_text: minutesText,
           }).eq("application_id", application_id);
+        }
+
+        // Auto-create credit_limit_recommendation on approval
+        if (decision === "approved" && app?.borrower_id) {
+          const meta = app.metadata || {};
+          const approvedLimits = meta.approved_limits || {};
+
+          await adminClient.from("credit_limit_recommendations").insert({
+            application_id,
+            borrower_id: app.borrower_id,
+            organization_id,
+            recommended_overall_limit: meta.proposed_limit || 0,
+            currency: meta.currency || "GBP",
+            limit_receivables_purchase: approvedLimits.receivables_purchase || 0,
+            limit_reverse_factoring: approvedLimits.reverse_factoring || 0,
+            limit_payables_finance: approvedLimits.payable_finance || 0,
+            counterparty_limits: meta.counterparty_limits || [],
+            risk_grade: meta.risk_grade || null,
+            recommended_rate: meta.recommended_rate || null,
+            valid_from: new Date().toISOString().split("T")[0],
+            valid_to: null,
+            status: "active",
+            created_by: userId,
+          });
         }
       }
 

@@ -258,6 +258,12 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
       // If eligibility check fails (no funder limit configured), proceed — borrower-submitted invoices
       // may not have a funder assigned yet
 
+    } catch (outerErr: any) {
+      toast.error(outerErr.message || "Submission failed");
+      setSubmitting(false);
+      return;
+    }
+
     try {
       // Create invoice
       const { data: invoice, error: invErr } = await supabase.from("invoices").insert({

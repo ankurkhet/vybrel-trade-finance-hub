@@ -14,14 +14,16 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   borrowerId: string;
   organizationId: string;
+  applicationId?: string;
   approvedMetadata?: any;
 }
 
-export function ReferToFunderDialog({ open, onOpenChange, borrowerId, organizationId, approvedMetadata }: Props) {
+export function ReferToFunderDialog({ open, onOpenChange, borrowerId, organizationId, applicationId, approvedMetadata }: Props) {
   const [funders, setFunders] = useState<any[]>([]);
   const [counterparties, setCounterparties] = useState<any[]>([]);
   const [msaTerms, setMsaTerms] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [recommendationId, setRecommendationId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     funder_user_id: "",
@@ -40,6 +42,7 @@ export function ReferToFunderDialog({ open, onOpenChange, borrowerId, organizati
     if (open) {
       fetchFunders();
       fetchCounterparties();
+      fetchRecommendation();
       // Pre-populate from CC approval metadata
       if (approvedMetadata) {
         setFormData(f => ({
@@ -53,6 +56,32 @@ export function ReferToFunderDialog({ open, onOpenChange, borrowerId, organizati
       }
     }
   }, [open]);
+
+  const fetchRecommendation = async () => {
+    if (!applicationId) return;
+    const { data } = await supabase
+      .from("credit_limit_recommendations" as any)
+      .select("id, recommended_overall_limit, limit_receivables_purchase, limit_reverse_factoring, limit_payables_finance, risk_grade, recommended_rate, currency")
+      .eq("application_id", applicationId)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (data && data.length > 0) {
+      const rec = data[0] as any;
+      setRecommendationId(rec.id);
+      // Pre-populate from recommendation if metadata didn't already
+      if (!approvedMetadata) {
+        setFormData(f => ({
+          ...f,
+          overall_limit: rec.recommended_overall_limit ? String(rec.recommended_overall_limit) : f.overall_limit,
+          limit_receivables_purchase: rec.limit_receivables_purchase ? String(rec.limit_receivables_purchase) : f.limit_receivables_purchase,
+          limit_reverse_factoring: rec.limit_reverse_factoring ? String(rec.limit_reverse_factoring) : f.limit_reverse_factoring,
+          limit_payable_finance: rec.limit_payables_finance ? String(rec.limit_payables_finance) : f.limit_payable_finance,
+          currency: rec.currency || f.currency,
+        }));
+      }
+    }
+  };
 
   const fetchFunders = async () => {
     const { data } = await supabase.rpc("get_org_funder_profiles", { _org_id: organizationId });
@@ -100,31 +129,89 @@ export function ReferToFunderDialog({ open, onOpenChange, borrowerId, organizati
       toast.error("Please specify at least one limit amount"); return;
     }
     setSubmitting(true);
-    const selectedCp = counterparties.find(c => c.id === formData.counterparty_id);
-    const payload: any = {
-      organization_id: organizationId,
-      borrower_id: borrowerId,
-      funder_user_id: formData.funder_user_id,
-      counterparty_id: formData.counterparty_id || null,
-      counterparty_name: selectedCp?.company_name || null,
-      limit_amount: parseFloat(formData.overall_limit || "0"),
-      overall_limit: formData.overall_limit ? parseFloat(formData.overall_limit) : null,
-      limit_receivables_purchase: formData.limit_receivables_purchase ? parseFloat(formData.limit_receivables_purchase) : null,
-      limit_reverse_factoring: formData.limit_reverse_factoring ? parseFloat(formData.limit_reverse_factoring) : null,
-      limit_payable_finance: formData.limit_payable_finance ? parseFloat(formData.limit_payable_finance) : null,
-      scope: formData.counterparty_id ? "specific_counterparty" : "all_counterparties",
-      currency: formData.currency,
-      base_rate_type: formData.base_rate_type,
-      base_rate_value: parseFloat(formData.base_rate_value || "0"),
-      margin_pct: parseFloat(formData.margin_pct || "0"),
-      status: "pending",
-    };
-    const { error } = await supabase.from("funder_limits").insert(payload);
-    if (error) { toast.error(error.message); } else {
+
+    try {
+      const selectedCp = counterparties.find(c => c.id === formData.counterparty_id);
+      const { data: session } = await supabase.auth.getSession();
+      const currentUserId = session?.session?.user?.id;
+
+      // Step 9: Create funder_referrals record for audit trail
+      if (recommendationId) {
+        const { data: referral, error: refErr } = await supabase
+          .from("funder_referrals" as any)
+          .insert({
+            recommendation_id: recommendationId,
+            funder_user_id: formData.funder_user_id,
+            organization_id: organizationId,
+            referred_limit_amount: parseFloat(formData.overall_limit || "0"),
+            referred_limit_rp: formData.limit_receivables_purchase ? parseFloat(formData.limit_receivables_purchase) : 0,
+            referred_limit_rf: formData.limit_reverse_factoring ? parseFloat(formData.limit_reverse_factoring) : 0,
+            referred_limit_pf: formData.limit_payable_finance ? parseFloat(formData.limit_payable_finance) : 0,
+            referred_rate: parseFloat(formData.margin_pct || "0"),
+            counterparty_scope: formData.counterparty_id ? "specific" : "all",
+            status: "referred",
+            created_by: currentUserId,
+          } as any)
+          .select("id")
+          .single();
+
+        if (refErr) { toast.error(refErr.message); setSubmitting(false); return; }
+
+        // Create funder_limits linked to referral
+        const payload: any = {
+          organization_id: organizationId,
+          borrower_id: borrowerId,
+          funder_user_id: formData.funder_user_id,
+          counterparty_id: formData.counterparty_id || null,
+          counterparty_name: selectedCp?.company_name || null,
+          limit_amount: parseFloat(formData.overall_limit || "0"),
+          overall_limit: formData.overall_limit ? parseFloat(formData.overall_limit) : null,
+          limit_receivables_purchase: formData.limit_receivables_purchase ? parseFloat(formData.limit_receivables_purchase) : null,
+          limit_reverse_factoring: formData.limit_reverse_factoring ? parseFloat(formData.limit_reverse_factoring) : null,
+          limit_payable_finance: formData.limit_payable_finance ? parseFloat(formData.limit_payable_finance) : null,
+          scope: formData.counterparty_id ? "specific_counterparty" : "all_counterparties",
+          currency: formData.currency,
+          base_rate_type: formData.base_rate_type,
+          base_rate_value: parseFloat(formData.base_rate_value || "0"),
+          margin_pct: parseFloat(formData.margin_pct || "0"),
+          status: "pending",
+          referral_id: (referral as any)?.id || null,
+          valid_from: new Date().toISOString().split("T")[0],
+        };
+        const { error } = await supabase.from("funder_limits").insert(payload);
+        if (error) { toast.error(error.message); setSubmitting(false); return; }
+      } else {
+        // Fallback: no recommendation found, insert directly (backward-compatible)
+        const payload: any = {
+          organization_id: organizationId,
+          borrower_id: borrowerId,
+          funder_user_id: formData.funder_user_id,
+          counterparty_id: formData.counterparty_id || null,
+          counterparty_name: selectedCp?.company_name || null,
+          limit_amount: parseFloat(formData.overall_limit || "0"),
+          overall_limit: formData.overall_limit ? parseFloat(formData.overall_limit) : null,
+          limit_receivables_purchase: formData.limit_receivables_purchase ? parseFloat(formData.limit_receivables_purchase) : null,
+          limit_reverse_factoring: formData.limit_reverse_factoring ? parseFloat(formData.limit_reverse_factoring) : null,
+          limit_payable_finance: formData.limit_payable_finance ? parseFloat(formData.limit_payable_finance) : null,
+          scope: formData.counterparty_id ? "specific_counterparty" : "all_counterparties",
+          currency: formData.currency,
+          base_rate_type: formData.base_rate_type,
+          base_rate_value: parseFloat(formData.base_rate_value || "0"),
+          margin_pct: parseFloat(formData.margin_pct || "0"),
+          status: "pending",
+          valid_from: new Date().toISOString().split("T")[0],
+        };
+        const { error } = await supabase.from("funder_limits").insert(payload);
+        if (error) { toast.error(error.message); setSubmitting(false); return; }
+      }
+
       toast.success("Limit Request referred to Funder");
       onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to refer to funder");
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   return (
@@ -157,6 +244,14 @@ export function ReferToFunderDialog({ open, onOpenChange, borrowerId, organizati
               </SelectContent>
             </Select>
           </div>
+
+          {recommendationId && (
+            <div className="col-span-2">
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                Linked to CC Recommendation — full audit trail
+              </Badge>
+            </div>
+          )}
 
           <div className="col-span-2 border-t pt-3">
             <p className="text-xs font-semibold text-muted-foreground mb-3">REQUESTED LIMITS (from CC approval)</p>
