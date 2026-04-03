@@ -232,6 +232,39 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
     setSubmitting(true);
 
     try {
+      // Step 7: Eligibility check before insert
+      const { data: eligibility, error: eligErr } = await supabase.rpc(
+        "check_funder_eligibility" as any,
+        {
+          _funder_user_id: userId,
+          _borrower_id: borrower.id,
+          _organization_id: borrower.organization_id,
+          _invoice_amount: parseFloat(totalAmount),
+          _product_type: productType,
+        }
+      );
+
+      if (!eligErr && eligibility && Array.isArray(eligibility) && eligibility.length > 0) {
+        const result = eligibility[0] as any;
+        if (result && result.eligible === false) {
+          toast.error(result.message || "Invoice exceeds available funder limit");
+          setSubmitting(false);
+          return;
+        }
+        if (result && result.eligible === true) {
+          toast.info(`Available limit: ${Number(result.available_limit).toLocaleString()}`);
+        }
+      }
+      // If eligibility check fails (no funder limit configured), proceed — borrower-submitted invoices
+      // may not have a funder assigned yet
+
+    } catch (outerErr: any) {
+      toast.error(outerErr.message || "Submission failed");
+      setSubmitting(false);
+      return;
+    }
+
+    try {
       // Create invoice
       const { data: invoice, error: invErr } = await supabase.from("invoices").insert({
         organization_id: borrower.organization_id,

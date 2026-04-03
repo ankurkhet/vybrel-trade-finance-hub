@@ -742,6 +742,7 @@ export type Database = {
           borrower_id: string | null
           created_at: string
           created_by: string | null
+          credit_memo_id: string | null
           debtor_name: string | null
           decision: string | null
           decision_notes: string | null
@@ -753,6 +754,7 @@ export type Database = {
           status: string
           submitted_at: string | null
           type: string
+          type_enum: Database["public"]["Enums"]["application_type"] | null
           updated_at: string
         }
         Insert: {
@@ -760,6 +762,7 @@ export type Database = {
           borrower_id?: string | null
           created_at?: string
           created_by?: string | null
+          credit_memo_id?: string | null
           debtor_name?: string | null
           decision?: string | null
           decision_notes?: string | null
@@ -771,6 +774,7 @@ export type Database = {
           status?: string
           submitted_at?: string | null
           type: string
+          type_enum?: Database["public"]["Enums"]["application_type"] | null
           updated_at?: string
         }
         Update: {
@@ -778,6 +782,7 @@ export type Database = {
           borrower_id?: string | null
           created_at?: string
           created_by?: string | null
+          credit_memo_id?: string | null
           debtor_name?: string | null
           decision?: string | null
           decision_notes?: string | null
@@ -789,6 +794,7 @@ export type Database = {
           status?: string
           submitted_at?: string | null
           type?: string
+          type_enum?: Database["public"]["Enums"]["application_type"] | null
           updated_at?: string
         }
         Relationships: [
@@ -797,6 +803,13 @@ export type Database = {
             columns: ["borrower_id"]
             isOneToOne: false
             referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_committee_applications_credit_memo_id_fkey"
+            columns: ["credit_memo_id"]
+            isOneToOne: false
+            referencedRelation: "credit_memos"
             referencedColumns: ["id"]
           },
           {
@@ -966,6 +979,132 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "credit_committee_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_committee_votes: {
+        Row: {
+          application_id: string
+          conditions_text: string | null
+          created_at: string
+          id: string
+          product_limits: Json | null
+          user_id: string
+          vote: Database["public"]["Enums"]["cc_vote_type"]
+          voted_at: string
+        }
+        Insert: {
+          application_id: string
+          conditions_text?: string | null
+          created_at?: string
+          id?: string
+          product_limits?: Json | null
+          user_id: string
+          vote: Database["public"]["Enums"]["cc_vote_type"]
+          voted_at?: string
+        }
+        Update: {
+          application_id?: string
+          conditions_text?: string | null
+          created_at?: string
+          id?: string
+          product_limits?: Json | null
+          user_id?: string
+          vote?: Database["public"]["Enums"]["cc_vote_type"]
+          voted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_committee_votes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "credit_committee_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_limit_recommendations: {
+        Row: {
+          application_id: string
+          borrower_id: string
+          counterparty_limits: Json | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          limit_payables_finance: number | null
+          limit_receivables_purchase: number | null
+          limit_reverse_factoring: number | null
+          organization_id: string
+          recommended_overall_limit: number
+          recommended_rate: number | null
+          risk_grade: string | null
+          status: Database["public"]["Enums"]["recommendation_status"]
+          updated_at: string
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          application_id: string
+          borrower_id: string
+          counterparty_limits?: Json | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          limit_payables_finance?: number | null
+          limit_receivables_purchase?: number | null
+          limit_reverse_factoring?: number | null
+          organization_id: string
+          recommended_overall_limit?: number
+          recommended_rate?: number | null
+          risk_grade?: string | null
+          status?: Database["public"]["Enums"]["recommendation_status"]
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          application_id?: string
+          borrower_id?: string
+          counterparty_limits?: Json | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          limit_payables_finance?: number | null
+          limit_receivables_purchase?: number | null
+          limit_reverse_factoring?: number | null
+          organization_id?: string
+          recommended_overall_limit?: number
+          recommended_rate?: number | null
+          risk_grade?: string | null
+          status?: Database["public"]["Enums"]["recommendation_status"]
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_limit_recommendations_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "credit_committee_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_limit_recommendations_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_limit_recommendations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -1540,6 +1679,7 @@ export type Database = {
       }
       funder_limits: {
         Row: {
+          approval_notes: string | null
           base_rate_type: string | null
           base_rate_value: number | null
           borrower_id: string
@@ -1547,6 +1687,7 @@ export type Database = {
           counterparty_name: string | null
           created_at: string
           currency: string
+          funder_approved_amount: number | null
           funder_user_id: string
           id: string
           limit_amount: number
@@ -1556,11 +1697,15 @@ export type Database = {
           margin_pct: number | null
           organization_id: string
           overall_limit: number | null
+          referral_id: string | null
           scope: string | null
           status: string
           updated_at: string
+          valid_from: string | null
+          valid_to: string | null
         }
         Insert: {
+          approval_notes?: string | null
           base_rate_type?: string | null
           base_rate_value?: number | null
           borrower_id: string
@@ -1568,6 +1713,7 @@ export type Database = {
           counterparty_name?: string | null
           created_at?: string
           currency?: string
+          funder_approved_amount?: number | null
           funder_user_id: string
           id?: string
           limit_amount?: number
@@ -1577,11 +1723,15 @@ export type Database = {
           margin_pct?: number | null
           organization_id: string
           overall_limit?: number | null
+          referral_id?: string | null
           scope?: string | null
           status?: string
           updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
         }
         Update: {
+          approval_notes?: string | null
           base_rate_type?: string | null
           base_rate_value?: number | null
           borrower_id?: string
@@ -1589,6 +1739,7 @@ export type Database = {
           counterparty_name?: string | null
           created_at?: string
           currency?: string
+          funder_approved_amount?: number | null
           funder_user_id?: string
           id?: string
           limit_amount?: number
@@ -1598,9 +1749,12 @@ export type Database = {
           margin_pct?: number | null
           organization_id?: string
           overall_limit?: number | null
+          referral_id?: string | null
           scope?: string | null
           status?: string
           updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
         }
         Relationships: [
           {
@@ -1622,6 +1776,91 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funder_limits_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "funder_referrals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      funder_referrals: {
+        Row: {
+          counterparty_scope: string | null
+          created_at: string
+          created_by: string | null
+          funder_approved_amount: number | null
+          funder_notes: string | null
+          funder_user_id: string
+          id: string
+          organization_id: string
+          recommendation_id: string
+          referred_at: string
+          referred_limit_amount: number
+          referred_limit_pf: number | null
+          referred_limit_rf: number | null
+          referred_limit_rp: number | null
+          referred_rate: number | null
+          responded_at: string | null
+          status: Database["public"]["Enums"]["referral_status"]
+          updated_at: string
+        }
+        Insert: {
+          counterparty_scope?: string | null
+          created_at?: string
+          created_by?: string | null
+          funder_approved_amount?: number | null
+          funder_notes?: string | null
+          funder_user_id: string
+          id?: string
+          organization_id: string
+          recommendation_id: string
+          referred_at?: string
+          referred_limit_amount?: number
+          referred_limit_pf?: number | null
+          referred_limit_rf?: number | null
+          referred_limit_rp?: number | null
+          referred_rate?: number | null
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["referral_status"]
+          updated_at?: string
+        }
+        Update: {
+          counterparty_scope?: string | null
+          created_at?: string
+          created_by?: string | null
+          funder_approved_amount?: number | null
+          funder_notes?: string | null
+          funder_user_id?: string
+          id?: string
+          organization_id?: string
+          recommendation_id?: string
+          referred_at?: string
+          referred_limit_amount?: number
+          referred_limit_pf?: number | null
+          referred_limit_rf?: number | null
+          referred_limit_rp?: number | null
+          referred_rate?: number | null
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["referral_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funder_referrals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funder_referrals_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "credit_limit_recommendations"
             referencedColumns: ["id"]
           },
         ]
@@ -3073,20 +3312,36 @@ export type Database = {
         Returns: boolean
       }
       accrue_daily_interest: { Args: never; Returns: undefined }
-      check_funder_eligibility: {
-        Args: {
-          _borrower_id: string
-          _funder_user_id: string
-          _invoice_amount: number
-          _organization_id: string
-          _product_type?: string
-        }
-        Returns: {
-          available_limit: number
-          eligible: boolean
-          message: string
-        }[]
-      }
+      check_funder_eligibility:
+        | {
+            Args: {
+              _borrower_id: string
+              _funder_user_id: string
+              _invoice_amount: number
+              _organization_id: string
+              _product_type?: string
+            }
+            Returns: {
+              available_limit: number
+              eligible: boolean
+              message: string
+            }[]
+          }
+        | {
+            Args: {
+              _borrower_id: string
+              _counterparty_id?: string
+              _funder_user_id: string
+              _invoice_amount: number
+              _organization_id: string
+              _product_type?: string
+            }
+            Returns: {
+              available_limit: number
+              eligible: boolean
+              message: string
+            }[]
+          }
       compute_facility_rate: {
         Args: {
           _funder_base_rate: number
@@ -3147,6 +3402,13 @@ export type Database = {
         | "credit_committee_member"
         | "account_manager"
         | "operations_manager"
+      application_type:
+        | "new_facility"
+        | "limit_increase"
+        | "limit_renewal"
+        | "counterparty_limit"
+        | "facility_addition"
+      cc_vote_type: "approve" | "reject" | "abstain" | "approve_with_conditions"
       collection_status: "received" | "confirmed" | "disputed" | "reversed"
       credit_memo_status:
         | "draft"
@@ -3193,6 +3455,13 @@ export type Database = {
         | "receivables_purchase"
         | "reverse_factoring"
         | "payables_finance"
+      recommendation_status: "draft" | "active" | "expired" | "superseded"
+      referral_status:
+        | "referred"
+        | "under_review"
+        | "approved"
+        | "rejected"
+        | "counter_offered"
       settlement_advice_status: "draft" | "issued" | "acknowledged" | "paid"
       settlement_advice_type: "borrower_settlement" | "funder_settlement"
       settlement_timing: "advance" | "arrears"
@@ -3349,6 +3618,14 @@ export const Constants = {
         "account_manager",
         "operations_manager",
       ],
+      application_type: [
+        "new_facility",
+        "limit_increase",
+        "limit_renewal",
+        "counterparty_limit",
+        "facility_addition",
+      ],
+      cc_vote_type: ["approve", "reject", "abstain", "approve_with_conditions"],
       collection_status: ["received", "confirmed", "disputed", "reversed"],
       credit_memo_status: [
         "draft",
@@ -3400,6 +3677,14 @@ export const Constants = {
         "receivables_purchase",
         "reverse_factoring",
         "payables_finance",
+      ],
+      recommendation_status: ["draft", "active", "expired", "superseded"],
+      referral_status: [
+        "referred",
+        "under_review",
+        "approved",
+        "rejected",
+        "counter_offered",
       ],
       settlement_advice_status: ["draft", "issued", "acknowledged", "paid"],
       settlement_advice_type: ["borrower_settlement", "funder_settlement"],

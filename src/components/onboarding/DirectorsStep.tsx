@@ -5,23 +5,28 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Check, ChevronsUpDown, Plus, Trash2, User, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Trash2, User, ChevronDown, ChevronUp, Loader2, ShieldCheck, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AddressInput } from "./AddressInput";
 import { DateInput } from "@/components/ui/date-input";
-import { COUNTRIES, emptyDirector } from "@/lib/onboarding-types";
+import { NationalitySelect } from "./NationalitySelect";
+import { emptyDirector } from "@/lib/onboarding-types";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import type { DirectorData } from "@/lib/onboarding-types";
 
 interface DirectorsStepProps {
   directors: DirectorData[];
   onChange: (directors: DirectorData[]) => void;
   disabled?: boolean;
+  borrowerId?: string;
+  organizationId?: string;
 }
 
-export function DirectorsStep({ directors, onChange, disabled }: DirectorsStepProps) {
+export function DirectorsStep({ directors, onChange, disabled, borrowerId, organizationId }: DirectorsStepProps) {
   const [expanded, setExpanded] = useState<number | null>(directors.length > 0 ? 0 : null);
+  const [screeningResults, setScreeningResults] = useState<Record<number, { status: string; message: string } | null>>({});
+  const [screeningLoading, setScreeningLoading] = useState<Record<number, boolean>>({});
 
   const addDirector = () => {
     onChange([...directors, { ...emptyDirector }]);
@@ -39,6 +44,63 @@ export function DirectorsStep({ directors, onChange, disabled }: DirectorsStepPr
     const updated = [...directors];
     updated[idx] = { ...updated[idx], [field]: value };
     onChange(updated);
+  };
+
+  const runSanctionsScreening = async (idx: number) => {
+    const dir = directors[idx];
+    if (!dir.first_name || !dir.last_name) {
+      toast.error("First and last name are required for screening");
+      return;
+    }
+
+    setScreeningLoading(prev => ({ ...prev, [idx]: true }));
+    try {
+      const { data, error } = await supabase.functions.invoke("registry-lookup", {
+        body: {
+          action: "sanctions_check",
+          query: `${dir.first_name} ${dir.middle_name || ""} ${dir.last_name}`.trim(),
+          country: dir.nationality || "GB",
+        },
+      });
+
+      if (error) throw error;
+
+      const isClean = !data?.results || data.results.length === 0;
+      setScreeningResults(prev => ({
+        ...prev,
+        [idx]: {
+          status: isClean ? "clear" : "flagged",
+          message: isClean
+            ? "No sanctions or PEP matches found"
+            : `${data.results.length} potential match(es) found — review required`,
+        },
+      }));
+
+      if (isClean) {
+        toast.success(`${dir.first_name} ${dir.last_name}: Sanctions screening clear`);
+      } else {
+        toast.warning(`${dir.first_name} ${dir.last_name}: ${data.results.length} potential match(es) — review required`);
+      }
+    } catch (err: any) {
+      setScreeningResults(prev => ({
+        ...prev,
+        [idx]: { status: "error", message: err.message || "Screening failed" },
+      }));
+      toast.error("Sanctions screening failed: " + (err.message || "Unknown error"));
+    } finally {
+      setScreeningLoading(prev => ({ ...prev, [idx]: false }));
+    }
+  };
+
+  const handleSaveDirector = async (idx: number) => {
+    const dir = directors[idx];
+    if (!dir.first_name || !dir.last_name) {
+      toast.error("First and last name are required");
+      return;
+    }
+
+    // Auto-trigger sanctions screening on save
+    await runSanctionsScreening(idx);
   };
 
   return (
@@ -73,6 +135,13 @@ export function DirectorsStep({ directors, onChange, disabled }: DirectorsStepPr
                     ? `${dir.first_name} ${dir.last_name}`.trim()
                     : `Person ${idx + 1}`}
                 </span>
+                {screeningResults[idx] && (
+                  screeningResults[idx]!.status === "clear"
+                    ? <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200"><ShieldCheck className="h-3 w-3 mr-1" />Clear</Badge>
+                    : screeningResults[idx]!.status === "flagged"
+                      ? <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200"><ShieldAlert className="h-3 w-3 mr-1" />Review</Badge>
+                      : null
+                )}
               </div>
               <div className="flex items-center gap-2">
                 {!disabled && (
@@ -158,6 +227,42 @@ export function DirectorsStep({ directors, onChange, disabled }: DirectorsStepPr
                   onChange={(addr) => updateDirector(idx, "residential_address", addr)}
                   disabled={disabled}
                 />
+
+                {screeningResults[idx] && (
+                  <div className={cn(
+                    "rounded-md border p-3 text-sm",
+                    screeningResults[idx]!.status === "clear" && "bg-green-50 border-green-200 text-green-800",
+                    screeningResults[idx]!.status === "flagged" && "bg-amber-50 border-amber-200 text-amber-800",
+                    screeningResults[idx]!.status === "error" && "bg-red-50 border-red-200 text-red-800",
+                  )}>
+                    {screeningResults[idx]!.message}
+                  </div>
+                )}
+
+                {!disabled && (
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => runSanctionsScreening(idx)}
+                      disabled={screeningLoading[idx]}
+                    >
+                      {screeningLoading[idx] ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <ShieldCheck className="mr-2 h-3 w-3" />}
+                      Screen
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleSaveDirector(idx)}
+                      disabled={screeningLoading[idx]}
+                    >
+                      {screeningLoading[idx] && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                      Save & Screen
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -167,43 +272,8 @@ export function DirectorsStep({ directors, onChange, disabled }: DirectorsStepPr
           <Button type="button" variant="outline" className="flex-1" onClick={addDirector} disabled={disabled}>
             <Plus className="mr-2 h-4 w-4" /> Add Director / Signatory
           </Button>
-          {directors.length > 0 && (
-            <Button type="button" variant="default" disabled={disabled} onClick={() => {}}>
-              Save Directors
-            </Button>
-          )}
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function NationalitySelect({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" className="w-full justify-between" disabled={disabled}>
-          {value ? COUNTRIES.find((c) => c.code === value)?.name || value : "Select..."}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[250px] p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Search..." />
-          <CommandList>
-            <CommandEmpty>Not found.</CommandEmpty>
-            <CommandGroup>
-              {COUNTRIES.map((c) => (
-                <CommandItem key={c.code} value={c.name} onSelect={() => { onChange(c.code); setOpen(false); }}>
-                  <Check className={cn("mr-2 h-4 w-4", value === c.code ? "opacity-100" : "opacity-0")} />
-                  {c.name}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
   );
 }
