@@ -1,95 +1,128 @@
 
+# Gap Validation & Remediation Plan — Stages 2-5 + Additional Gaps
 
-# Gap Analysis Verification & Remediation Plan
+## Validation Results
 
-## Accuracy Assessment
+### Stage 2 — Credit Committee Workflow (55%) — All claims CONFIRMED
 
-I verified every claim against the live database schema and actual migration files. Here's what's accurate and what's not.
+| Claimed Gap | Verdict | Evidence |
+|---|---|---|
+| No FK between `credit_committee_applications` and `credit_memos` | **TRUE** | Schema has no `credit_memo_id` column |
+| Application `type` is free text — no enum | **TRUE** | Column is `text NOT NULL` with no constraint |
+| Votes stored as JSONB array in `credit_committee_minutes` | **TRUE** | `votes jsonb DEFAULT '[]'` — not individual auditable rows |
+| Application `status` is free text, no transition enforcement | **TRUE** | `text NOT NULL DEFAULT 'draft'` — no trigger |
+| `parent_application_id` has no parent-state validation | **TRUE** | Column exists, no trigger enforcing parent = approved |
 
-### Corrections to Claude's Analysis
+### Stage 3 — Limit Recommendation (20%) — CONFIRMED MISSING
+
+| Claimed Gap | Verdict |
+|---|---|
+| No `credit_limit_recommendations` table | **TRUE** — table does not exist |
+| No `funder_referrals` table | **TRUE** — table does not exist |
+| No structured output from CC decision to funder stage | **TRUE** — relies on unstructured `metadata` JSONB |
+
+### Stage 4 — Funder Review (25%) — Mostly CONFIRMED
 
 | Claimed Gap | Verdict | Detail |
 |---|---|---|
-| **`funder_limits` RLS uses `profiles.id` instead of `profiles.user_id`** — data leak | **FALSE** | Actual RLS uses `funder_user_id = auth.uid()` directly. No data leak exists. |
-| **Dunning score 58%** | **WORSE — closer to 45%** | `invoices.accrued_late_fees` and `invoices.last_dunning_date` columns do **not exist** in the live schema. The cron function silently fails every night. |
-| **`document_templates` RLS silently fails** | **WORSE** | The entire `document_templates` table does not exist in the live DB — the migration itself failed (likely due to the `user_roles.organization_id` reference). |
-| **`facility_requests` has `final_discounting_rate`** | **FALSE** | This column does not exist. The table has no rate/discount columns at all — only `amount_requested`, `approved_amount`, `tenor_months`, and `metadata`. |
+| No FK between `funder_limits` and a referral record | **TRUE** |
+| No funder approval workflow/trigger | **TRUE** — status is free text |
+| No counter-offer field | **TRUE** — only `limit_amount` exists |
+| `funder_limits` RLS uses `profiles.id` | **FALSE** — RLS correctly uses `funder_user_id = auth.uid()` |
+| No `valid_from`/`valid_to` on funder_limits | **TRUE** |
 
-### Confirmed Accurate Gaps
+### Stage 5 — Invoice Eligibility (60%) — CONFIRMED
 
-- Duplicate `funder_relationships` table (20260329 vs 20260330) — **TRUE**, will break clean deploy
-- Duplicate `funder_kyc` table (20260330 two files) — **TRUE**
-- `operations_manager` role has zero RLS policies — **TRUE**
-- `disbursement_memos.status` is free text, no state machine — **TRUE**
-- `generate-settlement` uses `product_fee_configs.default_discount_rate` only — **TRUE**
-- `audit_logs` has no DELETE/UPDATE prevention — **TRUE**
-- No audit triggers on financial tables — **TRUE**
-- No funder limit check during invoice submission — **TRUE**
-- No email provider wired for notifications — **TRUE**
-- pg_cron migration uses `RAISE EXCEPTION` — **TRUE**, blocks migration chain
-- Hardcoded rates in `fetch-market-rates` — **TRUE**
-- No broker fee model — **TRUE**
+| Claimed Gap | Verdict | Detail |
+|---|---|---|
+| `check_funder_eligibility` queries `status = 'active'` but valid values are pending/approved/rejected/suspended | **TRUE** — should be `approved` not `active` |
+| No counterparty-level sub-limit check | **TRUE** |
+| No DB-level enforcement — direct insert bypasses checks | **TRUE** — `handleSubmit` does no eligibility call |
+| No validity date check | **TRUE** — no `valid_from`/`valid_to` columns |
 
----
+### Additional Gaps — Validation
 
-## Remediation Plan — Ordered by Impact
-
-### Sprint 1: Critical (Blocks Production)
-
-**1. Fix duplicate table migrations**
-- New migration wrapping `funder_relationships` and `funder_kyc` with `IF NOT EXISTS` guards and reconciling columns
-
-**2. Add missing dunning columns to `invoices`**
-- Add `accrued_late_fees NUMERIC DEFAULT 0` and `last_dunning_date DATE` — without these the nightly cron is non-functional
-
-**3. Recreate `document_templates` table**
-- Correct RLS to use `get_user_organization_id(auth.uid())` instead of querying non-existent `user_roles.organization_id`
-
-**4. Fix pg_cron migration guard**
-- Replace `RAISE EXCEPTION` with `RAISE NOTICE` + graceful skip
-
-### Sprint 2: Financial Accuracy
-
-**5. Add rate columns to `facility_requests`**
-- `final_discounting_rate`, `advance_rate`, `overdue_fee_pct`, `funder_base_rate`, `funder_margin`, `originator_margin`
-
-**6. Fix `generate-settlement` edge function**
-- Look up contracted rate via `disbursement_memos` → `facility_requests`, fall back to `product_fee_configs` only when no facility exists
-
-**7. Add disbursement state machine**
-- Create `disbursement_status` enum (draft → pending_approval → approved → disbursed → cancelled)
-- Validation trigger to enforce transitions + audit log entry on each change
-
-### Sprint 3: Operational Controls
-
-**8. Funder limit validation on invoice submission**
-- DB function checking borrower/counterparty exposure against `funder_limits`
-
-**9. Audit trail hardening**
-- Append-only enforcement on `audit_logs` (deny DELETE/UPDATE)
-- Generic audit trigger on `disbursement_memos`, `repayment_memos`, `settlement_advices`, `collections`
-
-**10. `operations_manager` RLS policies**
-- SELECT + limited UPDATE on financial tables (disbursements, collections, settlements)
-
-### Sprint 4: Enhancements
-
-**11.** Broker fee modelling — `broker_fee_pct` in fee config
-**12.** Dunning escalation stages (7/30/60/90 day thresholds with notifications)
-**13.** Invoice status enum conversion
-**14.** Concentration/exposure calculation function
-**15.** Email provider integration for counterparty notifications
+| # | Gap | Verdict |
+|---|---|---|
+| 1 | Help Centre basic/incomplete | **PARTIALLY FALSE** — `HelpCentreContent.tsx` exists with search, role filtering, PDF export. But could be richer. |
+| 2 | Sanctions screening not auto-triggered for directors | **TRUE** — no auto-call on director save |
+| 3 | TrueLayer stops at name verification | **TRUE** — no payment initiation |
+| 4 | No auto eligibility check on invoice submit | **TRUE** — confirmed in `handleSubmit` (line 227-308) |
+| 5 | No rate limiting / error monitoring | **TRUE** — no middleware or Sentry |
+| 6 | CC votes still JSONB in some flows | **TRUE** |
+| 7 | No auto-rescreen of approved borrowers | **TRUE** |
 
 ---
 
-## Effort Summary
+## Remediation Plan — Prioritized
 
-| Sprint | Migrations | Edge Functions | UI Changes |
-|---|---|---|---|
-| 1 — Critical | 3 | 0 | 0 |
-| 2 — Financial | 2 | 1 (generate-settlement) | 1-2 forms |
-| 3 — Controls | 3 | 0 | 0 |
-| 4 — Enhancements | 3 | 1 | 2-3 pages |
+### Priority 1: Credit Pipeline Integrity (Stages 2-4)
 
-Recommend executing Sprints 1 and 2 together as the immediate priority.
+**Migration 1 — CC Application Hardening**
+- Add `credit_memo_id UUID` FK column to `credit_committee_applications`
+- Create `application_type` enum (new_facility, limit_increase, limit_renewal, counterparty_limit, facility_addition)
+- Add status transition trigger (draft → submitted → under_review → approved/rejected/deferred)
+- Add parent-state validation trigger (parent must be approved before child created)
 
+**Migration 2 — Structured Voting**
+- Create `credit_committee_votes` table (id, application_id, user_id, vote, conditions_text, product_limits JSONB, created_at)
+- Individual auditable rows per vote instead of JSONB array
+- Update `credit-committee-decide` edge function to read from new table
+- Keep backward-compatible read from `minutes.votes` for existing data
+
+**Migration 3 — Limit Recommendations & Funder Referrals**
+- Create `credit_limit_recommendations` table (id, application_id, borrower_id, organization_id, recommended_overall_limit, currency, limit_rp, limit_rf, limit_pf, counterparty_limits JSONB, risk_grade, recommended_rate, valid_from, valid_to, status, created_by, created_at)
+- Create `funder_referrals` table (id, recommendation_id, funder_user_id, organization_id, referred_limit_amount, referred_rp/rf/pf limits, referred_rate, counterparty_scope, status enum [referred → under_review → approved → rejected → counter_offered], funder_approved_amount, funder_notes, referred_at, responded_at, created_by)
+- Add `referral_id` FK to `funder_limits` for full audit trail
+- Add `valid_from`/`valid_to` to `funder_limits`
+- RLS policies for both tables scoped by organization_id
+
+**Migration 4 — Funder Limit Workflow**
+- Add `funder_approved_amount` (counter-offer) and `approval_notes` to `funder_limits`
+- Create status transition trigger for `funder_limits` (pending → approved/rejected/suspended)
+
+### Priority 2: Invoice Eligibility Enforcement
+
+**Migration 5 — Fix Eligibility Function**
+- Fix `check_funder_eligibility`: change `status = 'active'` to `status = 'approved'`
+- Add counterparty-level sub-limit check
+- Add validity date check against `valid_from`/`valid_to`
+
+**Code Change — InvoiceSubmissionWizard.tsx**
+- Call `check_funder_eligibility` RPC before insert in `handleSubmit`
+- Display available limit and block submission if exceeded
+- Call `get_borrower_exposure` to show concentration warning
+
+### Priority 3: Compliance Automation
+
+**Code Change — Director Auto-Screening**
+- After saving a director in `DirectorsStep.tsx`, auto-invoke sanctions screening edge function
+- Display screening results inline with pass/fail badge
+
+### Priority 4: UI/UX Enhancements
+
+**Code Change — ReferToFunderDialog Refactor**
+- After CC approval, auto-create a `credit_limit_recommendation` record
+- `ReferToFunderDialog` creates a `funder_referrals` record, which then creates the `funder_limits` entry
+- Full audit chain: CC Application → Recommendation → Referral → Funder Limit
+
+**Code Change — Funder Marketplace**
+- Add referral context to funder's Marketplace view so they can approve/counter-offer
+
+---
+
+## Implementation Order
+
+| Step | Scope | Type |
+|---|---|---|
+| 1 | CC application enum + status trigger + memo FK | Migration |
+| 2 | `credit_committee_votes` table | Migration |
+| 3 | `credit_limit_recommendations` + `funder_referrals` tables | Migration |
+| 4 | `funder_limits` validity dates + counter-offer fields + status trigger | Migration |
+| 5 | Fix `check_funder_eligibility` function | Migration |
+| 6 | Update `credit-committee-decide` edge function for new votes table | Edge function |
+| 7 | Invoice eligibility check in `InvoiceSubmissionWizard` | UI code |
+| 8 | Auto-screening on director save | UI code |
+| 9 | Refactor `ReferToFunderDialog` to use referral pipeline | UI code |
+
+**Note:** TrueLayer payment initiation (#3), rate limiting (#5), and auto-rescreen (#7) from the additional gaps list are infrastructure-level concerns best addressed as separate workstreams after the core pipeline is complete.
