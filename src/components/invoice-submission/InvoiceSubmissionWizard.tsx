@@ -291,6 +291,7 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
         counterparty_email: requiresAcceptance ? counterpartyEmail : null,
         counterparty_name: requiresAcceptance ? counterpartyName : null,
         acceptance_status: requiresAcceptance ? "pending" : "accepted",
+        facility_request_id: selectedFacilityId || null,
       } as any).select("id").single();
 
       if (invErr) throw new Error(invErr.message);
