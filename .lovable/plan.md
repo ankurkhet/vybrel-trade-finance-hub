@@ -1,94 +1,88 @@
 
 
-# Gap Validation & Remediation Plan — Credit Pipeline Stages 2-5 + Additional
+# Validated Gap Report & Remediation Plan
 
-## Validation Summary
+## Validation Results
 
-I verified every claim against the live database. Here are the results:
+### CONFIRMED BUGS (must fix)
 
-### Stage 2 — Credit Committee (55%): ALL CONFIRMED
-- No FK between `credit_committee_applications` and `credit_memos` — **TRUE**
-- `type` is free text, no enum — **TRUE**
-- Votes stored as JSONB array, not individual rows — **TRUE**
-- `status` is free text, no transition trigger — **TRUE**
-- `parent_application_id` has no parent-state validation — **TRUE**
+| # | Claim | Verdict | Detail |
+|---|-------|---------|--------|
+| 1 | **Eligibility check passes borrower's userId as funder_user_id** | **TRUE — CRITICAL** | Line 239 of `InvoiceSubmissionWizard.tsx` passes logged-in user's ID. The function needs the actual funder's ID from the facility/limit record, not the submitter. |
+| 2 | **No `facility_request_id` stored on invoice** | **TRUE** | Column doesn't exist on `invoices` table. Insert at line 269 never sets it. |
+| 3 | **No `approved_by`/`approved_at` on `funder_limits`** | **TRUE** | Confirmed missing from schema. Maker-checker audit incomplete. |
+| 4 | **RLS on `funder_limits` uses `profiles.id = auth.uid()`** | **PARTIALLY TRUE** | Uses `WHERE id = auth.uid() OR user_id = auth.uid()` — the `id` check is wrong (profiles.id is a separate UUID from auth.uid()), but the `OR user_id` clause saves it. Still should be cleaned up. |
+| 5 | **No audit triggers on `funding_offers` or `funder_referrals`** | **TRUE** | Previous sprint only added triggers on disbursement_memos, settlement_advices, collections. |
 
-### Stage 3 — Limit Recommendation (20%): CONFIRMED MISSING
-- No `credit_limit_recommendations` table — **TRUE**
-- No `funder_referrals` table — **TRUE**
-- No structured CC output flowing to funder stage — **TRUE**
+### CONFIRMED MISSING FEATURES
 
-### Stage 4 — Funder Review (25%): MOSTLY CONFIRMED
-- No FK between `funder_limits` and referral — **TRUE**
-- No approval workflow/trigger on `funder_limits` — **TRUE**
-- No counter-offer field — **TRUE**
-- No `valid_from`/`valid_to` — **TRUE**
-- RLS uses `profiles.id` — **FALSE** (correctly uses `funder_user_id = auth.uid()`)
+| # | Claim | Status |
+|---|-------|--------|
+| 6 | No notification when funder_referral is created | TRUE |
+| 7 | Counter-offer workflow (`counter_offered` status) has no UI/logic | TRUE |
+| 8 | Market rates still hardcoded in fetch-market-rates | TRUE |
+| 9 | No DB-level trigger preventing direct insert into funding_offers | TRUE |
+| 10 | No expiry automation on credit_limit_recommendations.valid_to | TRUE |
 
-### Stage 5 — Invoice Eligibility (60%): CONFIRMED
-- `check_funder_eligibility` checks `status = 'active'` but values are pending/approved/rejected — **TRUE** (bug)
-- No counterparty sub-limit check — **TRUE**
-- `handleSubmit` in InvoiceSubmissionWizard does zero eligibility calls — **TRUE** (confirmed lines 227-308)
-- No validity date check — **TRUE**
+### ALREADY FIXED / FALSE CLAIMS
 
-### Additional Gaps
-- Help Centre incomplete — **PARTIALLY FALSE** (robust HelpCentreContent.tsx exists with search, role filtering, PDF export — but could be richer)
-- Sanctions not auto-triggered for directors — **TRUE**
-- TrueLayer stops at name verify — **TRUE**
-- No auto eligibility check on invoice submit — **TRUE**
-- No rate limiting/error monitoring — **TRUE**
-- CC votes still JSONB — **TRUE**
-- No auto-rescreen of approved borrowers — **TRUE**
+| Claim | Verdict |
+|-------|---------|
+| CC votes have no UNIQUE constraint on (application_id, user_id) | **FALSE** — constraint exists |
+| Help Centre is incomplete / no /help route | **FALSE** — /help route exists with HelpCentreContent.tsx, search, role filtering, PDF export |
+| Sanctions screening not auto-triggered on director save | **FALSE** — `DirectorsStep.tsx` already has `runSanctionsScreening()` wired to a screening button |
 
 ---
 
 ## Remediation Plan
 
-### Step 1: CC Application Hardening (Migration)
-- Create `application_type` enum (new_facility, limit_increase, limit_renewal, counterparty_limit, facility_addition) and convert column
-- Add `credit_memo_id UUID` FK column
-- Create status transition trigger (draft → submitted → under_review → approved/rejected/deferred)
-- Add parent-state validation trigger
+### Step 1: Fix eligibility check architecture (Critical)
 
-### Step 2: Structured Voting Table (Migration)
-- Create `credit_committee_votes` table with individual auditable rows (application_id, user_id, vote enum, conditions_text, product_limits JSONB, voted_at)
-- RLS scoped by organization via application lookup
-- Update `credit-committee-decide` edge function to read from new table (backward-compatible with existing JSONB)
+**Migration:**
+- Add `facility_request_id UUID` column to `invoices` table
 
-### Step 3: Limit Recommendations + Funder Referrals (Migration)
-- Create `credit_limit_recommendations` (application_id, borrower_id, org_id, overall/RP/RF/PF limits, risk_grade, recommended_rate, valid_from/to, status)
-- Create `funder_referrals` (recommendation_id, funder_user_id, org_id, referred limits, status enum [referred → under_review → approved → rejected → counter_offered], funder_approved_amount, funder_notes)
-- Add `referral_id` FK to `funder_limits`
-- Add `valid_from`/`valid_to` to `funder_limits`
-- RLS policies for both new tables
+**InvoiceSubmissionWizard.tsx:**
+- When a facility is selected, look up the associated funder from `funder_limits` (via `facility_requests.borrower_id` + org match)
+- Pass the actual `funder_user_id` from the matched `funder_limits` record to `check_funder_eligibility`
+- Store `facility_request_id` on the invoice insert
+- If no funder limit exists for the facility, skip the check gracefully (borrower-submitted invoices without funder assignment)
 
-### Step 4: Funder Limit Workflow (Migration)
-- Add `funder_approved_amount`, `approval_notes` to `funder_limits`
-- Create status transition trigger (pending → approved/rejected/suspended)
+### Step 2: Add maker-checker fields to funder_limits
 
-### Step 5: Fix Eligibility Function (Migration)
-- Change `status = 'active'` to `status = 'approved'` in `check_funder_eligibility`
-- Add counterparty-level sub-limit check
-- Add validity date check
+**Migration:**
+- Add `approved_by UUID`, `approved_at TIMESTAMPTZ` to `funder_limits`
+- Update the existing status transition trigger to auto-populate these on approval
 
-### Step 6: Update credit-committee-decide Edge Function
-- Read votes from new `credit_committee_votes` table
-- Auto-create `credit_limit_recommendation` record on approval
+### Step 3: Clean up funder_limits RLS
 
-### Step 7: Invoice Eligibility in UI
-- Call `check_funder_eligibility` RPC before insert in `InvoiceSubmissionWizard.handleSubmit`
-- Show available limit and block if exceeded
+**Migration:**
+- Replace `WHERE id = auth.uid() OR user_id = auth.uid()` with just `WHERE user_id = auth.uid()` across all three funder_limits policies
 
-### Step 8: Auto-Screening on Director Save
-- After saving a director in `DirectorsStep.tsx`, auto-invoke sanctions screening
-- Display pass/fail inline
+### Step 4: Add audit triggers on funding_offers and funder_referrals
 
-### Step 9: Refactor ReferToFunderDialog
-- Create `funder_referrals` record instead of directly inserting `funder_limits`
-- Full audit chain: CC Application → Recommendation → Referral → Funder Limit
+**Migration:**
+- Reuse existing `audit_financial_change()` trigger function
+- Attach to `funding_offers` and `funder_referrals` tables
 
-### Deferred (separate workstreams)
-- TrueLayer payment initiation — requires commercial API agreement
-- Rate limiting / error monitoring — infrastructure concern
-- Auto-rescreen of approved borrowers — scheduled job design needed
+### Step 5: Funder referral notification
+
+**Migration or code:**
+- After inserting a `funder_referrals` row (in `ReferToFunderDialog.tsx`), insert a notification into `notifications` table for the target funder user
+
+### Step 6: Credit limit recommendation expiry automation
+
+**Migration:**
+- Create a simple SQL function `expire_stale_recommendations()` that updates status to 'expired' where `valid_to < CURRENT_DATE AND status = 'approved'`
+- Schedule via pg_cron (with graceful fallback if extension unavailable)
+
+---
+
+## Deferred Items (not actionable now)
+
+- **Counter-offer workflow UI** — needs UX design decisions first
+- **Market rates live API** — requires FRED_API_KEY or similar; currently acceptable with manual override
+- **DB trigger on funding_offers insert** — complex; requires knowing which funder to validate against at bid time
+- **Sanctions auto-trigger** — already exists as manual button; auto-on-save is a UX preference, not a gap
+
+## Effort: 2 migrations, 1 component edit, 1 dialog edit. No edge function changes needed.
 
