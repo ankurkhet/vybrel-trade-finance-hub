@@ -232,31 +232,41 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
     setSubmitting(true);
 
     try {
-      // Step 7: Eligibility check before insert
-      const { data: eligibility, error: eligErr } = await supabase.rpc(
-        "check_funder_eligibility" as any,
-        {
-          _funder_user_id: userId,
-          _borrower_id: borrower.id,
-          _organization_id: borrower.organization_id,
-          _invoice_amount: parseFloat(totalAmount),
-          _product_type: productType,
-        }
-      );
+      // Resolve the actual funder_user_id from funder_limits for this borrower
+      const { data: funderLimit } = await supabase
+        .from("funder_limits")
+        .select("funder_user_id")
+        .eq("borrower_id", borrower.id)
+        .eq("organization_id", borrower.organization_id)
+        .eq("status", "approved")
+        .limit(1)
+        .maybeSingle();
 
-      if (!eligErr && eligibility && Array.isArray(eligibility) && eligibility.length > 0) {
-        const result = eligibility[0] as any;
-        if (result && result.eligible === false) {
-          toast.error(result.message || "Invoice exceeds available funder limit");
-          setSubmitting(false);
-          return;
-        }
-        if (result && result.eligible === true) {
-          toast.info(`Available limit: ${Number(result.available_limit).toLocaleString()}`);
+      if (funderLimit?.funder_user_id) {
+        const { data: eligibility, error: eligErr } = await supabase.rpc(
+          "check_funder_eligibility" as any,
+          {
+            _funder_user_id: funderLimit.funder_user_id,
+            _borrower_id: borrower.id,
+            _organization_id: borrower.organization_id,
+            _invoice_amount: parseFloat(totalAmount),
+            _product_type: productType,
+          }
+        );
+
+        if (!eligErr && eligibility && Array.isArray(eligibility) && eligibility.length > 0) {
+          const result = eligibility[0] as any;
+          if (result && result.eligible === false) {
+            toast.error(result.message || "Invoice exceeds available funder limit");
+            setSubmitting(false);
+            return;
+          }
+          if (result && result.eligible === true) {
+            toast.info(`Available limit: ${Number(result.available_limit).toLocaleString()}`);
+          }
         }
       }
-      // If eligibility check fails (no funder limit configured), proceed — borrower-submitted invoices
-      // may not have a funder assigned yet
+      // If no funder limit exists, proceed — borrower-submitted invoices may not have a funder assigned yet
 
     } catch (outerErr: any) {
       toast.error(outerErr.message || "Submission failed");
@@ -281,6 +291,7 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
         counterparty_email: requiresAcceptance ? counterpartyEmail : null,
         counterparty_name: requiresAcceptance ? counterpartyName : null,
         acceptance_status: requiresAcceptance ? "pending" : "accepted",
+        facility_request_id: selectedFacilityId || null,
       } as any).select("id").single();
 
       if (invErr) throw new Error(invErr.message);

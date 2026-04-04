@@ -1680,6 +1680,8 @@ export type Database = {
       funder_limits: {
         Row: {
           approval_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
           base_rate_type: string | null
           base_rate_value: number | null
           borrower_id: string
@@ -1706,6 +1708,8 @@ export type Database = {
         }
         Insert: {
           approval_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           base_rate_type?: string | null
           base_rate_value?: number | null
           borrower_id: string
@@ -1732,6 +1736,8 @@ export type Database = {
         }
         Update: {
           approval_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           base_rate_type?: string | null
           base_rate_value?: number | null
           borrower_id?: string
@@ -2236,6 +2242,7 @@ export type Database = {
           debtor_name: string
           document_id: string | null
           due_date: string
+          facility_request_id: string | null
           id: string
           invoice_number: string
           issue_date: string
@@ -2264,6 +2271,7 @@ export type Database = {
           debtor_name: string
           document_id?: string | null
           due_date: string
+          facility_request_id?: string | null
           id?: string
           invoice_number: string
           issue_date: string
@@ -2292,6 +2300,7 @@ export type Database = {
           debtor_name?: string
           document_id?: string | null
           due_date?: string
+          facility_request_id?: string | null
           id?: string
           invoice_number?: string
           issue_date?: string
@@ -2324,6 +2333,13 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_facility_request_id_fkey"
+            columns: ["facility_request_id"]
+            isOneToOne: false
+            referencedRelation: "facility_requests"
             referencedColumns: ["id"]
           },
           {
@@ -2397,6 +2413,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          link: string | null
+          message: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       org_contacts: {
         Row: {
@@ -3350,6 +3399,7 @@ export type Database = {
         }
         Returns: number
       }
+      expire_stale_recommendations: { Args: never; Returns: number }
       get_borrower_exposure: {
         Args: { _borrower_id: string; _organization_id: string }
         Returns: {

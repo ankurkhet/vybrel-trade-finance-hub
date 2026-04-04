@@ -205,6 +205,15 @@ export function ReferToFunderDialog({ open, onOpenChange, borrowerId, organizati
         if (error) { toast.error(error.message); setSubmitting(false); return; }
       }
 
+      // Insert notification for the funder
+      await supabase.from("notifications" as any).insert({
+        user_id: formData.funder_user_id,
+        title: "New Limit Referral",
+        message: `A credit limit referral of ${formData.currency} ${Number(formData.overall_limit || 0).toLocaleString()} has been submitted for your review.`,
+        type: "referral",
+        link: "/funder/portfolio",
+      });
+
       toast.success("Limit Request referred to Funder");
       onOpenChange(false);
     } catch (err: any) {
