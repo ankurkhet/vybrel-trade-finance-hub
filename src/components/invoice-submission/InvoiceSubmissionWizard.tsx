@@ -233,15 +233,29 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
     setSubmitting(true);
 
     try {
-      // Resolve the actual funder_user_id from funder_limits for this borrower
-      const { data: funderLimit } = await supabase
+      setEligibilityError(null);
+
+      // Determine the product type filter from the selected facility
+      let facilityProductType = productType;
+      if (selectedFacilityId) {
+        const selectedFac = approvedFacilities.find(f => f.id === selectedFacilityId);
+        if (selectedFac?.facility_type) {
+          facilityProductType = selectedFac.facility_type;
+        }
+      }
+
+      // Resolve the actual funder_user_id from funder_limits, filtered by product type
+      const limitQuery = supabase
         .from("funder_limits")
-        .select("funder_user_id")
+        .select("funder_user_id, limit_amount, limit_receivables_purchase, limit_reverse_factoring, limit_payable_finance")
         .eq("borrower_id", borrower.id)
         .eq("organization_id", borrower.organization_id)
-        .eq("status", "approved")
-        .limit(1)
-        .maybeSingle();
+        .eq("status", "approved");
+
+      const { data: funderLimits } = await limitQuery;
+
+      // Find the best matching funder limit
+      const funderLimit = funderLimits?.[0];
 
       if (funderLimit?.funder_user_id) {
         const { data: eligibility, error: eligErr } = await supabase.rpc(
@@ -251,14 +265,27 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
             _borrower_id: borrower.id,
             _organization_id: borrower.organization_id,
             _invoice_amount: parseFloat(totalAmount),
-            _product_type: productType,
+            _product_type: facilityProductType,
           }
         );
 
         if (!eligErr && eligibility && Array.isArray(eligibility) && eligibility.length > 0) {
           const result = eligibility[0] as any;
+
+          // Log the eligibility check to audit trail
+          supabase.rpc("log_eligibility_check" as any, {
+            _user_id: userId,
+            _funder_user_id: funderLimit.funder_user_id,
+            _borrower_id: borrower.id,
+            _amount: parseFloat(totalAmount),
+            _eligible: result?.eligible ?? true,
+            _message: result?.message ?? "No result",
+          }).catch(console.error);
+
           if (result && result.eligible === false) {
-            toast.error(result.message || "Invoice exceeds available funder limit");
+            const errorMsg = result.message || "Invoice exceeds available funder limit";
+            setEligibilityError(errorMsg);
+            toast.error(errorMsg);
             setSubmitting(false);
             return;
           }
