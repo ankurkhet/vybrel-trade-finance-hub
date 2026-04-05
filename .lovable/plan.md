@@ -1,88 +1,103 @@
 
 
-# Validated Gap Report & Remediation Plan
+# Remediation Plan — Combined Gaps (April 5)
 
-## Validation Results
+## What we're fixing
 
-### CONFIRMED BUGS (must fix)
-
-| # | Claim | Verdict | Detail |
-|---|-------|---------|--------|
-| 1 | **Eligibility check passes borrower's userId as funder_user_id** | **TRUE — CRITICAL** | Line 239 of `InvoiceSubmissionWizard.tsx` passes logged-in user's ID. The function needs the actual funder's ID from the facility/limit record, not the submitter. |
-| 2 | **No `facility_request_id` stored on invoice** | **TRUE** | Column doesn't exist on `invoices` table. Insert at line 269 never sets it. |
-| 3 | **No `approved_by`/`approved_at` on `funder_limits`** | **TRUE** | Confirmed missing from schema. Maker-checker audit incomplete. |
-| 4 | **RLS on `funder_limits` uses `profiles.id = auth.uid()`** | **PARTIALLY TRUE** | Uses `WHERE id = auth.uid() OR user_id = auth.uid()` — the `id` check is wrong (profiles.id is a separate UUID from auth.uid()), but the `OR user_id` clause saves it. Still should be cleaned up. |
-| 5 | **No audit triggers on `funding_offers` or `funder_referrals`** | **TRUE** | Previous sprint only added triggers on disbursement_memos, settlement_advices, collections. |
-
-### CONFIRMED MISSING FEATURES
-
-| # | Claim | Status |
-|---|-------|--------|
-| 6 | No notification when funder_referral is created | TRUE |
-| 7 | Counter-offer workflow (`counter_offered` status) has no UI/logic | TRUE |
-| 8 | Market rates still hardcoded in fetch-market-rates | TRUE |
-| 9 | No DB-level trigger preventing direct insert into funding_offers | TRUE |
-| 10 | No expiry automation on credit_limit_recommendations.valid_to | TRUE |
-
-### ALREADY FIXED / FALSE CLAIMS
-
-| Claim | Verdict |
-|-------|---------|
-| CC votes have no UNIQUE constraint on (application_id, user_id) | **FALSE** — constraint exists |
-| Help Centre is incomplete / no /help route | **FALSE** — /help route exists with HelpCentreContent.tsx, search, role filtering, PDF export |
-| Sanctions screening not auto-triggered on director save | **FALSE** — `DirectorsStep.tsx` already has `runSanctionsScreening()` wired to a screening button |
+Three confirmed bugs from Lovable's testing plus two operational gaps from the external report. Step 5 (auto-trigger sanctions on director save) is excluded per your request.
 
 ---
 
-## Remediation Plan
+## Step 1: Drop stale 5-arg `check_funder_eligibility` overload (Migration)
 
-### Step 1: Fix eligibility check architecture (Critical)
+The old 5-argument version of this function still exists and filters for `status = 'active'` instead of `'approved'`. This creates ambiguity — the database may route calls to the wrong overload.
 
-**Migration:**
-- Add `facility_request_id UUID` column to `invoices` table
+**Action:** Drop the 5-arg function. The correct 6-arg version (with `_counterparty_id DEFAULT NULL`) already handles all calls.
 
-**InvoiceSubmissionWizard.tsx:**
-- When a facility is selected, look up the associated funder from `funder_limits` (via `facility_requests.borrower_id` + org match)
-- Pass the actual `funder_user_id` from the matched `funder_limits` record to `check_funder_eligibility`
-- Store `facility_request_id` on the invoice insert
-- If no funder limit exists for the facility, skip the check gracefully (borrower-submitted invoices without funder assignment)
+```sql
+DROP FUNCTION IF EXISTS public.check_funder_eligibility(uuid, uuid, uuid, numeric, text);
+```
 
-### Step 2: Add maker-checker fields to funder_limits
+## Step 2: Fix `credit-committee-decide` edge function auth (Edge Function)
 
-**Migration:**
-- Add `approved_by UUID`, `approved_at TIMESTAMPTZ` to `funder_limits`
-- Update the existing status transition trigger to auto-populate these on approval
+Line 29 calls `auth.getClaims(token)` which does not exist in the Supabase JS v2 client. This causes the edge function to fail silently on every invocation.
 
-### Step 3: Clean up funder_limits RLS
+**Action:** Replace with `auth.getUser()`:
+```typescript
+const { data: { user }, error: userErr } = await callerClient.auth.getUser();
+if (userErr || !user) { return 401 }
+const userId = user.id;
+```
 
-**Migration:**
-- Replace `WHERE id = auth.uid() OR user_id = auth.uid()` with just `WHERE user_id = auth.uid()` across all three funder_limits policies
+## Step 3: Tighten CC votes INSERT policy (Migration)
 
-### Step 4: Add audit triggers on funding_offers and funder_referrals
+Currently any authenticated user in the same organization can insert votes. The policy should verify the voter is an active member of the credit committee.
 
-**Migration:**
-- Reuse existing `audit_financial_change()` trigger function
-- Attach to `funding_offers` and `funder_referrals` tables
+**Action:** Replace the INSERT policy to add an `EXISTS` check against `credit_committee_members`:
+```sql
+DROP POLICY "CC members can insert own votes" ON public.credit_committee_votes;
+CREATE POLICY "CC members can insert own votes"
+ON public.credit_committee_votes FOR INSERT TO authenticated
+WITH CHECK (
+  user_id = auth.uid()
+  AND application_id IN (
+    SELECT id FROM credit_committee_applications
+    WHERE organization_id = get_user_organization_id(auth.uid())
+  )
+  AND EXISTS (
+    SELECT 1 FROM credit_committee_members
+    WHERE user_id = auth.uid()
+      AND is_active = true
+      AND organization_id = get_user_organization_id(auth.uid())
+  )
+);
+```
 
-### Step 5: Funder referral notification
+## Step 4: Tighten notifications INSERT policy (Migration)
 
-**Migration or code:**
-- After inserting a `funder_referrals` row (in `ReferToFunderDialog.tsx`), insert a notification into `notifications` table for the target funder user
+The linter flagged `WITH CHECK (true)` on the notifications INSERT policy, allowing any user to insert notifications targeting other users.
 
-### Step 6: Credit limit recommendation expiry automation
+**Action:** Restrict to service-role or self-notifications by requiring the inserted `user_id` matches `auth.uid()` or the inserter has an admin role:
+```sql
+DROP POLICY "Authenticated can insert notifications" ON public.notifications;
+CREATE POLICY "Users or admins can insert notifications"
+ON public.notifications FOR INSERT TO authenticated
+WITH CHECK (
+  user_id = auth.uid()
+  OR has_role(auth.uid(), 'admin')
+  OR has_role(auth.uid(), 'originator_admin')
+);
+```
 
-**Migration:**
-- Create a simple SQL function `expire_stale_recommendations()` that updates status to 'expired' where `valid_to < CURRENT_DATE AND status = 'approved'`
-- Schedule via pg_cron (with graceful fallback if extension unavailable)
+## Step 5: Schedule expiry cron job (Migration)
+
+The `expire_stale_recommendations()` function exists but is never called. Add a `pg_cron` schedule with graceful fallback.
+
+**Action:**
+```sql
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    PERFORM cron.schedule(
+      'expire-stale-recommendations',
+      '0 2 * * *',
+      $$SELECT public.expire_stale_recommendations()$$
+    );
+  END IF;
+END $$;
+```
 
 ---
 
-## Deferred Items (not actionable now)
+## Summary
 
-- **Counter-offer workflow UI** — needs UX design decisions first
-- **Market rates live API** — requires FRED_API_KEY or similar; currently acceptable with manual override
-- **DB trigger on funding_offers insert** — complex; requires knowing which funder to validate against at bid time
-- **Sanctions auto-trigger** — already exists as manual button; auto-on-save is a UX preference, not a gap
+| Step | Type | Risk | Files |
+|------|------|------|-------|
+| 1 | Migration | Low | 1 SQL |
+| 2 | Edge function | Low | `credit-committee-decide/index.ts` |
+| 3 | Migration | Low | 1 SQL |
+| 4 | Migration | Low | 1 SQL |
+| 5 | Migration | Low | 1 SQL |
 
-## Effort: 2 migrations, 1 component edit, 1 dialog edit. No edge function changes needed.
+Steps 1, 3, 4, 5 go into a single migration. Step 2 is an edge function edit + deploy. Total effort: ~10 minutes.
 
