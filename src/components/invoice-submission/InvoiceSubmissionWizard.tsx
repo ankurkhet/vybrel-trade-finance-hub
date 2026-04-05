@@ -272,7 +272,7 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
         if (!eligErr && eligibility && Array.isArray(eligibility) && eligibility.length > 0) {
           const result = eligibility[0] as any;
 
-          // Log the eligibility check to audit trail
+          // Log the eligibility check to audit trail (fire-and-forget)
           supabase.rpc("log_eligibility_check" as any, {
             _user_id: userId,
             _funder_user_id: funderLimit.funder_user_id,
@@ -280,7 +280,9 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
             _amount: parseFloat(totalAmount),
             _eligible: result?.eligible ?? true,
             _message: result?.message ?? "No result",
-          }).catch(console.error);
+          }).then(({ error: logErr }) => {
+            if (logErr) console.error("Eligibility audit log failed:", logErr);
+          });
 
           if (result && result.eligible === false) {
             const errorMsg = result.message || "Invoice exceeds available funder limit";
