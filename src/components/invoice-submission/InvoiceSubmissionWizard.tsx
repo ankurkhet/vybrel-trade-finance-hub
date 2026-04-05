@@ -67,7 +67,7 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [approvedFacilities, setApprovedFacilities] = useState<any[]>([]);
   const [selectedFacilityId, setSelectedFacilityId] = useState("");
-
+  const [eligibilityError, setEligibilityError] = useState<string | null>(null);
 
 
   // AI analysis results
@@ -134,6 +134,7 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
     setRequiresAcceptance(true); setCounterpartyEmail(""); setCounterpartyName("");
     setObservationComments({}); setDocumentComments({}); setOverallComment("");
     setSelectedFacilityId("");
+    setEligibilityError(null);
   };
 
   const handleClose = (val: boolean) => {
@@ -232,15 +233,29 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
     setSubmitting(true);
 
     try {
-      // Resolve the actual funder_user_id from funder_limits for this borrower
-      const { data: funderLimit } = await supabase
+      setEligibilityError(null);
+
+      // Determine the product type filter from the selected facility
+      let facilityProductType = productType;
+      if (selectedFacilityId) {
+        const selectedFac = approvedFacilities.find(f => f.id === selectedFacilityId);
+        if (selectedFac?.facility_type) {
+          facilityProductType = selectedFac.facility_type;
+        }
+      }
+
+      // Resolve the actual funder_user_id from funder_limits, filtered by product type
+      const limitQuery = supabase
         .from("funder_limits")
-        .select("funder_user_id")
+        .select("funder_user_id, limit_amount, limit_receivables_purchase, limit_reverse_factoring, limit_payable_finance")
         .eq("borrower_id", borrower.id)
         .eq("organization_id", borrower.organization_id)
-        .eq("status", "approved")
-        .limit(1)
-        .maybeSingle();
+        .eq("status", "approved");
+
+      const { data: funderLimits } = await limitQuery;
+
+      // Find the best matching funder limit
+      const funderLimit = funderLimits?.[0];
 
       if (funderLimit?.funder_user_id) {
         const { data: eligibility, error: eligErr } = await supabase.rpc(
@@ -250,14 +265,29 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
             _borrower_id: borrower.id,
             _organization_id: borrower.organization_id,
             _invoice_amount: parseFloat(totalAmount),
-            _product_type: productType,
+            _product_type: facilityProductType,
           }
         );
 
         if (!eligErr && eligibility && Array.isArray(eligibility) && eligibility.length > 0) {
           const result = eligibility[0] as any;
+
+          // Log the eligibility check to audit trail (fire-and-forget)
+          supabase.rpc("log_eligibility_check" as any, {
+            _user_id: userId,
+            _funder_user_id: funderLimit.funder_user_id,
+            _borrower_id: borrower.id,
+            _amount: parseFloat(totalAmount),
+            _eligible: result?.eligible ?? true,
+            _message: result?.message ?? "No result",
+          }).then(({ error: logErr }) => {
+            if (logErr) console.error("Eligibility audit log failed:", logErr);
+          });
+
           if (result && result.eligible === false) {
-            toast.error(result.message || "Invoice exceeds available funder limit");
+            const errorMsg = result.message || "Invoice exceeds available funder limit";
+            setEligibilityError(errorMsg);
+            toast.error(errorMsg);
             setSubmitting(false);
             return;
           }
@@ -802,6 +832,17 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
           )}
         </ScrollArea>
 
+        {/* Eligibility Error Banner */}
+        {eligibilityError && (
+          <div className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 mx-1">
+            <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div className="text-sm text-destructive">
+              <p className="font-medium">Funder eligibility check failed</p>
+              <p className="mt-0.5">{eligibilityError}</p>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="flex items-center justify-between pt-3 border-t">
           <div>
@@ -828,7 +869,7 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
               </Button>
             )}
             {step === "review" && (
-              <Button onClick={handleSubmit} disabled={submitting}>
+              <Button onClick={handleSubmit} disabled={submitting || !!eligibilityError}>
                 {submitting ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
                 ) : (

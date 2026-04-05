@@ -3412,6 +3412,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      log_eligibility_check: {
+        Args: {
+          _amount: number
+          _borrower_id: string
+          _eligible: boolean
+          _funder_user_id: string
+          _message: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       acceptance_method: "direct_counterparty" | "document_upload"
