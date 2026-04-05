@@ -1,103 +1,105 @@
 
 
-# Remediation Plan — Combined Gaps (April 5)
+# Eligibility Check Architecture Hardening
 
-## What we're fixing
+## Current State
 
-Three confirmed bugs from Lovable's testing plus two operational gaps from the external report. Step 5 (auto-trigger sanctions on director save) is excluded per your request.
+The previous fix (lines 234-268 of `InvoiceSubmissionWizard.tsx`) already resolves the correct `funder_user_id` from the `funder_limits` table — it no longer passes the borrower's ID. The critical bug described in the report was already fixed in the April 4 sprint.
+
+However, the current implementation has weaknesses that this plan addresses:
+- It picks a random approved funder limit (no tie to the selected facility)
+- No DB-level enforcement on `funding_offers`
+- No audit logging of eligibility checks
+- Error UX could be clearer
 
 ---
 
-## Step 1: Drop stale 5-arg `check_funder_eligibility` overload (Migration)
+## Step 1: Tie eligibility check to selected facility (InvoiceSubmissionWizard.tsx)
 
-The old 5-argument version of this function still exists and filters for `status = 'active'` instead of `'approved'`. This creates ambiguity — the database may route calls to the wrong overload.
+Currently, the funder lookup at line 236 queries any approved `funder_limits` row for the borrower. It should filter by the selected facility's product type and, if a `selectedFacilityId` is set, prefer funder limits that match.
 
-**Action:** Drop the 5-arg function. The correct 6-arg version (with `_counterparty_id DEFAULT NULL`) already handles all calls.
+**Changes to `handleSubmit()` (lines 234-268):**
+- If `selectedFacilityId` is set, load the facility to get its `facility_type`
+- Query `funder_limits` filtered by the matching product type
+- Pass `selectedFacilityId` through to the invoice insert (already done at line 294)
+- Show a clear blocking error with the reason when ineligible, preventing submission entirely
+
+## Step 2: DB-level enforcement trigger on funding_offers (Migration)
+
+Create a `BEFORE INSERT` trigger on `funding_offers` that calls `check_funder_eligibility()` and raises an exception if the funder is not eligible.
 
 ```sql
-DROP FUNCTION IF EXISTS public.check_funder_eligibility(uuid, uuid, uuid, numeric, text);
-```
-
-## Step 2: Fix `credit-committee-decide` edge function auth (Edge Function)
-
-Line 29 calls `auth.getClaims(token)` which does not exist in the Supabase JS v2 client. This causes the edge function to fail silently on every invocation.
-
-**Action:** Replace with `auth.getUser()`:
-```typescript
-const { data: { user }, error: userErr } = await callerClient.auth.getUser();
-if (userErr || !user) { return 401 }
-const userId = user.id;
-```
-
-## Step 3: Tighten CC votes INSERT policy (Migration)
-
-Currently any authenticated user in the same organization can insert votes. The policy should verify the voter is an active member of the credit committee.
-
-**Action:** Replace the INSERT policy to add an `EXISTS` check against `credit_committee_members`:
-```sql
-DROP POLICY "CC members can insert own votes" ON public.credit_committee_votes;
-CREATE POLICY "CC members can insert own votes"
-ON public.credit_committee_votes FOR INSERT TO authenticated
-WITH CHECK (
-  user_id = auth.uid()
-  AND application_id IN (
-    SELECT id FROM credit_committee_applications
-    WHERE organization_id = get_user_organization_id(auth.uid())
-  )
-  AND EXISTS (
-    SELECT 1 FROM credit_committee_members
-    WHERE user_id = auth.uid()
-      AND is_active = true
-      AND organization_id = get_user_organization_id(auth.uid())
-  )
-);
-```
-
-## Step 4: Tighten notifications INSERT policy (Migration)
-
-The linter flagged `WITH CHECK (true)` on the notifications INSERT policy, allowing any user to insert notifications targeting other users.
-
-**Action:** Restrict to service-role or self-notifications by requiring the inserted `user_id` matches `auth.uid()` or the inserter has an admin role:
-```sql
-DROP POLICY "Authenticated can insert notifications" ON public.notifications;
-CREATE POLICY "Users or admins can insert notifications"
-ON public.notifications FOR INSERT TO authenticated
-WITH CHECK (
-  user_id = auth.uid()
-  OR has_role(auth.uid(), 'admin')
-  OR has_role(auth.uid(), 'originator_admin')
-);
-```
-
-## Step 5: Schedule expiry cron job (Migration)
-
-The `expire_stale_recommendations()` function exists but is never called. Add a `pg_cron` schedule with graceful fallback.
-
-**Action:**
-```sql
-DO $$
+CREATE OR REPLACE FUNCTION public.enforce_funder_eligibility_on_insert()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $$
+DECLARE
+  _inv RECORD;
+  _result RECORD;
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
-    PERFORM cron.schedule(
-      'expire-stale-recommendations',
-      '0 2 * * *',
-      $$SELECT public.expire_stale_recommendations()$$
-    );
+  SELECT borrower_id, organization_id, amount, product_type
+  INTO _inv FROM invoices WHERE id = NEW.invoice_id;
+
+  IF _inv IS NULL THEN
+    RAISE EXCEPTION 'Invoice not found: %', NEW.invoice_id;
   END IF;
-END $$;
+
+  SELECT * INTO _result FROM check_funder_eligibility(
+    NEW.funder_user_id, _inv.borrower_id, _inv.organization_id,
+    NEW.offer_amount, COALESCE(_inv.product_type, 'receivables_purchase')
+  );
+
+  IF _result IS NOT NULL AND _result.eligible = false THEN
+    RAISE EXCEPTION 'Funder not eligible: %', _result.message;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER enforce_funder_eligibility_on_insert
+BEFORE INSERT ON funding_offers
+FOR EACH ROW EXECUTE FUNCTION enforce_funder_eligibility_on_insert();
 ```
+
+## Step 3: Audit logging for eligibility checks (Migration)
+
+Create a helper function that logs eligibility check results to `audit_logs`:
+
+```sql
+CREATE OR REPLACE FUNCTION public.log_eligibility_check(
+  _user_id uuid, _funder_user_id uuid, _borrower_id uuid,
+  _amount numeric, _eligible boolean, _message text
+) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $$
+BEGIN
+  INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details)
+  VALUES (_user_id, 'eligibility_check', 'funder_limit', _funder_user_id::text,
+    jsonb_build_object(
+      'borrower_id', _borrower_id, 'amount', _amount,
+      'eligible', _eligible, 'message', _message
+    ));
+END;
+$$;
+```
+
+Then call this from the frontend after the RPC returns, and also from the DB trigger.
+
+## Step 4: Frontend UX improvements (InvoiceSubmissionWizard.tsx)
+
+- After the eligibility check fails, show an `AlertCircle` banner with the exact reason (e.g. "Invoice amount 50,000 exceeds available limit 30,000")
+- Disable the Submit button and show the error inline rather than just a toast
+- Add a state variable `eligibilityError` that blocks submission
 
 ---
 
 ## Summary
 
-| Step | Type | Risk | Files |
-|------|------|------|-------|
-| 1 | Migration | Low | 1 SQL |
-| 2 | Edge function | Low | `credit-committee-decide/index.ts` |
-| 3 | Migration | Low | 1 SQL |
-| 4 | Migration | Low | 1 SQL |
-| 5 | Migration | Low | 1 SQL |
+| Step | Type | Risk | What it does |
+|------|------|------|-------------|
+| 1 | Component edit | Low | Ties eligibility to selected facility |
+| 2 | Migration | Low | DB trigger prevents invalid funding offers |
+| 3 | Migration | Low | Audit trail for all eligibility checks |
+| 4 | Component edit | Low | Clear blocking error UX |
 
-Steps 1, 3, 4, 5 go into a single migration. Step 2 is an edge function edit + deploy. Total effort: ~10 minutes.
+**Files modified:** 1 migration (Steps 2-3), 1 component (Steps 1, 4)
 
