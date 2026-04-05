@@ -134,7 +134,7 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
     setRequiresAcceptance(true); setCounterpartyEmail(""); setCounterpartyName("");
     setObservationComments({}); setDocumentComments({}); setOverallComment("");
     setSelectedFacilityId("");
-  };
+    setEligibilityError(null);
 
   const handleClose = (val: boolean) => {
     if (!val) resetWizard();
