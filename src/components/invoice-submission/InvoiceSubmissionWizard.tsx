@@ -832,6 +832,17 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
           )}
         </ScrollArea>
 
+        {/* Eligibility Error Banner */}
+        {eligibilityError && (
+          <div className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 mx-1">
+            <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div className="text-sm text-destructive">
+              <p className="font-medium">Funder eligibility check failed</p>
+              <p className="mt-0.5">{eligibilityError}</p>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="flex items-center justify-between pt-3 border-t">
           <div>
@@ -858,7 +869,7 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
               </Button>
             )}
             {step === "review" && (
-              <Button onClick={handleSubmit} disabled={submitting}>
+              <Button onClick={handleSubmit} disabled={submitting || !!eligibilityError}>
                 {submitting ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
                 ) : (
