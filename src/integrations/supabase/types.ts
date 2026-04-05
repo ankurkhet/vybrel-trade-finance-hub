@@ -3361,36 +3361,21 @@ export type Database = {
         Returns: boolean
       }
       accrue_daily_interest: { Args: never; Returns: undefined }
-      check_funder_eligibility:
-        | {
-            Args: {
-              _borrower_id: string
-              _funder_user_id: string
-              _invoice_amount: number
-              _organization_id: string
-              _product_type?: string
-            }
-            Returns: {
-              available_limit: number
-              eligible: boolean
-              message: string
-            }[]
-          }
-        | {
-            Args: {
-              _borrower_id: string
-              _counterparty_id?: string
-              _funder_user_id: string
-              _invoice_amount: number
-              _organization_id: string
-              _product_type?: string
-            }
-            Returns: {
-              available_limit: number
-              eligible: boolean
-              message: string
-            }[]
-          }
+      check_funder_eligibility: {
+        Args: {
+          _borrower_id: string
+          _counterparty_id?: string
+          _funder_user_id: string
+          _invoice_amount: number
+          _organization_id: string
+          _product_type?: string
+        }
+        Returns: {
+          available_limit: number
+          eligible: boolean
+          message: string
+        }[]
+      }
       compute_facility_rate: {
         Args: {
           _funder_base_rate: number
