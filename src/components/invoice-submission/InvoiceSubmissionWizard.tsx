@@ -67,7 +67,7 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [approvedFacilities, setApprovedFacilities] = useState<any[]>([]);
   const [selectedFacilityId, setSelectedFacilityId] = useState("");
-
+  const [eligibilityError, setEligibilityError] = useState<string | null>(null);
 
 
   // AI analysis results
