@@ -254,6 +254,7 @@ export default function Invoices() {
                     <TableHead>Amount</TableHead>
                     <TableHead>Due Date</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Fraud</TableHead>
                     <TableHead>Acceptance</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
