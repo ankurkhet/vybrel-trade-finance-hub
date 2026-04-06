@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Upload, Loader2, FileText, AlertTriangle, AlertCircle, Info, CheckCircle2,
-  X, ChevronRight, ChevronLeft, PackageCheck, Send, Sparkles, File
+  X, ChevronRight, ChevronLeft, PackageCheck, Send, Sparkles, File, ShieldAlert, ShieldX, Shield
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
