@@ -903,6 +903,51 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
           </div>
         )}
 
+        {/* Fraud Check Result Banner */}
+        {fraudResult && fraudResult.status === "blocked" && (
+          <div className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 mx-1">
+            <ShieldX className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div className="text-sm text-destructive">
+              <p className="font-medium">Invoice blocked — fraud score {fraudResult.score}/100</p>
+              <ul className="mt-1 space-y-0.5">
+                {(fraudResult.reasons || []).map((r: string, i: number) => (
+                  <li key={i} className="text-xs">• {r}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+        {fraudResult && fraudResult.status === "flagged" && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-3 mx-1">
+            <ShieldAlert className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+            <div className="text-sm text-amber-800 dark:text-amber-300">
+              <p className="font-medium">Fraud risk flagged — score {fraudResult.score}/100</p>
+              <p className="text-xs mt-0.5">This invoice will be submitted for ops manager review.</p>
+              <ul className="mt-1 space-y-0.5">
+                {(fraudResult.reasons || []).map((r: string, i: number) => (
+                  <li key={i} className="text-xs">• {r}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+        {fraudResult && fraudResult.status === "passed" && (
+          <div className="flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 p-3 mx-1">
+            <Shield className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+            <div className="text-sm text-emerald-800 dark:text-emerald-300">
+              <p className="font-medium">Fraud check passed — score {fraudResult.score}/100</p>
+            </div>
+          </div>
+        )}
+
+        {/* Duplicate Warning */}
+        {duplicateWarning && step === "review" && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-3 mx-1">
+            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+            <p className="text-sm text-amber-800 dark:text-amber-300">{duplicateWarning}</p>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="flex items-center justify-between pt-3 border-t">
           <div>
