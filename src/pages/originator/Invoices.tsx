@@ -174,6 +174,7 @@ export default function Invoices() {
     total: invoices.length,
     pending: invoices.filter((i) => i.status === "pending").length,
     approved: invoices.filter((i) => i.status === "approved").length,
+    flagged: invoices.filter((i) => i.fraud_status === "flagged" || i.fraud_status === "blocked").length,
     awaitingCP: invoices.filter((i) => i.requires_counterparty_acceptance && i.acceptance_status === "pending").length,
     totalValue: invoices.reduce((sum, i) => sum + Number(i.amount), 0),
   };
