@@ -121,6 +121,22 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
   // Load on open
   useEffect(() => { if (open) loadFacilities(); }, [open, loadFacilities]);
 
+  // Live duplicate check on invoice number change
+  const checkDuplicate = useCallback(async (invNum: string) => {
+    if (!invNum || invNum.length < 2) { setDuplicateWarning(null); return; }
+    const { data } = await supabase
+      .from("invoices")
+      .select("id, invoice_number, debtor_name")
+      .eq("organization_id", borrower.organization_id)
+      .eq("invoice_number", invNum)
+      .limit(1);
+    if (data && data.length > 0) {
+      setDuplicateWarning(`Duplicate invoice number detected — ${invNum} already exists for ${data[0].debtor_name}`);
+    } else {
+      setDuplicateWarning(null);
+    }
+  }, [borrower.organization_id]);
+
   const resetWizard = () => {
     setStep("upload");
     setFiles([]);
