@@ -2095,6 +2095,78 @@ export type Database = {
           },
         ]
       }
+      invoice_fraud_checks: {
+        Row: {
+          ai_signals: Json | null
+          checked_at: string
+          checked_by: string | null
+          created_at: string
+          duplicate_matches: Json | null
+          external_results: Json | null
+          fraud_score: number
+          id: string
+          invoice_id: string
+          organization_id: string
+          override_at: string | null
+          override_by: string | null
+          override_reason: string | null
+          reasons: string[] | null
+          rule_results: Json | null
+          status: Database["public"]["Enums"]["fraud_check_status"]
+        }
+        Insert: {
+          ai_signals?: Json | null
+          checked_at?: string
+          checked_by?: string | null
+          created_at?: string
+          duplicate_matches?: Json | null
+          external_results?: Json | null
+          fraud_score?: number
+          id?: string
+          invoice_id: string
+          organization_id: string
+          override_at?: string | null
+          override_by?: string | null
+          override_reason?: string | null
+          reasons?: string[] | null
+          rule_results?: Json | null
+          status?: Database["public"]["Enums"]["fraud_check_status"]
+        }
+        Update: {
+          ai_signals?: Json | null
+          checked_at?: string
+          checked_by?: string | null
+          created_at?: string
+          duplicate_matches?: Json | null
+          external_results?: Json | null
+          fraud_score?: number
+          id?: string
+          invoice_id?: string
+          organization_id?: string
+          override_at?: string | null
+          override_by?: string | null
+          override_reason?: string | null
+          reasons?: string[] | null
+          rule_results?: Json | null
+          status?: Database["public"]["Enums"]["fraud_check_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_fraud_checks_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_fraud_checks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_submission_documents: {
         Row: {
           ai_confidence: number | null
@@ -2243,6 +2315,8 @@ export type Database = {
           document_id: string | null
           due_date: string
           facility_request_id: string | null
+          fraud_score: number | null
+          fraud_status: string | null
           id: string
           invoice_number: string
           issue_date: string
@@ -2272,6 +2346,8 @@ export type Database = {
           document_id?: string | null
           due_date: string
           facility_request_id?: string | null
+          fraud_score?: number | null
+          fraud_status?: string | null
           id?: string
           invoice_number: string
           issue_date: string
@@ -2301,6 +2377,8 @@ export type Database = {
           document_id?: string | null
           due_date?: string
           facility_request_id?: string | null
+          fraud_score?: number | null
+          fraud_status?: string | null
           id?: string
           invoice_number?: string
           issue_date?: string
@@ -2583,6 +2661,8 @@ export type Database = {
           auto_approve_below: number | null
           created_at: string
           default_credit_limit: number | null
+          fraud_providers_enabled: Json | null
+          fraud_threshold: number | null
           id: string
           max_credit_limit: number | null
           notes: string | null
@@ -2595,6 +2675,8 @@ export type Database = {
           auto_approve_below?: number | null
           created_at?: string
           default_credit_limit?: number | null
+          fraud_providers_enabled?: Json | null
+          fraud_threshold?: number | null
           id?: string
           max_credit_limit?: number | null
           notes?: string | null
@@ -2607,6 +2689,8 @@ export type Database = {
           auto_approve_below?: number | null
           created_at?: string
           default_credit_limit?: number | null
+          fraud_providers_enabled?: Json | null
+          fraud_threshold?: number | null
           id?: string
           max_credit_limit?: number | null
           notes?: string | null
@@ -3478,6 +3562,7 @@ export type Database = {
         | "credit_memo"
         | "nda"
         | "other"
+      fraud_check_status: "passed" | "flagged" | "blocked"
       labelling_mode: "white_label" | "joint_label" | "platform_label"
       onboarding_status:
         | "invited"
@@ -3698,6 +3783,7 @@ export const Constants = {
         "nda",
         "other",
       ],
+      fraud_check_status: ["passed", "flagged", "blocked"],
       labelling_mode: ["white_label", "joint_label", "platform_label"],
       onboarding_status: [
         "invited",
