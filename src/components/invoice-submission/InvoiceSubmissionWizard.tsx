@@ -102,6 +102,11 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
   const [documentComments, setDocumentComments] = useState<Record<number, string>>({});
   const [overallComment, setOverallComment] = useState("");
 
+  // Fraud check state
+  const [fraudResult, setFraudResult] = useState<any>(null);
+  const [fraudChecking, setFraudChecking] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+
   // Load approved facilities when wizard opens
   const loadFacilities = useCallback(async () => {
     const { data } = await supabase
