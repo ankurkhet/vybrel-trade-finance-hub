@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Globe, Key, Settings2, Database } from "lucide-react";
+import { Loader2, Plus, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Globe, Key, Settings2, Database, ShieldAlert } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { DEFAULT_REGISTRIES, REGISTRY_CAPABILITIES } from "@/lib/onboarding-types";
 
