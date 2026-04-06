@@ -31,6 +31,7 @@ export default function Invoices() {
   const [productFilter, setProductFilter] = useState("all");
   const [reviewInvoice, setReviewInvoice] = useState<any>(null);
   const [updating, setUpdating] = useState(false);
+  const [fraudChecks, setFraudChecks] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (profile?.organization_id) fetchInvoices();
