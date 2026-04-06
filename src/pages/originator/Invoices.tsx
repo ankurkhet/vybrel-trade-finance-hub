@@ -364,6 +364,14 @@ export default function Invoices() {
                   </div>
                 </>
               )}
+
+              {/* Fraud Assessment */}
+              <FraudAssessmentSection
+                invoice={reviewInvoice}
+                fraudCheck={fraudChecks[reviewInvoice.id]}
+                canOverride={true}
+                onOverrideComplete={() => { setReviewInvoice(null); fetchInvoices(); }}
+              />
             </div>
           )}
           <DialogFooter className="flex-wrap gap-2">
