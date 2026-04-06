@@ -140,6 +140,7 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
     setObservationComments({}); setDocumentComments({}); setOverallComment("");
     setSelectedFacilityId("");
     setEligibilityError(null);
+    setFraudResult(null); setFraudChecking(false); setDuplicateWarning(null);
   };
 
   const handleClose = (val: boolean) => {
