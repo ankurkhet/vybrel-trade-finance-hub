@@ -188,7 +188,7 @@ export default function Invoices() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
           {[
             { label: "Total", value: stats.total },
             { label: "Pending Review", value: stats.pending },
