@@ -642,7 +642,7 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
                   <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Invoice No. *</Label>
-                      <Input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} className="h-8 text-sm" />
+                      <Input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} onBlur={() => checkDuplicate(invoiceNumber)} className="h-8 text-sm" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Invoice Date</Label>
