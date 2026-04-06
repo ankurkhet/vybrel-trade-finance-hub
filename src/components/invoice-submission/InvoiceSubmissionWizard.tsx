@@ -974,8 +974,10 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
               </Button>
             )}
             {step === "review" && (
-              <Button onClick={handleSubmit} disabled={submitting || !!eligibilityError}>
-                {submitting ? (
+              <Button onClick={handleSubmit} disabled={submitting || !!eligibilityError || fraudResult?.status === "blocked" || fraudChecking}>
+                {fraudChecking ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking fraud...</>
+                ) : submitting ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
                 ) : (
                   <><Send className="mr-2 h-4 w-4" /> Submit Invoice</>
