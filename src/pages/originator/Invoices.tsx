@@ -193,6 +193,7 @@ export default function Invoices() {
             { label: "Total", value: stats.total },
             { label: "Pending Review", value: stats.pending },
             { label: "Approved", value: stats.approved },
+            { label: "Fraud Flagged", value: stats.flagged },
             { label: "Awaiting Counterparty", value: stats.awaitingCP },
             { label: "Total Value", value: `$${stats.totalValue.toLocaleString()}` },
           ].map((s) => (
