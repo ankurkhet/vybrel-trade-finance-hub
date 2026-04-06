@@ -358,6 +358,7 @@ export const REGISTRY_CAPABILITIES = [
   "financial_data",
   "credit_scores",
   "financial_statements",
+  "fraud_detection",
 ] as const;
 
 export const DEFAULT_REGISTRIES: Omit<RegistryApiConfig, "id" | "last_health_check" | "health_status" | "health_message">[] = [
