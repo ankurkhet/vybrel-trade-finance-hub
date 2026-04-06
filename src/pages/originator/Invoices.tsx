@@ -46,6 +46,21 @@ export default function Invoices() {
       .order("created_at", { ascending: false });
 
     setInvoices(data || []);
+
+    // Load fraud checks for all invoices
+    if (data && data.length > 0) {
+      const invoiceIds = data.map((i: any) => i.id);
+      const { data: checks } = await supabase
+        .from("invoice_fraud_checks" as any)
+        .select("*")
+        .in("invoice_id", invoiceIds);
+      const checkMap: Record<string, any> = {};
+      for (const c of checks || []) {
+        checkMap[(c as any).invoice_id] = c;
+      }
+      setFraudChecks(checkMap);
+    }
+
     setLoading(false);
   };
 
