@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { CreditCard, Plus, Loader2, FileText, Upload, CheckCircle2, Clock } from "lucide-react";
+import { CreditCard, Plus, Loader2, FileText, Upload, CheckCircle2, Clock, ShieldAlert, ShieldX, Shield } from "lucide-react";
+import { FraudBadge } from "@/components/fraud/FraudBadge";
 import { InvoiceSubmissionWizard } from "@/components/invoice-submission/InvoiceSubmissionWizard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -265,6 +266,7 @@ export default function BorrowerInvoices() {
                     <TableHead>Amount</TableHead>
                     <TableHead>Due Date</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Fraud</TableHead>
                     <TableHead>Acceptance</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
@@ -286,18 +288,33 @@ export default function BorrowerInvoices() {
                           {inv.status}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <FraudBadge fraudStatus={inv.fraud_status} fraudScore={inv.fraud_score} compact />
+                      </TableCell>
                       <TableCell>{acceptanceStatusBadge(inv)}</TableCell>
                       <TableCell>
-                        {inv.requires_counterparty_acceptance && inv.acceptance_status === "pending" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs"
-                            onClick={() => setUploadDialogInvoice(inv)}
-                          >
-                            <Upload className="mr-1 h-3 w-3" /> Upload Acceptance
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {inv.requires_counterparty_acceptance && inv.acceptance_status === "pending" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                              onClick={() => setUploadDialogInvoice(inv)}
+                            >
+                              <Upload className="mr-1 h-3 w-3" /> Upload Acceptance
+                            </Button>
+                          )}
+                          {(inv.fraud_status === "flagged" || inv.fraud_status === "blocked") && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                              onClick={() => setUploadDialogInvoice(inv)}
+                            >
+                              <Upload className="mr-1 h-3 w-3" /> Upload Evidence
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

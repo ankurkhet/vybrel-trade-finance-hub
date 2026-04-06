@@ -13,6 +13,8 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { FraudBadge } from "@/components/fraud/FraudBadge";
+import { FraudAssessmentSection } from "@/components/fraud/FraudAssessmentSection";
 
 const PRODUCT_LABELS: Record<string, string> = {
   receivables_purchase: "Receivables Purchase",
@@ -29,6 +31,7 @@ export default function Invoices() {
   const [productFilter, setProductFilter] = useState("all");
   const [reviewInvoice, setReviewInvoice] = useState<any>(null);
   const [updating, setUpdating] = useState(false);
+  const [fraudChecks, setFraudChecks] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (profile?.organization_id) fetchInvoices();
@@ -43,6 +46,21 @@ export default function Invoices() {
       .order("created_at", { ascending: false });
 
     setInvoices(data || []);
+
+    // Load fraud checks for all invoices
+    if (data && data.length > 0) {
+      const invoiceIds = data.map((i: any) => i.id);
+      const { data: checks } = await supabase
+        .from("invoice_fraud_checks" as any)
+        .select("*")
+        .in("invoice_id", invoiceIds);
+      const checkMap: Record<string, any> = {};
+      for (const c of checks || []) {
+        checkMap[(c as any).invoice_id] = c;
+      }
+      setFraudChecks(checkMap);
+    }
+
     setLoading(false);
   };
 
@@ -156,6 +174,7 @@ export default function Invoices() {
     total: invoices.length,
     pending: invoices.filter((i) => i.status === "pending").length,
     approved: invoices.filter((i) => i.status === "approved").length,
+    flagged: invoices.filter((i) => i.fraud_status === "flagged" || i.fraud_status === "blocked").length,
     awaitingCP: invoices.filter((i) => i.requires_counterparty_acceptance && i.acceptance_status === "pending").length,
     totalValue: invoices.reduce((sum, i) => sum + Number(i.amount), 0),
   };
@@ -169,11 +188,12 @@ export default function Invoices() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
           {[
             { label: "Total", value: stats.total },
             { label: "Pending Review", value: stats.pending },
             { label: "Approved", value: stats.approved },
+            { label: "Fraud Flagged", value: stats.flagged },
             { label: "Awaiting Counterparty", value: stats.awaitingCP },
             { label: "Total Value", value: `$${stats.totalValue.toLocaleString()}` },
           ].map((s) => (
@@ -234,6 +254,7 @@ export default function Invoices() {
                     <TableHead>Amount</TableHead>
                     <TableHead>Due Date</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Fraud</TableHead>
                     <TableHead>Acceptance</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -255,6 +276,13 @@ export default function Invoices() {
                         <Badge variant={statusColor(inv.status) as any} className="capitalize text-xs">
                           {inv.status}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <FraudBadge
+                          fraudStatus={inv.fraud_status}
+                          fraudScore={inv.fraud_score}
+                          reasons={fraudChecks[inv.id]?.reasons}
+                        />
                       </TableCell>
                       <TableCell>{acceptanceBadge(inv)}</TableCell>
                       <TableCell>
@@ -336,6 +364,14 @@ export default function Invoices() {
                   </div>
                 </>
               )}
+
+              {/* Fraud Assessment */}
+              <FraudAssessmentSection
+                invoice={reviewInvoice}
+                fraudCheck={fraudChecks[reviewInvoice.id]}
+                canOverride={true}
+                onOverrideComplete={() => { setReviewInvoice(null); fetchInvoices(); }}
+              />
             </div>
           )}
           <DialogFooter className="flex-wrap gap-2">

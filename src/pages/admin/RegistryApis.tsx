@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Globe, Key, Settings2, Database } from "lucide-react";
+import { Loader2, Plus, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Globe, Key, Settings2, Database, ShieldAlert } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { DEFAULT_REGISTRIES, REGISTRY_CAPABILITIES } from "@/lib/onboarding-types";
 
@@ -333,6 +334,69 @@ export default function RegistryApis() {
                 </TableBody>
               </Table>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Fraud Detection Providers */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-destructive" />
+              Fraud Detection Providers
+            </CardTitle>
+            <CardDescription>
+              Configure third-party fraud detection APIs. Add providers with the "fraud_detection" capability to enable automated invoice fraud screening.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                { name: "MonetaGo", desc: "Invoice duplication registry — prevents double-financing across lenders", url: "https://api.monetago.com/v1" },
+                { name: "Coface", desc: "Trade credit insurance & fraud signals", url: "https://api.coface.com/v1" },
+                { name: "Atradius", desc: "Buyer risk assessment and fraud detection", url: "https://api.atradius.com/v1" },
+                { name: "Dun & Bradstreet", desc: "Supplier risk scores and business verification", url: "https://api.dnb.com/v1" },
+                { name: "Creditsafe", desc: "Company credit reports and fraud indicators", url: "https://api.creditsafe.com/v1" },
+              ].map((provider) => {
+                const isConfigured = configs.some(
+                  (c) => c.registry_name === provider.name && (c.capabilities || []).includes("fraud_detection")
+                );
+                return (
+                  <div key={provider.name} className="rounded-lg border p-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-foreground">{provider.name}</p>
+                      {isConfigured ? (
+                        <Badge variant="default" className="text-[10px]">Configured</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px]">Not configured</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{provider.desc}</p>
+                    {!isConfigured && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs mt-2"
+                        onClick={() => {
+                          setEditConfig(null);
+                          setForm({
+                            ...emptyForm,
+                            country_code: "GLOBAL",
+                            country_name: "Global",
+                            registry_name: provider.name,
+                            api_base_url: provider.url,
+                            api_key_secret_name: `${provider.name.replace(/[^a-zA-Z]/g, "_").toUpperCase()}_API_KEY`,
+                            capabilities: ["fraud_detection"],
+                          });
+                          setDialogOpen(true);
+                        }}
+                      >
+                        <Plus className="mr-1 h-3 w-3" /> Configure
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
 
