@@ -277,6 +277,13 @@ export default function Invoices() {
                           {inv.status}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <FraudBadge
+                          fraudStatus={inv.fraud_status}
+                          fraudScore={inv.fraud_score}
+                          reasons={fraudChecks[inv.id]?.reasons}
+                        />
+                      </TableCell>
                       <TableCell>{acceptanceBadge(inv)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
