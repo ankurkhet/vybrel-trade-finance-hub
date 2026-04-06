@@ -320,6 +320,42 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
       }
       // If no funder limit exists, proceed — borrower-submitted invoices may not have a funder assigned yet
 
+      // ---- FRAUD CHECK ----
+      setFraudChecking(true);
+      setFraudResult(null);
+      try {
+        const { data: fraudData, error: fraudErr } = await supabase.functions.invoke("invoice-fraud-check", {
+          body: {
+            organization_id: borrower.organization_id,
+            invoice_data: {
+              invoice_number: invoiceNumber,
+              debtor_name: buyerName,
+              amount: parseFloat(totalAmount),
+              issue_date: invoiceDate || new Date().toISOString().split("T")[0],
+              due_date: dueDate || new Date().toISOString().split("T")[0],
+              currency,
+              borrower_id: borrower.id,
+            },
+            checked_by: userId,
+          },
+        });
+
+        if (!fraudErr && fraudData) {
+          setFraudResult(fraudData);
+          if (fraudData.status === "blocked") {
+            setFraudChecking(false);
+            setSubmitting(false);
+            return; // Block submission — UI shows the fraud result
+          }
+          // flagged: allow through but invoice will be created with flagged status
+        }
+      } catch (fraudErr: any) {
+        console.error("Fraud check failed:", fraudErr);
+        // Don't block submission if fraud check service is down
+      } finally {
+        setFraudChecking(false);
+      }
+
     } catch (outerErr: any) {
       toast.error(outerErr.message || "Submission failed");
       setSubmitting(false);
