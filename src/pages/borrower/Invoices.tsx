@@ -288,18 +288,33 @@ export default function BorrowerInvoices() {
                           {inv.status}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <FraudBadge fraudStatus={inv.fraud_status} fraudScore={inv.fraud_score} compact />
+                      </TableCell>
                       <TableCell>{acceptanceStatusBadge(inv)}</TableCell>
                       <TableCell>
-                        {inv.requires_counterparty_acceptance && inv.acceptance_status === "pending" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs"
-                            onClick={() => setUploadDialogInvoice(inv)}
-                          >
-                            <Upload className="mr-1 h-3 w-3" /> Upload Acceptance
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {inv.requires_counterparty_acceptance && inv.acceptance_status === "pending" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                              onClick={() => setUploadDialogInvoice(inv)}
+                            >
+                              <Upload className="mr-1 h-3 w-3" /> Upload Acceptance
+                            </Button>
+                          )}
+                          {(inv.fraud_status === "flagged" || inv.fraud_status === "blocked") && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                              onClick={() => setUploadDialogInvoice(inv)}
+                            >
+                              <Upload className="mr-1 h-3 w-3" /> Upload Evidence
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
