@@ -13,6 +13,8 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { FraudBadge } from "@/components/fraud/FraudBadge";
+import { FraudAssessmentSection } from "@/components/fraud/FraudAssessmentSection";
 
 const PRODUCT_LABELS: Record<string, string> = {
   receivables_purchase: "Receivables Purchase",
