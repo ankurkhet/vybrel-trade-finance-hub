@@ -39,7 +39,8 @@ function calculateSettlement(
   feeConfig: FeeConfig,
   productType: string,
   facilityRate?: FacilityRate | null,
-  discountRate?: number
+  discountRate?: number,
+  brokerFeePct?: number | null
 ) {
   // Priority: 1) explicit discountRate, 2) facility contracted rate, 3) product fee config default
   const effectiveDiscount =
@@ -64,7 +65,9 @@ function calculateSettlement(
   const discountAmount = (grossAmount * effectiveDiscount) / 100;
   const originatorFee = (grossAmount * originatorFeePct) / 100;
   const platformFee = (grossAmount * platformFeePct) / 100;
-  const totalDeductions = discountAmount + originatorFee + platformFee;
+  const effectiveBrokerPct = brokerFeePct ?? 0;
+  const brokerFee = (grossAmount * effectiveBrokerPct) / 100;
+  const totalDeductions = discountAmount + originatorFee + platformFee + brokerFee;
   const netAmount = grossAmount - totalDeductions;
 
   const feeBreakdown = [
@@ -72,10 +75,11 @@ function calculateSettlement(
     { label: `Discount (${effectiveDiscount}%)`, amount: -discountAmount, type: "discount" },
     { label: `Originator Fee (${originatorFeePct}%)`, amount: -originatorFee, type: "fee" },
     { label: `Platform Fee (${platformFeePct}%)`, amount: -platformFee, type: "fee" },
+    ...(effectiveBrokerPct > 0 ? [{ label: `Broker Fee (${effectiveBrokerPct}%)`, amount: -brokerFee, type: "fee" }] : []),
     { label: "Net Settlement", amount: netAmount, type: "net" },
   ];
 
-  return { discountAmount, originatorFee, platformFee, netAmount, feeBreakdown, effectiveDiscount };
+  return { discountAmount, originatorFee, platformFee, brokerFee, netAmount, feeBreakdown, effectiveDiscount };
 }
 
 function calculateFunderReturn(
