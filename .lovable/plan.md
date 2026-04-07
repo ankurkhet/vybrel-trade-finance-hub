@@ -1,230 +1,135 @@
 
 
-# Fraud Management & Duplicate Invoice Validation Module
+# Comprehensive Gap Remediation Plan
 
-## Overview
-
-This plan adds a complete fraud detection layer to the invoice lifecycle: a new `invoice_fraud_checks` table, an AI-powered edge function that runs duplicate detection + rule-based scoring + optional external API calls, frontend integration at submission and review screens, ops manager override workflow, and admin configuration via the existing Registry API module.
+This plan addresses all 25+ open gaps across 10 modules, organized into 6 implementation batches by dependency order. Each batch is a single migration + associated code changes.
 
 ---
 
-## Architecture
+## Batch 1 — Critical Security & Data Integrity Fixes
 
-```text
-Borrower submits invoice
-        │
-        ▼
-┌──────────────────────┐
-│ InvoiceSubmissionWizard │
-│  (live duplicate check  │
-│   on invoice_number)    │
-└────────┬─────────────┘
-         ▼
-┌──────────────────────┐
-│ invoice-fraud-check  │   ← Edge Function
-│  edge function       │
-│  ┌─ Duplicate scan   │
-│  ├─ Rule engine      │
-│  ├─ AI tamper check  │
-│  └─ External APIs    │
-│     (MonetaGo etc.)  │
-└────────┬─────────────┘
-         ▼
-┌──────────────────────┐
-│ invoice_fraud_checks │   ← New table
-│ (score, status,      │
-│  reasons, details)   │
-└────────┬─────────────┘
-         ▼
-  score < threshold → passed (green badge)
-  score 40-threshold → flagged (amber) → ops review
-  score ≥ threshold → blocked (red) → ops override required
-```
+### 1A. Fix `funder_limits` SELECT RLS (CRITICAL)
+The SELECT policy for funders currently works correctly (`funder_user_id = auth.uid()`), confirmed by inspecting live policies. **No change needed** — the reported gap appears to reference an older state that has already been corrected.
+
+### 1B. Add `account_manager` RLS policies
+The `account_manager` role exists in the enum but has zero RLS policies on any table. Add SELECT policies on: `invoices`, `borrowers`, `documents`, `facility_requests`, `credit_memos`, `disbursement_memos`, `collections`, `settlement_advices`, `counterparties`, `funder_limits`, `credit_committee_applications`. All scoped to `organization_id = get_user_organization_id(auth.uid())`.
+
+### 1C. Fix `audit_financial_change()` trigger — reads `status` instead of `status_enum`
+The `disbursement_memos` table has both `status` and `status_enum` columns. The trigger reads `OLD.status`/`NEW.status` which is the wrong column. Fix the function to read `status_enum`.
+
+### 1D. Fix `accrue_daily_interest()` — reads JSONB path instead of numeric column
+The function reads `fr.metadata->>'overdue_fee_pct'` which is always null. The actual column `facility_requests.overdue_fee_pct` exists as a numeric. Update the function to join and read the column directly. Also add an audit log entry for each accrual.
+
+**Migration:** 1 SQL file (4 changes)
+**Edge functions:** None
 
 ---
 
-## Step 1: Database Migration
+## Batch 2 — Credit Committee & Voting Fixes
 
-### New table: `invoice_fraud_checks`
+### 2A. Allow vote revision before quorum
+Drop the unique constraint `credit_committee_votes_application_id_user_id_key` and replace with an upsert-friendly approach: add an UPDATE policy so CC members can update their own existing votes, and change the INSERT to use `ON CONFLICT (application_id, user_id) DO UPDATE`.
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| invoice_id | uuid FK → invoices | |
-| organization_id | uuid FK → organizations | |
-| fraud_score | numeric(5,2) | 0-100 |
-| status | enum (passed, flagged, blocked) | |
-| duplicate_matches | jsonb | Array of matched invoice IDs with reasons |
-| rule_results | jsonb | Array of rule check results |
-| ai_signals | jsonb | Tampering indicators from AI |
-| external_results | jsonb | Results from external APIs (MonetaGo etc.) |
-| reasons | text[] | Human-readable list of reasons |
-| checked_at | timestamptz | |
-| checked_by | uuid | User who triggered |
-| override_by | uuid NULL | Ops manager who overrode |
-| override_at | timestamptz NULL | |
-| override_reason | text NULL | |
-| created_at | timestamptz | |
+### 2B. Fix `expire_stale_recommendations()` filter
+Currently filters `status = 'approved'` — but there is no `active` status in this table. The correct filter is indeed `'approved'` (recommendations go from approved → expired). Verify this is correct as-is. **No change needed** unless an `active` status enum exists — it does not.
 
-### New columns on `invoices`
-- `fraud_score` numeric NULL
-- `fraud_status` text NULL DEFAULT 'pending' (pending, passed, flagged, blocked, overridden)
+### 2C. Credit memo per-product breakdown
+Add a `product_limits` JSONB column to `credit_memos` to store per-product recommended limits alongside the single `recommended_limit` number. Frontend change in CreditMemoEditor to show per-product fields.
 
-### New columns on `organization_settings`
-- `fraud_threshold` numeric DEFAULT 70
-- `fraud_providers_enabled` jsonb DEFAULT '[]'
-
-### RLS policies on `invoice_fraud_checks`
-- SELECT: org members can read their org's checks
-- INSERT: service role only (via edge function, SECURITY DEFINER)
-- UPDATE: only ops managers can update (for overrides) — check `has_role(auth.uid(), 'originator_admin')`
-- DELETE: denied (immutable audit trail)
-
-### Trigger on `funding_offers`
-- Extend existing `enforce_funder_eligibility_on_insert` or add new `enforce_fraud_check_on_funding` trigger
-- Before INSERT: look up `invoices.fraud_status` — if `blocked`, raise exception; if `flagged` and no override exists, raise exception
+**Migration:** 1 SQL file
+**Component edits:** `CreditMemoEditor.tsx`
 
 ---
 
-## Step 2: Edge Function — `invoice-fraud-check`
+## Batch 3 — Settlement & Fee Calculation Fixes
 
-New edge function that accepts `{ invoice_id, organization_id, invoice_data }` and returns a structured fraud assessment.
+### 3A. Auto-compute `final_discounting_rate` via trigger
+Create a trigger on `facility_requests` that fires on INSERT/UPDATE and calls `compute_facility_rate()` to set `final_discounting_rate = base_rate + funder_margin + originator_margin` when component values are present.
 
-### Check pipeline:
-1. **Duplicate Detection** — Query `invoices` table within the same organization:
-   - Exact match on `invoice_number` + `debtor_name` (different invoice ID)
-   - Fuzzy match: same `debtor_name` + amount within ±5% + date within 7 days
-   - Same `invoice_number` across any borrower in the org
-   - Score: exact duplicate = 90, fuzzy = 50-70
+### 3B. Apply `broker_fee_pct` in settlement calculations
+Update `generate-settlement` edge function's `calculateSettlement()` to include `broker_fee_pct` from `product_fee_configs` as an additional deduction line item.
 
-2. **Rule-Based Checks** — Configurable rules:
-   - Amount vs. borrower's historical average (flag if >3x average)
-   - Rapid successive invoices (>5 invoices from same debtor in 7 days)
-   - Supplier concentration (>80% of total from single debtor)
-   - Round-number amounts (exact thousands)
-   - Weekend/holiday-dated invoices
-   - Each rule contributes 5-20 points to score
+### 3C. Add reconciliation check on collection confirmation
+In the collections flow, validate that `collected_amount` matches `outstanding_balance + accrued_late_fees`. Add a warning (not a block) when amounts don't reconcile.
 
-3. **AI Document Analysis** — Call existing `ai-analyze-document` patterns:
-   - Check for digital tampering indicators (metadata inconsistencies, font changes)
-   - Cross-reference extracted data vs. submitted form data
-   - Contributes 10-30 points if suspicious
-
-4. **External API Checks** — Query `registry_api_configs` for entries with capability `fraud_detection`:
-   - If MonetaGo or similar is configured and active, call their API
-   - Results merged into score
-   - Graceful fallback if external API is unavailable
-
-5. **Score Aggregation** — Weighted combination, capped at 100:
-   - Return `{ score, status, reasons[], duplicate_matches[], rule_results, ai_signals, external_results }`
-   - Status: score < 40 = passed, 40-threshold = flagged, ≥threshold = blocked
-
-6. **Persist** — Insert into `invoice_fraud_checks` and update `invoices.fraud_score` + `invoices.fraud_status`
-
-7. **Audit** — Log to `audit_logs` with action `fraud_check`
+**Migration:** 1 SQL file (trigger)
+**Edge function edit:** `generate-settlement/index.ts`
+**Component edit:** `Collections.tsx` (reconciliation warning)
 
 ---
 
-## Step 3: Frontend — InvoiceSubmissionWizard Changes
+## Batch 4 — Fraud Module Activation & Invoice Workflow
 
-### Live duplicate warning (Step "review")
-- On `invoiceNumber` blur/change: query `invoices` table for same `invoice_number` + `organization_id`
-- If match found: show amber banner "Duplicate invoice number detected — INV-123 already exists for [debtor]"
-- This is a fast client-side check, not the full fraud scan
+### 4A. Deploy and wire `invoice-fraud-check` edge function
+The edge function already exists in the codebase but needs to be deployed. Verify it is deployed and callable. The DB trigger `enforce_fraud_check_on_funding` already exists on `funding_offers`.
 
-### On submit (before insert)
-- Call `invoice-fraud-check` edge function with the form data
-- If `status === 'blocked'`: show red `AlertCircle` banner with all reasons, block submit entirely
-- If `status === 'flagged'`: show amber warning with reasons, allow submit but invoice is created with `fraud_status = 'flagged'`
-- If `status === 'passed'`: proceed normally
-- Show a fraud risk meter (progress bar 0-100) with color coding
+### 4B. Ensure `selectedFacilityId` is saved on invoice insert
+Verify the InvoiceSubmissionWizard passes `facility_request_id` in the invoice insert. If missing, add it.
 
-### New state variables
-- `fraudResult` — stores the edge function response
-- `fraudChecking` — loading state during check
+### 4C. Wire counterparty email notifications
+Set up Lovable email infrastructure and update `notify-counterparty` edge function to actually send emails instead of just building HTML.
+
+**Edge function deploy:** `invoice-fraud-check`
+**Component edit:** `InvoiceSubmissionWizard.tsx` (if needed)
+**Email setup:** Domain + transactional scaffolding
 
 ---
 
-## Step 4: Frontend — Originator Invoices.tsx Changes
+## Batch 5 — Notifications & Workflow Gaps
 
-### Table column
-- Add "Fraud" column between "Status" and "Acceptance"
-- Render `FraudBadge` component: green shield (passed), amber shield (flagged), red shield (blocked), grey (pending)
-- Tooltip on hover shows reasons array
+### 5A. Notify funder on referral creation
+Add a notification insert in the `funder_referrals` audit trigger (or a new trigger) that creates a `notifications` row for the funder when a referral is created.
 
-### Detail dialog
-- New "Fraud Assessment" section with:
-  - Score gauge (0-100 with color)
-  - Reasons list
-  - Duplicate matches (linked invoice numbers)
-  - Override button (visible only to ops managers when status is flagged/blocked)
+### 5B. Counter-offer workflow
+Add originator UI in the funder limits/referrals screen to accept or reject a `counter_offered` status. Update the funder limit status and log to audit.
 
-### Override workflow
-- Ops manager clicks "Override" → confirmation dialog with required reason text
-- Updates `invoice_fraud_checks` with `override_by`, `override_at`, `override_reason`
-- Updates `invoices.fraud_status` to `overridden`
-- Logs to `audit_logs`
-- Sends notification to borrower: "Your invoice INV-XXX has been reviewed and cleared"
+### 5C. Dunning escalation stages
+Add `dunning_stage` column to invoices (values: `none`, `reminder`, `warning`, `escalated`, `legal`). Update `accrue_daily_interest()` to set the stage based on days overdue (1-30: reminder, 31-60: warning, 61-90: escalated, 90+: legal). Insert a notification on first overdue day.
 
-### Stats row
-- Add "Flagged" count to the stats bar
+### 5D. CC votes dual source of truth
+Add a note in the CC minutes generation to read exclusively from `credit_committee_votes` table, ignoring legacy JSONB votes in minutes. No schema change — code-only fix in `credit-committee-decide` edge function.
+
+**Migration:** 1 SQL file
+**Edge function edit:** `credit-committee-decide/index.ts`
+**Component edits:** Funder limits UI, Disbursements/Collections
 
 ---
 
-## Step 5: Frontend — Borrower Portal Updates
+## Batch 6 — Minor & Operational Gaps
 
-### Borrower Invoices page
-- Show fraud status badge on each invoice row
-- If `blocked` or `flagged`: show banner with reason + "Upload additional documents" button
-- Upload button opens a document upload dialog linked to the invoice
-- On upload: notify ops manager via `notifications` table
-- Borrower can see messages from ops manager about the investigation via the existing Messages system
+### 6A. Sanctions auto-trigger on director save (minor)
+Add a trigger or frontend hook that calls `registry-lookup` with sanctions capability when a `borrower_directors` row is inserted or updated. Currently manual-only.
 
----
+### 6B. Re-screening on registry data changes
+Out of scope for automated implementation — requires external webhook from registry providers. Document as a manual periodic process.
 
-## Step 6: Admin Configuration — Registry API Module
+### 6C. Live market rate feed
+The `fetch-market-rates` function hardcodes rates. Add a `FRED_API_KEY` secret check and, if present, fetch SOFR from the FRED API. Otherwise keep static fallback. This is an enhancement, not a bug.
 
-### Fraud Providers section in RegistryApis.tsx
-- Add a new card/section "Fraud Detection Providers" below existing registry configs
-- Seed recommended providers:
-  - **MonetaGo** — Invoice duplication/fraud registry (API: `https://api.monetago.com/v1/check`, capability: `fraud_detection`)
-  - **Coface** — Trade credit insurance & fraud signals
-  - **Atradius** — Buyer risk assessment
-  - **Dun & Bradstreet** — Supplier risk scores
-- Admin can add custom fraud API providers using the same registry config pattern (URL, API key, capabilities)
+### 6D. Workflow engine auto-trigger
+Add DB triggers on key state-change tables (`invoices`, `disbursement_memos`, `credit_committee_applications`) that call the `workflow-engine` edge function via `pg_net` on status transitions.
 
-### Threshold configuration
-- In `organization_settings` admin section: add "Fraud Score Threshold" slider (0-100, default 70)
-- Toggle to enable/disable fraud checking globally
+**Migration:** 1 SQL file
+**Edge function edits:** `fetch-market-rates/index.ts`
 
 ---
 
-## Step 7: Messaging for Investigation
+## Summary Table
 
-- When ops manager reviews a flagged/blocked invoice, they can send a message to the borrower via the existing Messages system using `related_entity_type: 'invoice'` and `related_entity_id: invoice.id`
-- Borrower sees the message thread on their invoice detail view
-- This reuses the existing `messages` table — no new infrastructure needed
+| Batch | Items | Type | Risk | Priority |
+|-------|-------|------|------|----------|
+| 1 | 1B, 1C, 1D | Migration | Medium | P0 — Security + data integrity |
+| 2 | 2A, 2C | Migration + component | Low | P1 — Functional |
+| 3 | 3A, 3B, 3C | Migration + edge fn + component | Medium | P1 — Financial accuracy |
+| 4 | 4A, 4B, 4C | Deploy + email setup | Medium | P1 — Fraud activation |
+| 5 | 5A-5D | Migration + edge fn + components | Low | P2 — Operational |
+| 6 | 6A, 6C, 6D | Migration + edge fn | Low | P3 — Enhancements |
 
----
+**Total:** 4 migrations, 3 edge function edits, 1 edge function deploy, ~5 component edits, email infrastructure setup.
 
-## Technical Summary
-
-| Component | Type | Files |
-|-----------|------|-------|
-| `invoice_fraud_checks` table + columns + RLS + trigger | Migration | 1 SQL |
-| `invoice-fraud-check` edge function | New edge function | 1 file |
-| InvoiceSubmissionWizard fraud integration | Component edit | 1 file |
-| Originator Invoices fraud badges + override | Component edit | 1 file |
-| Borrower Invoices fraud status + upload | Component edit | 1 file |
-| Registry API fraud providers section | Component edit | 1 file |
-| `registry_api_configs` capability: `fraud_detection` seed | Migration | included in step 1 |
-
-**Estimated effort:** ~45 minutes across 1 migration, 1 new edge function, 4 component edits.
-
-**Recommended API providers for fraud detection:**
-- MonetaGo (invoice registry — prevents double-financing across lenders)
-- Coface (trade credit risk)
-- Atradius (buyer/supplier risk)
-- Dun & Bradstreet (business verification + risk scoring)
-- Creditsafe (company credit reports)
+**Items confirmed already fixed or not actually broken:**
+- `funder_limits` SELECT RLS (1A) — policy is correct
+- `expire_stale_recommendations` filter (2B) — `approved` is the correct status
+- `invoice-fraud-check` edge function exists in codebase (just needs deploy)
+- Payment initiation via TrueLayer (out of scope — requires bank integration contract)
 
