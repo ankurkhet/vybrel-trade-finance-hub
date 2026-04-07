@@ -28,6 +28,9 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
   const [editedText, setEditedText] = useState("");
   const [proposedLimit, setProposedLimit] = useState("");
   const [proposedCurrency, setProposedCurrency] = useState<CurrencyCode>("GBP");
+  const [productLimits, setProductLimits] = useState<{ receivables_purchase: string; reverse_factoring: string; payables_finance: string }>({
+    receivables_purchase: "", reverse_factoring: "", payables_finance: "",
+  });
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
