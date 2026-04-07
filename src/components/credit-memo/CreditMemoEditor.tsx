@@ -133,11 +133,16 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
         .update({
           analyst_edits: editedText,
           recommended_limit: Number(proposedLimit),
+          product_limits: {
+            receivables_purchase: productLimits.receivables_purchase ? Number(productLimits.receivables_purchase) : null,
+            reverse_factoring: productLimits.reverse_factoring ? Number(productLimits.reverse_factoring) : null,
+            payables_finance: productLimits.payables_finance ? Number(productLimits.payables_finance) : null,
+          },
           final_memo: editedText,
           status: "submitted_to_committee",
           reviewed_by: profile?.user_id,
           reviewed_at: new Date().toISOString(),
-        })
+        } as any)
         .eq("id", activeMemo.id);
       if (memoError) throw memoError;
 
