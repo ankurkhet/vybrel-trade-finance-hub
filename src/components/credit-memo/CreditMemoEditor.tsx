@@ -310,15 +310,46 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
                 <CardTitle className="text-sm">Proposed Credit Limit</CardTitle>
                 <CardDescription>Set the credit limit to recommend to the committee</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <Label htmlFor="proposed-limit" className="shrink-0">Amount</Label>
+                  <Label htmlFor="proposed-limit" className="shrink-0">Overall Limit</Label>
                   <CurrencyInput
                     value={proposedLimit}
                     currency={proposedCurrency}
                     onValueChange={setProposedLimit}
                     onCurrencyChange={setProposedCurrency}
                   />
+                </div>
+                <Separator />
+                <p className="text-xs text-muted-foreground">Per-product breakdown (optional)</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Receivables Purchase</Label>
+                    <Input
+                      type="number"
+                      value={productLimits.receivables_purchase}
+                      onChange={(e) => setProductLimits(p => ({ ...p, receivables_purchase: e.target.value }))}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Reverse Factoring</Label>
+                    <Input
+                      type="number"
+                      value={productLimits.reverse_factoring}
+                      onChange={(e) => setProductLimits(p => ({ ...p, reverse_factoring: e.target.value }))}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Payables Finance</Label>
+                    <Input
+                      type="number"
+                      value={productLimits.payables_finance}
+                      onChange={(e) => setProductLimits(p => ({ ...p, payables_finance: e.target.value }))}
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
