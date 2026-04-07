@@ -1123,6 +1123,7 @@ export type Database = {
           id: string
           memo_number: string | null
           organization_id: string
+          product_limits: Json | null
           recommended_limit: number | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -1144,6 +1145,7 @@ export type Database = {
           id?: string
           memo_number?: string | null
           organization_id: string
+          product_limits?: Json | null
           recommended_limit?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -1165,6 +1167,7 @@ export type Database = {
           id?: string
           memo_number?: string | null
           organization_id?: string
+          product_limits?: Json | null
           recommended_limit?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
