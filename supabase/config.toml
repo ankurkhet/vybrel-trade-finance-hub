@@ -56,3 +56,9 @@ verify_jwt = false
 
 [functions.fetch-market-rates]
 verify_jwt = false
+
+[functions.invoice-fraud-check]
+verify_jwt = false
+
+[functions.help-chatbot]
+verify_jwt = false

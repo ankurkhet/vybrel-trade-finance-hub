@@ -44,35 +44,19 @@ Deno.serve(async (req) => {
         .eq("organization_id", organization_id)
         .maybeSingle();
 
-      // Read from structured credit_committee_votes table first
+      // Read exclusively from structured credit_committee_votes table (single source of truth)
       const { data: structuredVotes } = await adminClient
         .from("credit_committee_votes")
         .select("*")
         .eq("application_id", application_id);
 
-      let votesArr: any[] = [];
-
-      if (structuredVotes && structuredVotes.length > 0) {
-        // Use structured votes table (preferred)
-        votesArr = structuredVotes.map((v: any) => ({
-          user_id: v.user_id,
-          vote: v.vote,
-          conditions: v.conditions_text,
-          product_limits: v.product_limits,
-          voted_at: v.voted_at,
-        }));
-      } else {
-        // Backward-compatible: fall back to JSONB in minutes
-        const { data: minutes } = await adminClient
-          .from("credit_committee_minutes")
-          .select("votes")
-          .eq("application_id", application_id)
-          .order("created_at", { ascending: false })
-          .limit(1);
-
-        const votes = minutes?.[0]?.votes || [];
-        votesArr = Array.isArray(votes) ? votes : [];
-      }
+      const votesArr = (structuredVotes || []).map((v: any) => ({
+        user_id: v.user_id,
+        vote: v.vote,
+        conditions: v.conditions_text,
+        product_limits: v.product_limits,
+        voted_at: v.voted_at,
+      }));
 
       const approves = votesArr.filter((v: any) => v.vote === "approve" || v.vote === "approve_with_conditions").length;
       const rejects = votesArr.filter((v: any) => v.vote === "reject").length;

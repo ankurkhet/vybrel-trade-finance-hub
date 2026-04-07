@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import { Loader2, Sparkles, Save, Send, FileText, AlertTriangle, CheckCircle2, RotateCcw, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { generateCreditMemo } from "@/lib/ai-services";
@@ -28,6 +29,9 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
   const [editedText, setEditedText] = useState("");
   const [proposedLimit, setProposedLimit] = useState("");
   const [proposedCurrency, setProposedCurrency] = useState<CurrencyCode>("GBP");
+  const [productLimits, setProductLimits] = useState<{ receivables_purchase: string; reverse_factoring: string; payables_finance: string }>({
+    receivables_purchase: "", reverse_factoring: "", payables_finance: "",
+  });
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -65,6 +69,12 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
       setActiveMemo(data[0]);
       setEditedText(data[0].analyst_edits || data[0].ai_draft || "");
       setProposedLimit(data[0].recommended_limit?.toString() || "");
+      const pl = (data[0] as any).product_limits || {} as any;
+      setProductLimits({
+        receivables_purchase: (pl as any).receivables_purchase?.toString() || "",
+        reverse_factoring: (pl as any).reverse_factoring?.toString() || "",
+        payables_finance: (pl as any).payables_finance?.toString() || "",
+      });
     }
     setLoading(false);
   };
@@ -93,8 +103,13 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
       .update({
         analyst_edits: editedText,
         recommended_limit: proposedLimit ? Number(proposedLimit) : null,
+        product_limits: {
+          receivables_purchase: productLimits.receivables_purchase ? Number(productLimits.receivables_purchase) : null,
+          reverse_factoring: productLimits.reverse_factoring ? Number(productLimits.reverse_factoring) : null,
+          payables_finance: productLimits.payables_finance ? Number(productLimits.payables_finance) : null,
+        },
         status: "under_review",
-      })
+      } as any)
       .eq("id", activeMemo.id);
     if (error) {
       toast.error(error.message);
@@ -119,11 +134,16 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
         .update({
           analyst_edits: editedText,
           recommended_limit: Number(proposedLimit),
+          product_limits: {
+            receivables_purchase: productLimits.receivables_purchase ? Number(productLimits.receivables_purchase) : null,
+            reverse_factoring: productLimits.reverse_factoring ? Number(productLimits.reverse_factoring) : null,
+            payables_finance: productLimits.payables_finance ? Number(productLimits.payables_finance) : null,
+          },
           final_memo: editedText,
           status: "submitted_to_committee",
           reviewed_by: profile?.user_id,
           reviewed_at: new Date().toISOString(),
-        })
+        } as any)
         .eq("id", activeMemo.id);
       if (memoError) throw memoError;
 
@@ -291,15 +311,46 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
                 <CardTitle className="text-sm">Proposed Credit Limit</CardTitle>
                 <CardDescription>Set the credit limit to recommend to the committee</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <Label htmlFor="proposed-limit" className="shrink-0">Amount</Label>
+                  <Label htmlFor="proposed-limit" className="shrink-0">Overall Limit</Label>
                   <CurrencyInput
                     value={proposedLimit}
                     currency={proposedCurrency}
                     onValueChange={setProposedLimit}
                     onCurrencyChange={setProposedCurrency}
                   />
+                </div>
+                <Separator />
+                <p className="text-xs text-muted-foreground">Per-product breakdown (optional)</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Receivables Purchase</Label>
+                    <Input
+                      type="number"
+                      value={productLimits.receivables_purchase}
+                      onChange={(e) => setProductLimits(p => ({ ...p, receivables_purchase: e.target.value }))}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Reverse Factoring</Label>
+                    <Input
+                      type="number"
+                      value={productLimits.reverse_factoring}
+                      onChange={(e) => setProductLimits(p => ({ ...p, reverse_factoring: e.target.value }))}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Payables Finance</Label>
+                    <Input
+                      type="number"
+                      value={productLimits.payables_finance}
+                      onChange={(e) => setProductLimits(p => ({ ...p, payables_finance: e.target.value }))}
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>

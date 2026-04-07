@@ -1123,6 +1123,7 @@ export type Database = {
           id: string
           memo_number: string | null
           organization_id: string
+          product_limits: Json | null
           recommended_limit: number | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -1144,6 +1145,7 @@ export type Database = {
           id?: string
           memo_number?: string | null
           organization_id: string
+          product_limits?: Json | null
           recommended_limit?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -1165,6 +1167,7 @@ export type Database = {
           id?: string
           memo_number?: string | null
           organization_id?: string
+          product_limits?: Json | null
           recommended_limit?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -2314,6 +2317,7 @@ export type Database = {
           debtor_name: string
           document_id: string | null
           due_date: string
+          dunning_stage: Database["public"]["Enums"]["dunning_stage"] | null
           facility_request_id: string | null
           fraud_score: number | null
           fraud_status: string | null
@@ -2345,6 +2349,7 @@ export type Database = {
           debtor_name: string
           document_id?: string | null
           due_date: string
+          dunning_stage?: Database["public"]["Enums"]["dunning_stage"] | null
           facility_request_id?: string | null
           fraud_score?: number | null
           fraud_status?: string | null
@@ -2376,6 +2381,7 @@ export type Database = {
           debtor_name?: string
           document_id?: string | null
           due_date?: string
+          dunning_stage?: Database["public"]["Enums"]["dunning_stage"] | null
           facility_request_id?: string | null
           fraud_score?: number | null
           fraud_status?: string | null
@@ -3562,6 +3568,7 @@ export type Database = {
         | "credit_memo"
         | "nda"
         | "other"
+      dunning_stage: "none" | "reminder" | "warning" | "escalated" | "legal"
       fraud_check_status: "passed" | "flagged" | "blocked"
       labelling_mode: "white_label" | "joint_label" | "platform_label"
       onboarding_status:
@@ -3783,6 +3790,7 @@ export const Constants = {
         "nda",
         "other",
       ],
+      dunning_stage: ["none", "reminder", "warning", "escalated", "legal"],
       fraud_check_status: ["passed", "flagged", "blocked"],
       labelling_mode: ["white_label", "joint_label", "platform_label"],
       onboarding_status: [
