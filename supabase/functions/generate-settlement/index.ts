@@ -184,6 +184,7 @@ Deno.serve(async (req) => {
       .single();
 
     const feeConfig: FeeConfig = feeConfigData || DEFAULT_FEE_CONFIG;
+    const brokerFeePct = (feeConfigData as any)?.broker_fee_pct ?? 0;
     const advices: any[] = [];
 
     // Count existing advices for numbering
@@ -201,7 +202,9 @@ Deno.serve(async (req) => {
         collection.collected_amount,
         feeConfig,
         invoice.product_type || "receivables_purchase",
-        facilityRate
+        facilityRate,
+        undefined,
+        brokerFeePct
       );
 
       const borrowerAdvice = {
