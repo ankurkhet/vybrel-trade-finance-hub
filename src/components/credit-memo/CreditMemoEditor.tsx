@@ -68,6 +68,12 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
       setActiveMemo(data[0]);
       setEditedText(data[0].analyst_edits || data[0].ai_draft || "");
       setProposedLimit(data[0].recommended_limit?.toString() || "");
+      const pl = data[0].product_limits || {};
+      setProductLimits({
+        receivables_purchase: pl.receivables_purchase?.toString() || "",
+        reverse_factoring: pl.reverse_factoring?.toString() || "",
+        payables_finance: pl.payables_finance?.toString() || "",
+      });
     }
     setLoading(false);
   };
