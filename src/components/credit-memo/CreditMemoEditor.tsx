@@ -102,8 +102,13 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
       .update({
         analyst_edits: editedText,
         recommended_limit: proposedLimit ? Number(proposedLimit) : null,
+        product_limits: {
+          receivables_purchase: productLimits.receivables_purchase ? Number(productLimits.receivables_purchase) : null,
+          reverse_factoring: productLimits.reverse_factoring ? Number(productLimits.reverse_factoring) : null,
+          payables_finance: productLimits.payables_finance ? Number(productLimits.payables_finance) : null,
+        },
         status: "under_review",
-      })
+      } as any)
       .eq("id", activeMemo.id);
     if (error) {
       toast.error(error.message);
