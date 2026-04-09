@@ -259,7 +259,7 @@ export default function BorrowerDetail() {
     if (error) { toast.error(error.message); return; }
 
     await supabase.from("audit_logs").insert({
-      user_id: profile?.id, user_email: profile?.email,
+      user_id: profile?.user_id, user_email: profile?.email,
       action: "borrower_status_changed", resource_type: "borrower", resource_id: id!,
       details: { from: borrower.onboarding_status, to: newStatus, note: statusNote },
     });
@@ -310,7 +310,7 @@ export default function BorrowerDetail() {
       updates.overdue_fee_pct = facilityApproval.overdue_fee_pct ? Number(facilityApproval.overdue_fee_pct) : 0;
       
       updates.approved_at = new Date().toISOString();
-      updates.approved_by = profile?.id;
+      updates.approved_by = profile?.user_id;
     } else {
       updates.rejection_reason = facilityApproval.rejection_reason;
     }
@@ -319,7 +319,7 @@ export default function BorrowerDetail() {
     else {
       toast.success(`Facility ${facilityApproval.status}`);
       await supabase.from("audit_logs").insert({
-        user_id: profile?.id, user_email: profile?.email,
+        user_id: profile?.user_id, user_email: profile?.email,
         action: `facility_${facilityApproval.status}`, resource_type: "facility_request", resource_id: facilityDialog.id,
         details: updates,
       });
@@ -338,7 +338,7 @@ export default function BorrowerDetail() {
     if (!docReviewDialog) return;
     const updates: any = {
       status: docAction,
-      reviewed_by: profile?.id,
+      reviewed_by: profile?.user_id,
       reviewed_at: new Date().toISOString(),
     };
     if (docAction === "rejected") updates.rejection_reason = docRejectionReason;
@@ -1071,13 +1071,13 @@ export default function BorrowerDetail() {
             <Button
               disabled={!requestUpdateSection || !requestUpdateMessage}
               onClick={async () => {
-                if (!borrower.user_id || !profile?.id) {
+                if (!borrower.user_id || !profile?.user_id) {
                   toast.error("Borrower has no linked user account");
                   return;
                 }
                 // Send message via messaging system
                 const { error } = await supabase.from("messages").insert({
-                  sender_id: profile.id,
+                  sender_id: profile.user_id,
                   recipient_id: borrower.user_id,
                   organization_id: profile.organization_id,
                   subject: `Update Requested: ${requestUpdateSection.replace(/_/g, " ")}`,
@@ -1097,7 +1097,7 @@ export default function BorrowerDetail() {
                     .update({ onboarding_status: "documents_requested" as any })
                     .eq("id", id!);
                   await supabase.from("audit_logs").insert({
-                    user_id: profile.id,
+                    user_id: profile.user_id,
                     user_email: profile.email,
                     action: "borrower_update_requested",
                     resource_type: "borrower",

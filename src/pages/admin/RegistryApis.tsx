@@ -11,10 +11,181 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Globe, Key, Settings2, Database, ShieldAlert } from "lucide-react";
+import { Loader2, Plus, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Globe, Key, Settings2, Database, ShieldAlert, Zap, Clock, Activity, Play, Server, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { DEFAULT_REGISTRIES, REGISTRY_CAPABILITIES } from "@/lib/onboarding-types";
+
+// ── Collapsible section component for Platform APIs ────────────────────────
+interface PlatformApiSectionProps {
+  label: string;
+  items: any[];
+  unhealthyCount: number;
+  inactiveCount: number;
+  healthyCount: number;
+  unknownCount: number;
+  allInactive: boolean;
+  defaultOpen: boolean;
+  invokingApi: string | null;
+  platformHealthIcon: (status: string) => React.ReactNode;
+  togglePlatformApiActive: (id: string, isActive: boolean) => void;
+  invokePlatformApi: (api: any) => void;
+}
+
+function PlatformApiSection({
+  label, items, unhealthyCount, inactiveCount, healthyCount, unknownCount,
+  allInactive, defaultOpen, invokingApi,
+  platformHealthIcon, togglePlatformApiActive, invokePlatformApi,
+}: PlatformApiSectionProps) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  const headerBg = unhealthyCount > 0
+    ? "bg-destructive/5 border-destructive/20"
+    : allInactive
+      ? "bg-muted/30 border-border"
+      : "bg-card border-border";
+
+  return (
+    <div className={`rounded-lg border overflow-hidden ${headerBg}`}>
+      {/* Section header — always visible, click to toggle */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent/30 transition-colors"
+      >
+        {open
+          ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+          : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+
+        <span className={`text-sm font-semibold ${allInactive ? "text-muted-foreground" : "text-foreground"}`}>
+          {label}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {items.length} function{items.length !== 1 ? "s" : ""}
+        </span>
+
+        {/* Status summary pills */}
+        <div className="flex items-center gap-1.5 ml-auto">
+          {unhealthyCount > 0 && (
+            <Badge variant="destructive" className="text-[10px] gap-1 py-0">
+              <XCircle className="h-2.5 w-2.5" />{unhealthyCount} unhealthy
+            </Badge>
+          )}
+          {inactiveCount > 0 && (
+            <Badge variant="secondary" className="text-[10px] py-0">
+              {inactiveCount} inactive
+            </Badge>
+          )}
+          {unknownCount > 0 && (
+            <Badge variant="outline" className="text-[10px] py-0">
+              {unknownCount} unknown
+            </Badge>
+          )}
+          {healthyCount > 0 && (
+            <Badge className="text-[10px] gap-1 py-0 bg-emerald-600 text-white">
+              <CheckCircle2 className="h-2.5 w-2.5" />{healthyCount} healthy
+            </Badge>
+          )}
+        </div>
+      </button>
+
+      {/* Collapsible rows */}
+      {open && (
+        <div className="border-t border-border">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30">
+                <TableHead className="text-xs">Function</TableHead>
+                <TableHead className="text-xs">Required Secrets</TableHead>
+                <TableHead className="text-xs">Cron</TableHead>
+                <TableHead className="text-xs">Last Run</TableHead>
+                <TableHead className="text-xs">Health</TableHead>
+                <TableHead className="text-xs">Active</TableHead>
+                <TableHead className="text-xs text-right">Run</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((api) => (
+                <TableRow
+                  key={api.id}
+                  className={[
+                    !api.is_active ? "opacity-50" : "",
+                    api.health_status === "unhealthy" ? "bg-destructive/5" : "",
+                  ].join(" ")}
+                >
+                  <TableCell>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{api.display_name}</p>
+                      <p className="text-[10px] font-mono text-muted-foreground">{api.api_name}</p>
+                      {api.health_message && api.health_status === "unhealthy" && (
+                        <p className="text-[10px] text-destructive mt-0.5 max-w-[260px] truncate" title={api.health_message}>
+                          {api.health_message}
+                        </p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1 max-w-[200px]">
+                      {(api.requires_secrets || []).length === 0 ? (
+                        <Badge variant="outline" className="text-[10px]">None</Badge>
+                      ) : (api.requires_secrets || []).map((s: string) => (
+                        <Badge key={s} variant="outline" className="text-[10px] font-mono">
+                          <Key className="mr-1 h-2.5 w-2.5" />{s}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {api.cron_schedule ? (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3 shrink-0" />
+                        <span className="font-mono">{api.cron_schedule}</span>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">On-demand</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                    {api.last_invoked_at
+                      ? new Date(api.last_invoked_at).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" })
+                      : <span className="text-muted-foreground/50">Never</span>}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      {platformHealthIcon(api.health_status)}
+                      <span className="text-xs capitalize text-muted-foreground">{api.health_status}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={api.is_active}
+                      onCheckedChange={() => togglePlatformApiActive(api.id, api.is_active)}
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      disabled={invokingApi === api.id || !api.is_active}
+                      onClick={() => invokePlatformApi(api)}
+                      title={!api.is_active ? "Enable function first" : `Invoke ${api.api_name}`}
+                    >
+                      {invokingApi === api.id
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Play className="h-3.5 w-3.5" />}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function RegistryApis() {
   const [configs, setConfigs] = useState<any[]>([]);
@@ -23,6 +194,10 @@ export default function RegistryApis() {
   const [editConfig, setEditConfig] = useState<any>(null);
   const [testing, setTesting] = useState<string | null>(null);
   const [expandedUnhealthyIds, setExpandedUnhealthyIds] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState("external");
+  const [platformApis, setPlatformApis] = useState<any[]>([]);
+  const [platformLoading, setPlatformLoading] = useState(true);
+  const [invokingApi, setInvokingApi] = useState<string | null>(null);
 
   const emptyForm = {
     country_code: "",
@@ -43,7 +218,7 @@ export default function RegistryApis() {
 
   const [form, setForm] = useState(emptyForm);
 
-  useEffect(() => { fetchConfigs(); }, []);
+  useEffect(() => { fetchConfigs(); fetchPlatformApis(); }, []);
 
   const fetchConfigs = async () => {
     setLoading(true);
@@ -66,6 +241,48 @@ export default function RegistryApis() {
   const toggleActive = async (id: string, isActive: boolean) => {
     await supabase.from("registry_api_configs").update({ is_active: !isActive }).eq("id", id);
     fetchConfigs();
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+
+  const fetchPlatformApis = async () => {
+    setPlatformLoading(true);
+    const { data } = await db
+      .from("platform_api_configs")
+      .select("*")
+      .order("category")
+      .order("display_name");
+    setPlatformApis(data || []);
+    setPlatformLoading(false);
+  };
+
+  const togglePlatformApiActive = async (id: string, isActive: boolean) => {
+    await db.from("platform_api_configs").update({ is_active: !isActive }).eq("id", id);
+    fetchPlatformApis();
+  };
+
+  const invokePlatformApi = async (api: any) => {
+    setInvokingApi(api.id);
+    try {
+      const { error } = await supabase.functions.invoke(api.api_name, { body: {} });
+      if (error) throw error;
+      await db.from("platform_api_configs").update({
+        last_invoked_at: new Date().toISOString(),
+        health_status: "healthy",
+        health_message: null,
+      }).eq("id", api.id);
+      toast.success(`${api.display_name}: invoked successfully`);
+    } catch (err: any) {
+      const msg = err.message || "Invocation failed";
+      await db.from("platform_api_configs").update({
+        health_status: "unhealthy",
+        health_message: msg,
+      }).eq("id", api.id);
+      toast.error(`${api.display_name}: ${msg}`);
+    }
+    setInvokingApi(null);
+    fetchPlatformApis();
   };
 
   const testApi = async (config: any) => {
@@ -163,23 +380,190 @@ export default function RegistryApis() {
     return <AlertTriangle className="h-4 w-4 text-muted-foreground" />;
   };
 
+  const PLATFORM_CATEGORY_LABELS: Record<string, string> = {
+    settlement: "Settlement & Ledger",
+    ledger: "Ledger",
+    market_data: "Market Data",
+    notifications: "Notifications",
+    psp: "Payment Service Provider",
+    auth: "Authentication & Access",
+    kyb: "KYB & Registry",
+    ai: "AI Services",
+    communications: "Communications",
+    other: "Other",
+  };
+
+  const PLATFORM_CATEGORY_ORDER = [
+    "settlement", "market_data", "psp", "communications",
+    "auth", "kyb", "ai", "other",
+  ];
+
+  const platformHealthIcon = (status: string) => {
+    if (status === "healthy") return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />;
+    if (status === "unhealthy") return <XCircle className="h-3.5 w-3.5 text-destructive" />;
+    return <Activity className="h-3.5 w-3.5 text-muted-foreground" />;
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Registry API Management</h1>
-            <p className="text-sm text-muted-foreground">Configure company registry APIs for KYB verification</p>
+            <h1 className="text-2xl font-bold text-foreground">API Management</h1>
+            <p className="text-sm text-muted-foreground">Manage external registry APIs and internal platform edge functions</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={seedDefaults}>
-              <Globe className="mr-2 h-4 w-4" /> Seed Defaults
+          {activeTab === "external" ? (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={seedDefaults}>
+                <Globe className="mr-2 h-4 w-4" /> Seed Defaults
+              </Button>
+              <Button onClick={() => { setEditConfig(null); setForm({ ...emptyForm }); setDialogOpen(true); }}>
+                <Plus className="mr-2 h-4 w-4" /> Add Registry
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" onClick={fetchPlatformApis}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Refresh
             </Button>
-            <Button onClick={() => { setEditConfig(null); setForm({ ...emptyForm }); setDialogOpen(true); }}>
-              <Plus className="mr-2 h-4 w-4" /> Add Registry
-            </Button>
-          </div>
+          )}
         </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="external">
+              <Globe className="mr-2 h-4 w-4" /> External APIs
+            </TabsTrigger>
+            <TabsTrigger value="platform">
+              <Server className="mr-2 h-4 w-4" /> Platform APIs
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ── PLATFORM APIs TAB ─────────────────────────────────────── */}
+          <TabsContent value="platform" className="space-y-3 mt-4">
+            {/* Page-level summary bar */}
+            {!platformLoading && platformApis.length > 0 && (() => {
+              const unhealthyCount = platformApis.filter(a => a.health_status === "unhealthy").length;
+              const inactiveCount  = platformApis.filter(a => !a.is_active).length;
+              const healthyCount   = platformApis.filter(a => a.health_status === "healthy" && a.is_active).length;
+              return (
+                <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3">
+                  <Zap className="h-4 w-4 text-primary shrink-0" />
+                  <span className="text-sm font-medium text-foreground">{platformApis.length} edge functions</span>
+                  <div className="flex items-center gap-2 ml-auto">
+                    {unhealthyCount > 0 && (
+                      <Badge variant="destructive" className="text-[10px] gap-1">
+                        <XCircle className="h-3 w-3" />{unhealthyCount} unhealthy
+                      </Badge>
+                    )}
+                    {inactiveCount > 0 && (
+                      <Badge variant="secondary" className="text-[10px] gap-1">
+                        {inactiveCount} inactive
+                      </Badge>
+                    )}
+                    {healthyCount > 0 && (
+                      <Badge className="text-[10px] gap-1 bg-emerald-600 text-white">
+                        <CheckCircle2 className="h-3 w-3" />{healthyCount} healthy
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground hidden md:block">
+                    Secrets → Supabase Dashboard → Settings → Edge Functions → Secrets
+                  </p>
+                </div>
+              );
+            })()}
+
+            {platformLoading ? (
+              <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            ) : platformApis.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-16 rounded-lg border border-dashed">
+                <AlertCircle className="h-10 w-10 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">No platform APIs found. Run the <code className="font-mono text-xs">20260409300000_platform_api_configs.sql</code> migration.</p>
+              </div>
+            ) : (() => {
+              // Group by category
+              const grouped: Record<string, any[]> = {};
+              for (const api of platformApis) {
+                const cat = api.category || "other";
+                if (!grouped[cat]) grouped[cat] = [];
+                grouped[cat].push(api);
+              }
+
+              return PLATFORM_CATEGORY_ORDER.map((cat) => {
+                const items = grouped[cat];
+                if (!items || items.length === 0) return null;
+
+                const unhealthy = items.filter(a => a.health_status === "unhealthy");
+                const inactive  = items.filter(a => !a.is_active);
+                const healthy   = items.filter(a => a.health_status === "healthy" && a.is_active);
+                const unknown   = items.filter(a => a.health_status === "unknown" && a.is_active);
+
+                // Auto-expand if any API in this section is unhealthy; collapse otherwise
+                const defaultOpen = unhealthy.length > 0;
+                const allInactive = items.every(a => !a.is_active);
+
+                return (
+                  <PlatformApiSection
+                    key={cat}
+                    label={PLATFORM_CATEGORY_LABELS[cat] || cat}
+                    items={items}
+                    unhealthyCount={unhealthy.length}
+                    inactiveCount={inactive.length}
+                    healthyCount={healthy.length}
+                    unknownCount={unknown.length}
+                    allInactive={allInactive}
+                    defaultOpen={defaultOpen}
+                    invokingApi={invokingApi}
+                    platformHealthIcon={platformHealthIcon}
+                    togglePlatformApiActive={togglePlatformApiActive}
+                    invokePlatformApi={invokePlatformApi}
+                  />
+                );
+              });
+            })()}
+
+            {/* Secrets reference card */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Key className="h-4 w-4 text-primary" />
+                  Required Secrets Reference
+                </CardTitle>
+                <CardDescription>
+                  Set these in Supabase Dashboard → Settings → Edge Functions → Secrets. None of these values are stored in the database.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {[
+                    { name: "ANTHROPIC_API_KEY", desc: "Claude AI — all AI analysis functions", url: "console.anthropic.com" },
+                    { name: "RESEND_API_KEY", desc: "Email delivery — notifications & counterparty emails", url: "resend.com/api-keys" },
+                    { name: "FRED_API_KEY", desc: "SOFR/SONIA live rate fetch from St. Louis Fed", url: "fred.stlouisfed.org/docs/api/api_key.html" },
+                    { name: "PSP_WEBHOOK_SECRET", desc: "Shared secret to authenticate PSP webhook callbacks", url: "" },
+                    { name: "TRUELAYER_CLIENT_ID", desc: "TrueLayer open banking — account name verification", url: "console.truelayer.com" },
+                    { name: "TRUELAYER_CLIENT_SECRET", desc: "TrueLayer client secret (paired with CLIENT_ID)", url: "console.truelayer.com" },
+                    { name: "GETADDRESS_API_KEY", desc: "getAddress.io — UK postcode & address lookup", url: "getaddress.io" },
+                  ].map((secret) => {
+                    const isUsed = platformApis.some((api) =>
+                      (api.requires_secrets || []).includes(secret.name)
+                    );
+                    return (
+                      <div key={secret.name} className="rounded-lg border p-3 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <code className="text-xs font-mono font-semibold text-foreground">{secret.name}</code>
+                          {isUsed && <Badge variant="outline" className="text-[10px]">In use</Badge>}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{secret.desc}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── EXTERNAL APIs TAB ─────────────────────────────────────── */}
+          <TabsContent value="external" className="space-y-4 mt-4">
 
         <Card>
           <CardContent className="p-0">
@@ -576,6 +960,9 @@ export default function RegistryApis() {
             </div>
           </CardContent>
         </Card>
+
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Edit/Add Dialog */}

@@ -183,7 +183,7 @@ export default function OriginatorDocuments() {
     if (!docReviewDialog) return;
     const updates: any = {
       status: docAction,
-      reviewed_by: profile?.id,
+      reviewed_by: profile?.user_id,
       reviewed_at: new Date().toISOString(),
     };
     if (docAction === "rejected") updates.rejection_reason = docRejectionReason;

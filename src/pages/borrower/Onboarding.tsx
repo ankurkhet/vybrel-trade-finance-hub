@@ -116,13 +116,13 @@ export default function BorrowerOnboarding() {
   }, [profile]);
 
   const loadExistingData = async () => {
-    if (!profile?.id) return;
+    if (!profile?.user_id) return;
     setLoading(true);
     try {
       const { data: borrower } = await supabase
         .from("borrowers")
         .select("*")
-        .eq("user_id", profile.id)
+        .eq("user_id", profile.user_id)
         .maybeSingle();
 
       if (borrower) {
@@ -240,7 +240,7 @@ export default function BorrowerOnboarding() {
   };
 
   const handleSave = useCallback(async (showToast = true) => {
-    if (!profile?.id) return;
+    if (!profile?.user_id) return;
     setSaving(true);
     try {
       const orgId = profile.organization_id;
@@ -280,7 +280,7 @@ export default function BorrowerOnboarding() {
           docNotes,
         })),
         organization_id: orgId,
-        user_id: profile.id,
+        user_id: profile.user_id,
       };
 
       let currentBorrowerId = borrowerId;
@@ -382,7 +382,7 @@ export default function BorrowerOnboarding() {
 
     // Audit log
     await supabase.from("audit_logs").insert({
-      user_id: profile?.id,
+      user_id: profile?.user_id,
       user_email: profile?.email,
       action: "borrower_onboarding_submitted",
       resource_type: "borrower",

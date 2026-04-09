@@ -236,7 +236,7 @@ export default function LenderManagement() {
 
       // 3. Record Audit Log
       await supabase.from('audit_logs').insert({
-        user_id: profile?.id,
+        user_id: profile?.user_id,
         action: 'funder_authorized',
         resource_type: 'funder_relationship',
         resource_id: request.user_id,
@@ -280,7 +280,7 @@ export default function LenderManagement() {
         organization_id: orgId,
         email,
         role: 'funder' as any,
-        invited_by: profile?.id,
+        invited_by: profile?.user_id,
       });
       if (error) { toast.error(error.message); return; }
       toast.success(`New invitation sent to ${email}`);

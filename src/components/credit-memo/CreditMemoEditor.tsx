@@ -154,7 +154,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
           },
           final_memo: editedText,
           status: "submitted_to_committee",
-          reviewed_by: profile?.id,
+          reviewed_by: profile?.user_id,
           reviewed_at: new Date().toISOString(),
         } as any)
         .eq("id", activeMemo.id);
@@ -172,7 +172,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
           application_number: appNum,
           status: "submitted",
           submitted_at: new Date().toISOString(),
-          created_by: profile?.id,
+          created_by: profile?.user_id,
           metadata: {
             credit_memo_id: activeMemo.id,
             proposed_limit: Number(proposedLimit),

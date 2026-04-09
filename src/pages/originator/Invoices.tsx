@@ -107,7 +107,7 @@ export default function Invoices() {
     if (invErr) toast.error(invErr.message);
     else {
       await supabase.from("audit_logs").insert({
-        user_id: profile?.id, user_email: profile?.email,
+        user_id: profile?.user_id, user_email: profile?.email,
         action: "counterparty_doc_accepted", resource_type: "invoice", resource_id: inv.id,
         details: { invoice_number: inv.invoice_number },
       });

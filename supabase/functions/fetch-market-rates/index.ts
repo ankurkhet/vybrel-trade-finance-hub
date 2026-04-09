@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
       { rate_name: "Fixed", rate_value: 0.0 },
     ];
 
+    const fetchedAt = new Date().toISOString();
     for (const r of rates) {
       const { error } = await supabase
         .from("reference_rates")
@@ -68,7 +69,8 @@ Deno.serve(async (req) => {
           {
             rate_name: r.rate_name,
             rate_value: r.rate_value,
-            last_updated: new Date().toISOString(),
+            as_of_date: fetchedAt,
+            source: fredKey ? "FRED API" : "static_fallback",
           },
           { onConflict: "rate_name" }
         );
@@ -78,7 +80,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, rates, source: fredKey ? "fred_api" : "static_fallback" }), {
+    // Record invocation in platform_api_configs for admin visibility
+    await supabase
+      .from("platform_api_configs")
+      .update({ last_invoked_at: fetchedAt, health_status: "healthy" })
+      .eq("api_name", "fetch-market-rates");
+
+    return new Response(JSON.stringify({ success: true, rates, source: fredKey ? "fred_api" : "static_fallback", fetched_at: fetchedAt }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

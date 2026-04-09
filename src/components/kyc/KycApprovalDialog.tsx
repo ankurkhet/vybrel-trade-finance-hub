@@ -97,7 +97,7 @@ export function KycApprovalDialog({ open, onOpenChange, borrower, documents, pro
   const handleApprove = async () => {
     setSaving(true);
     const kycApproval = {
-      approved_by: profile?.id,
+      approved_by: profile?.user_id,
       approved_at: new Date().toISOString(),
       gaps_acknowledged: gaps.map(g => ({ label: g.label, severity: g.severity, detail: g.detail })),
       notes,
@@ -112,7 +112,7 @@ export function KycApprovalDialog({ open, onOpenChange, borrower, documents, pro
     if (error) { toast.error(error.message); setSaving(false); return; }
 
     await supabase.from("audit_logs").insert({
-      user_id: profile?.id,
+      user_id: profile?.user_id,
       user_email: profile?.email,
       action: "compliance.kyc_approved",
       resource_type: "borrower",
@@ -136,7 +136,7 @@ export function KycApprovalDialog({ open, onOpenChange, borrower, documents, pro
     if (error) { toast.error(error.message); setSaving(false); return; }
 
     await supabase.from("audit_logs").insert({
-      user_id: profile?.id,
+      user_id: profile?.user_id,
       user_email: profile?.email,
       action: "compliance.kyc_rejected",
       resource_type: "borrower",

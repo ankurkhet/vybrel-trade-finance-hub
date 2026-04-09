@@ -59,21 +59,21 @@ export default function Disbursements() {
   };
 
   const handleApprove = async (memo: any) => {
-    if (memo.created_by === profile?.id) {
+    if (memo.created_by === profile?.user_id) {
        toast.error("Maker-Checker Rule: You cannot approve a disbursement you created.");
        return;
     }
     setApproving(true);
     const { error } = await supabase.from("disbursement_memos").update({
       status: "approved",
-      approved_by: profile?.id,
+      approved_by: profile?.user_id,
       approved_at: new Date().toISOString(),
     }).eq("id", memo.id);
     if (error) toast.error(error.message);
     else {
       toast.success("Disbursement memo approved");
       await supabase.from("audit_logs").insert({
-        user_id: profile?.id, user_email: profile?.email,
+        user_id: profile?.user_id, user_email: profile?.email,
         action: "disbursement_approved", resource_type: "disbursement_memo", resource_id: memo.id,
         details: { memo_number: memo.memo_number, amount: memo.disbursement_amount },
       });
@@ -267,14 +267,14 @@ export default function Disbursements() {
       borrower_requested_amount: borrowerRequested,
       funder_limit_id: selectedFunderLimit || null,
       status: "pending",
-      created_by: profile!.id,
+      created_by: profile!.user_id,
     });
 
     if (error) toast.error(error.message);
     else {
       toast.success("Disbursement memo created");
       await supabase.from("audit_logs").insert({
-        user_id: profile?.id, user_email: profile?.email,
+        user_id: profile?.user_id, user_email: profile?.email,
         action: "disbursement_created", resource_type: "disbursement_memo",
         details: { invoice_id: inv.id, facility_request_id: selectedFacility, amount: disbursementAmount, currency: inv.currency },
       });
@@ -301,7 +301,7 @@ export default function Disbursements() {
     else {
       toast.success("Payment confirmed — disbursement advise generated");
       await supabase.from("audit_logs").insert({
-        user_id: profile?.id, user_email: profile?.email,
+        user_id: profile?.user_id, user_email: profile?.email,
         action: "disbursement_payment_confirmed", resource_type: "disbursement_memo", resource_id: paymentDialog.id,
         details: { ...paymentData },
       });
@@ -475,7 +475,7 @@ export default function Disbursements() {
               <div className="flex gap-2 pt-2">
                 {detailMemo.status === "pending" && (
                   <>
-                    <Button className="flex-1" onClick={() => handleApprove(detailMemo)} disabled={approving || detailMemo.created_by === profile?.id}>
+                    <Button className="flex-1" onClick={() => handleApprove(detailMemo)} disabled={approving || detailMemo.created_by === profile?.user_id}>
                       {approving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                       Approve
                     </Button>

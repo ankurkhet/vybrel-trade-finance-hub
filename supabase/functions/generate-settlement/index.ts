@@ -32,6 +32,20 @@ interface FacilityRate {
   final_discounting_rate: number | null;
   advance_rate: number | null;
   overdue_fee_pct: number | null;
+  settlement_type: "advance" | "accrual" | null;
+}
+
+interface SettlementResult {
+  discountAmount: number;
+  originatorFee: number;
+  platformFee: number;
+  brokerFee: number;
+  netAmount: number;
+  feeBreakdown: any[];
+  effectiveDiscount: number;
+  // Net margin = originator_fee - (platform costs) — positive means profitable
+  netMarginAmount: number;
+  netMarginPct: number;
 }
 
 function calculateSettlement(
@@ -41,7 +55,7 @@ function calculateSettlement(
   facilityRate?: FacilityRate | null,
   discountRate?: number,
   brokerFeePct?: number | null
-) {
+): SettlementResult {
   // Priority: 1) explicit discountRate, 2) facility contracted rate, 3) product fee config default
   const effectiveDiscount =
     discountRate ??
@@ -70,16 +84,25 @@ function calculateSettlement(
   const totalDeductions = discountAmount + originatorFee + platformFee + brokerFee;
   const netAmount = grossAmount - totalDeductions;
 
+  // Net margin: what originator keeps after platform and broker costs
+  // = originator_fee - broker_fee - platform_fee
+  const netMarginAmount = originatorFee - brokerFee - platformFee;
+  const netMarginPct = grossAmount > 0 ? (netMarginAmount / grossAmount) * 100 : 0;
+
   const feeBreakdown = [
     { label: "Gross Collection", amount: grossAmount, type: "gross" },
-    { label: `Discount (${effectiveDiscount}%)`, amount: -discountAmount, type: "discount" },
-    { label: `Originator Fee (${originatorFeePct}%)`, amount: -originatorFee, type: "fee" },
-    { label: `Platform Fee (${platformFeePct}%)`, amount: -platformFee, type: "fee" },
-    ...(effectiveBrokerPct > 0 ? [{ label: `Broker Fee (${effectiveBrokerPct}%)`, amount: -brokerFee, type: "fee" }] : []),
-    { label: "Net Settlement", amount: netAmount, type: "net" },
+    { label: `Discount (${effectiveDiscount.toFixed(2)}%)`, amount: -discountAmount, type: "discount" },
+    { label: `Originator Fee (${originatorFeePct.toFixed(2)}%)`, amount: -originatorFee, type: "fee" },
+    { label: `Platform Fee (${platformFeePct.toFixed(2)}%)`, amount: -platformFee, type: "fee" },
+    ...(effectiveBrokerPct > 0 ? [{ label: `Broker Fee (${effectiveBrokerPct.toFixed(2)}%)`, amount: -brokerFee, type: "fee" }] : []),
+    { label: "Net Settlement to Borrower", amount: netAmount, type: "net" },
   ];
 
-  return { discountAmount, originatorFee, platformFee, brokerFee, netAmount, feeBreakdown, effectiveDiscount };
+  return {
+    discountAmount, originatorFee, platformFee, brokerFee,
+    netAmount, feeBreakdown, effectiveDiscount,
+    netMarginAmount, netMarginPct,
+  };
 }
 
 function calculateFunderReturn(
@@ -96,10 +119,25 @@ function calculateFunderReturn(
     { label: "Funded Amount (Principal)", amount: fundedAmount, type: "gross" },
     { label: `Yield (${discountRate}% p.a. × ${daysFunded} days)`, amount: annualizedYield, type: "yield" },
     { label: `Platform Fee (${feeConfig.platform_fee_pct}%)`, amount: -platformFee, type: "fee" },
-    { label: "Net Settlement", amount: netReturn, type: "net" },
+    { label: "Net Settlement to Funder", amount: netReturn, type: "net" },
   ];
 
   return { yield: annualizedYield, platformFee, netReturn, feeBreakdown };
+}
+
+/**
+ * Posts a balanced double-entry journal batch via the post_journal_batch RPC.
+ * All amounts must sum to zero (debits = credits) within one currency.
+ */
+async function postJournalBatch(
+  supabase: ReturnType<typeof createClient>,
+  entries: object[]
+): Promise<void> {
+  const { error } = await supabase.rpc("post_journal_batch", { entries });
+  if (error) {
+    console.error("[generate-settlement] Journal batch failed:", error.message);
+    // Non-fatal — settlement advice is already created; log but continue
+  }
 }
 
 Deno.serve(async (req) => {
@@ -145,24 +183,32 @@ Deno.serve(async (req) => {
     }
 
     // Fetch facility rate via disbursement_memos → facility_requests
+    // Also try to read settlement_type from the linked facility record
     let facilityRate: FacilityRate | null = null;
+    let advancePaid = 0;
+
     const { data: disbursementMemo } = await supabase
       .from("disbursement_memos")
-      .select("facility_request_id")
+      .select("facility_request_id, disbursement_amount")
       .eq("invoice_id", invoice.id)
       .not("facility_request_id", "is", null)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (disbursementMemo?.facility_request_id) {
       const { data: facility } = await supabase
         .from("facility_requests")
-        .select("final_discounting_rate, advance_rate, overdue_fee_pct")
+        .select("final_discounting_rate, advance_rate, overdue_fee_pct, settlement_type")
         .eq("id", disbursementMemo.facility_request_id)
         .single();
 
       if (facility) {
         facilityRate = facility as FacilityRate;
+
+        // Under advance settlement, the borrower already received disbursement_amount upfront
+        if (facilityRate.settlement_type === "advance" && disbursementMemo.disbursement_amount) {
+          advancePaid = Number(disbursementMemo.disbursement_amount);
+        }
       }
     }
 
@@ -181,21 +227,25 @@ Deno.serve(async (req) => {
       .select("*")
       .eq("organization_id", collection.organization_id)
       .eq("product_type", invoice.product_type || "receivables_purchase")
-      .single();
+      .maybeSingle();
 
     const feeConfig: FeeConfig = feeConfigData || DEFAULT_FEE_CONFIG;
     const brokerFeePct = (feeConfigData as any)?.broker_fee_pct ?? 0;
     const advices: any[] = [];
+    const currency: string = collection.currency || "GBP";
+    const orgId: string = collection.organization_id;
 
     // Count existing advices for numbering
     const { count } = await supabase
       .from("settlement_advices")
       .select("*", { count: "exact", head: true })
-      .eq("organization_id", collection.organization_id);
+      .eq("organization_id", orgId);
 
     let adviceIndex = (count || 0) + 1;
 
-    // 1. Generate Borrower Settlement Advice
+    // -----------------------------------------------------------------------
+    // 1. BORROWER SETTLEMENT ADVICE
+    // -----------------------------------------------------------------------
     const borrower = invoice.borrowers;
     if (borrower) {
       const settlement = calculateSettlement(
@@ -207,8 +257,19 @@ Deno.serve(async (req) => {
         brokerFeePct
       );
 
-      const borrowerAdvice = {
-        organization_id: collection.organization_id,
+      const settlementType: "advance" | "accrual" =
+        (facilityRate?.settlement_type as "advance" | "accrual") ?? "accrual";
+
+      // Under advance settlement: borrower only receives the residual
+      const remainingBalance =
+        settlementType === "advance"
+          ? settlement.netAmount - advancePaid
+          : settlement.netAmount;
+
+      const isNegativeMargin = settlement.netMarginAmount < 0 || settlement.netAmount < 0;
+
+      const borrowerAdvice: any = {
+        organization_id: orgId,
         collection_id: collection.id,
         advice_number: generateAdviceNumber("borrower_settlement", adviceIndex++),
         advice_type: "borrower_settlement" as const,
@@ -223,11 +284,18 @@ Deno.serve(async (req) => {
         originator_fee: settlement.originatorFee,
         platform_fee: settlement.platformFee,
         net_amount: settlement.netAmount,
-        currency: collection.currency,
+        currency,
         fee_breakdown: settlement.feeBreakdown,
         payment_instructions: feeConfig.payment_instructions || {},
         status: "issued" as const,
         issued_at: new Date().toISOString(),
+        // New columns (Fix E)
+        settlement_type: settlementType,
+        advance_paid: advancePaid,
+        remaining_balance: remainingBalance,
+        net_margin_amount: settlement.netMarginAmount,
+        net_margin_pct: settlement.netMarginPct,
+        negative_margin: isNegativeMargin,
         metadata: {
           rate_source: facilityRate?.final_discounting_rate ? "facility" : "product_fee_config",
           effective_discount_rate: settlement.effectiveDiscount,
@@ -244,10 +312,113 @@ Deno.serve(async (req) => {
         console.error("Failed to create borrower settlement:", baErr);
       } else {
         advices.push(ba);
+
+        // ── Fix D: Negative net margin alert ──────────────────────────────
+        if (isNegativeMargin) {
+          const alertMsg = settlement.netAmount < 0
+            ? `Invoice ${invoice.invoice_number}: borrower net amount is ${currency} ${settlement.netAmount.toFixed(2)} (negative). Fees exceed collection.`
+            : `Invoice ${invoice.invoice_number}: originator net margin is ${currency} ${settlement.netMarginAmount.toFixed(2)} (${settlement.netMarginPct.toFixed(2)}%). Review fee configuration.`;
+
+          await supabase.from("notifications").insert({
+            organization_id: orgId,
+            notification_type: "negative_net_margin",
+            title: "Negative Net Margin Alert",
+            message: alertMsg,
+          });
+
+          console.warn("[generate-settlement] NEGATIVE MARGIN:", alertMsg);
+        }
+
+        // ── Fix C: Post balanced journal entries for borrower settlement ──
+        //
+        // DEBIT  collections_clearing  gross_collection   (cash received from debtor)
+        // CREDIT funder_yield_payable  discount_amount    (owed to funder pool)
+        // CREDIT originator_revenue    originator_fee     (originator earns fee)
+        // CREDIT platform_revenue      platform_fee       (platform earns fee)
+        // CREDIT broker_revenue        broker_fee         (broker cut, 0 if none)
+        // CREDIT borrower_net_settlement net_amount       (borrower receives)
+        //
+        // Sum of credits = discount + origFee + platFee + brokFee + netAmount = gross ✓
+
+        const grossAmount = Number(collection.collected_amount);
+        const borrowerUserId: string | null = borrower.user_id || null;
+
+        const borrowerJournalEntries: object[] = [
+          {
+            organization_id: orgId,
+            journal_type: "collection",
+            reference_id: ba.id,
+            account_id: null,
+            system_account: "collections_clearing",
+            amount: grossAmount,
+            direction: "debit",
+            currency,
+            description: `Collection received: ${invoice.invoice_number}`,
+          },
+          {
+            organization_id: orgId,
+            journal_type: "margin",
+            reference_id: ba.id,
+            account_id: null,
+            system_account: "funder_yield_payable",
+            amount: settlement.discountAmount,
+            direction: "credit",
+            currency,
+            description: `Funder yield (${settlement.effectiveDiscount.toFixed(2)}%): ${invoice.invoice_number}`,
+          },
+          {
+            organization_id: orgId,
+            journal_type: "fee",
+            reference_id: ba.id,
+            account_id: null,
+            system_account: "originator_revenue",
+            amount: settlement.originatorFee,
+            direction: "credit",
+            currency,
+            description: `Originator fee: ${invoice.invoice_number}`,
+          },
+          {
+            organization_id: orgId,
+            journal_type: "fee",
+            reference_id: ba.id,
+            account_id: null,
+            system_account: "platform_revenue",
+            amount: settlement.platformFee,
+            direction: "credit",
+            currency,
+            description: `Platform fee: ${invoice.invoice_number}`,
+          },
+          ...(settlement.brokerFee > 0 ? [{
+            organization_id: orgId,
+            journal_type: "fee",
+            reference_id: ba.id,
+            account_id: null,
+            system_account: "broker_revenue",
+            amount: settlement.brokerFee,
+            direction: "credit",
+            currency,
+            description: `Broker fee: ${invoice.invoice_number}`,
+          }] : []),
+          {
+            organization_id: orgId,
+            journal_type: "collection",
+            reference_id: ba.id,
+            account_id: borrowerUserId,
+            system_account: "borrower_net_settlement",
+            amount: settlement.netAmount,
+            direction: "credit",
+            currency,
+            description: `Net settlement to borrower: ${invoice.invoice_number}`,
+          },
+        ];
+
+        await postJournalBatch(supabase, borrowerJournalEntries);
       }
     }
 
-    // 2. Generate Funder Settlement Advice (if invoice was funded)
+    // -----------------------------------------------------------------------
+    // 2. FUNDER SETTLEMENT ADVICE (if invoice was funded)
+    // -----------------------------------------------------------------------
     const { data: fundingOffers } = await supabase
       .from("funding_offers")
       .select("*")
@@ -258,7 +429,9 @@ Deno.serve(async (req) => {
       for (const offer of fundingOffers) {
         const fundedDate = new Date(offer.accepted_at || offer.offered_at);
         const collectionDate = new Date(collection.collection_date);
-        const daysFunded = Math.max(1, Math.ceil((collectionDate.getTime() - fundedDate.getTime()) / (1000 * 60 * 60 * 24)));
+        const daysFunded = Math.max(1, Math.ceil(
+          (collectionDate.getTime() - fundedDate.getTime()) / (1000 * 60 * 60 * 24)
+        ));
 
         // Use facility rate if available, then offer rate, then default
         const effectiveFunderRate =
@@ -273,15 +446,15 @@ Deno.serve(async (req) => {
           feeConfig
         );
 
-        // Get funder profile
+        // Get funder profile — use user_id column (live DB schema)
         const { data: funderProfile } = await supabase
           .from("profiles")
           .select("full_name, email")
-          .eq("id", offer.funder_user_id)
+          .eq("user_id", offer.funder_user_id)
           .single();
 
-        const funderAdvice = {
-          organization_id: collection.organization_id,
+        const funderAdvice: any = {
+          organization_id: orgId,
           collection_id: collection.id,
           advice_number: generateAdviceNumber("funder_settlement", adviceIndex++),
           advice_type: "funder_settlement" as const,
@@ -296,15 +469,25 @@ Deno.serve(async (req) => {
           originator_fee: 0,
           platform_fee: funderReturn.platformFee,
           net_amount: funderReturn.netReturn,
-          currency: collection.currency,
+          currency,
           fee_breakdown: funderReturn.feeBreakdown,
           payment_instructions: feeConfig.payment_instructions || {},
           status: "issued" as const,
           issued_at: new Date().toISOString(),
+          // New columns
+          settlement_type: (facilityRate?.settlement_type as "advance" | "accrual") ?? "accrual",
+          advance_paid: 0,
+          remaining_balance: funderReturn.netReturn,
+          net_margin_amount: funderReturn.platformFee,
+          net_margin_pct: offer.offer_amount > 0
+            ? (funderReturn.platformFee / offer.offer_amount) * 100 : 0,
+          negative_margin: false,
           metadata: {
             days_funded: daysFunded,
             discount_rate: effectiveFunderRate,
-            rate_source: facilityRate?.final_discounting_rate ? "facility" : (offer.discount_rate ? "offer" : "product_fee_config"),
+            rate_source: facilityRate?.final_discounting_rate
+              ? "facility"
+              : (offer.discount_rate ? "offer" : "product_fee_config"),
             yield_amount: funderReturn.yield,
           },
         };
@@ -320,25 +503,55 @@ Deno.serve(async (req) => {
         } else {
           advices.push(fa);
 
-          // Create payment_instructions row for this settlement advice
-          // Vybrel writes the instruction; PSP executes it.
-          // Use upsert-like pattern: get or create PSP virtual accounts for payer/payee.
+          // ── Fix C: Balanced journal for funder settlement ─────────────
+          //
+          // DEBIT  funder_yield_payable   netReturn   (clear funder pool liability)
+          // CREDIT funder_net_settlement  netReturn   (funder receives principal + yield)
+
+          const funderJournalEntries: object[] = [
+            {
+              organization_id: orgId,
+              journal_type: "margin",
+              reference_id: fa.id,
+              account_id: offer.funder_user_id,
+              system_account: "funder_yield_payable",
+              amount: funderReturn.netReturn,
+              direction: "debit",
+              currency,
+              description: `Funder payout (principal+yield): ${invoice.invoice_number}`,
+            },
+            {
+              organization_id: orgId,
+              journal_type: "collection",
+              reference_id: fa.id,
+              account_id: offer.funder_user_id,
+              system_account: "funder_net_settlement",
+              amount: funderReturn.netReturn,
+              direction: "credit",
+              currency,
+              description: `Net to funder: ${invoice.invoice_number}`,
+            },
+          ];
+
+          await postJournalBatch(supabase, funderJournalEntries);
+
+          // ── PSP payment instruction ───────────────────────────────────
           const getOrCreatePspAccount = async (actorId: string, actorType: string) => {
             const { data: existing } = await supabase
               .from("psp_virtual_accounts")
               .select("id")
               .eq("actor_id", actorId)
-              .eq("currency", collection.currency)
-              .eq("organization_id", collection.organization_id)
+              .eq("currency", currency)
+              .eq("organization_id", orgId)
               .maybeSingle();
             if (existing) return existing.id;
             const { data: created } = await supabase
               .from("psp_virtual_accounts")
               .insert({
-                organization_id: collection.organization_id,
+                organization_id: orgId,
                 actor_id: actorId,
                 actor_type: actorType,
-                currency: collection.currency,
+                currency,
                 psp_provider: "manual",
               })
               .select("id")
@@ -348,16 +561,16 @@ Deno.serve(async (req) => {
 
           try {
             const [payerAccountId, payeeAccountId] = await Promise.all([
-              getOrCreatePspAccount(collection.organization_id, "originator"),
+              getOrCreatePspAccount(orgId, "originator"),
               getOrCreatePspAccount(offer.funder_user_id, "funder"),
             ]);
             await supabase.from("payment_instructions").insert({
-              organization_id: collection.organization_id,
+              organization_id: orgId,
               settlement_advice_id: fa.id,
               payer_psp_account_id: payerAccountId,
               payee_psp_account_id: payeeAccountId,
               amount: funderReturn.netReturn,
-              currency: collection.currency,
+              currency,
               status: "pending",
             });
           } catch (piErr) {
@@ -379,11 +592,18 @@ Deno.serve(async (req) => {
       .update({ status: "confirmed", confirmed_at: new Date().toISOString() })
       .eq("id", collection_id);
 
+    // Record invocation in platform_api_configs
+    await supabase
+      .from("platform_api_configs")
+      .update({ last_invoked_at: new Date().toISOString(), health_status: "healthy" })
+      .eq("api_name", "generate-settlement");
+
     return new Response(
       JSON.stringify({
         success: true,
         advices_generated: advices.length,
         advices,
+        negative_margin_alerts: advices.filter((a) => a.negative_margin).length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
