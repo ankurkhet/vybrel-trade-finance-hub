@@ -35,10 +35,18 @@ export default function Contracts() {
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
 
   useEffect(() => {
-    if (profile?.organization_id) fetchData();
+    if (profile?.organization_id) {
+      fetchData();
+    } else if (profile) {
+      setLoading(false);
+    }
   }, [profile]);
 
   const fetchData = async () => {
+    if (!profile?.organization_id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const [contractsRes, borrowersRes, templatesRes] = await Promise.all([
       supabase.from("contracts").select("*, borrowers(company_name)")
@@ -116,6 +124,13 @@ export default function Contracts() {
             <Plus className="mr-2 h-4 w-4" /> New Contract
           </Button>
         </div>
+
+        {!profile?.organization_id && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800">
+            <p className="text-sm font-medium">No Organization Assigned</p>
+            <p className="text-xs">Your account is not currently associated with an organization. Please contact your administrator to be assigned to an organization.</p>
+          </div>
+        )}
 
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-sm">

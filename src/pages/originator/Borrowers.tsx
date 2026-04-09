@@ -64,15 +64,24 @@ export default function Borrowers() {
   };
 
   useEffect(() => {
-    if (profile?.organization_id) fetchBorrowers();
+    if (profile?.organization_id) {
+      fetchBorrowers();
+    } else if (profile) {
+      // Profile loaded but no organization_id
+      setLoading(false);
+    }
   }, [profile]);
 
   const fetchBorrowers = async () => {
+    if (!profile?.organization_id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data } = await supabase
       .from("borrowers")
       .select("*")
-      .eq("organization_id", profile!.organization_id!)
+      .eq("organization_id", profile.organization_id)
       .order("created_at", { ascending: false });
     setBorrowers(data || []);
     setLoading(false);
@@ -159,6 +168,13 @@ export default function Borrowers() {
             </Button>
           </div>
         </div>
+
+        {!profile?.organization_id && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800">
+            <p className="text-sm font-medium">No Organization Assigned</p>
+            <p className="text-xs">Your account is not currently associated with an organization. Please contact your administrator to be assigned to an organization.</p>
+          </div>
+        )}
 
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-sm">

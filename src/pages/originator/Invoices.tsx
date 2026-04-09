@@ -34,10 +34,18 @@ export default function Invoices() {
   const [fraudChecks, setFraudChecks] = useState<Record<string, any>>({});
 
   useEffect(() => {
-    if (profile?.organization_id) fetchInvoices();
+    if (profile?.organization_id) {
+      fetchInvoices();
+    } else if (profile) {
+      setLoading(false);
+    }
   }, [profile]);
 
   const fetchInvoices = async () => {
+    if (!profile?.organization_id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data } = await supabase
       .from("invoices")
@@ -186,6 +194,13 @@ export default function Invoices() {
           <h1 className="text-2xl font-bold text-foreground">Invoices</h1>
           <p className="text-sm text-muted-foreground">Review and manage borrower invoices</p>
         </div>
+
+        {!profile?.organization_id && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800">
+            <p className="text-sm font-medium">No Organization Assigned</p>
+            <p className="text-xs">Your account is not currently associated with an organization. Please contact your administrator to be assigned to an organization.</p>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">

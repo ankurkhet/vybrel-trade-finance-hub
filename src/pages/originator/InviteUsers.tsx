@@ -65,10 +65,18 @@ export default function InviteUsers() {
   const orgId = profile?.organization_id;
 
   useEffect(() => {
-    if (orgId) fetchInvitations();
-  }, [orgId]);
+    if (orgId) {
+      fetchInvitations();
+    } else if (profile) {
+      setLoading(false);
+    }
+  }, [orgId, profile]);
 
   const fetchInvitations = async () => {
+    if (!orgId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data } = await supabase
       .from("invitations")
@@ -151,6 +159,13 @@ export default function InviteUsers() {
             <UserPlus className="mr-2 h-4 w-4" /> Send Invitation
           </Button>
         </div>
+
+        {!orgId && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800">
+            <p className="text-sm font-medium">No Organization Assigned</p>
+            <p className="text-xs">Your account is not currently associated with an organization. Please contact your administrator to be assigned to an organization.</p>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
