@@ -18,13 +18,13 @@ export const ActorWalletCard: React.FC<ActorWalletCardProps> = ({ actorId }) => 
   useEffect(() => {
     const fetchWallets = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("wallets")
+      const { data, error } = await (supabase
+        .from("wallets" as any)
         .select("*")
-        .eq("actor_id", actorId);
+        .eq("actor_id", actorId) as any);
       
       if (!error && data) {
-        setWallets(data as WalletBalance[]);
+        setWallets(data as unknown as WalletBalance[]);
       }
       setLoading(false);
     };

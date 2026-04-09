@@ -114,12 +114,12 @@ export default function Messages() {
         .eq("organization_id", profile!.organization_id!)
         .neq("id", user!.id);
 
-      // Also include Vybrel platform admins for cross-tenancy support
+      // Also include platform admins for cross-tenancy support
       const { data: adminProfiles } = await supabase
         .from("profiles")
         .select("id, full_name, email")
         .in("id", (
-          await supabase.from("user_roles").select("user_id").eq("role", "vybrel_admin")
+          await supabase.from("user_roles").select("user_id").eq("role", "admin" as any)
         ).data?.map((r: any) => r.user_id) || []);
 
       const allContacts: any[] = [
@@ -128,12 +128,12 @@ export default function Messages() {
       ];
 
       // Fetch recent messages to get last message & unread counts
-      const { data: recentMsgs } = await supabase
-        .from("messages" as any)
+      const { data: recentMsgs } = await (supabase
+        .from("messages")
         .select("sender_id, recipient_id, body, is_read, created_at")
         .or(`sender_id.eq.${user!.id},recipient_id.eq.${user!.id}`)
         .order("created_at", { ascending: false })
-        .limit(200);
+        .limit(200) as any);
 
       const contactList: Contact[] = allContacts.map((peer: any) => {
         const peerMsgs = (recentMsgs || []).filter(
@@ -171,22 +171,22 @@ export default function Messages() {
   const loadThread = async (contact: Contact) => {
     setSelectedContact(contact);
     setThread([]);
-    const { data } = await supabase
-      .from("messages" as any)
+    const { data } = await (supabase
+      .from("messages")
       .select("*")
       .or(
         `and(sender_id.eq.${user!.id},recipient_id.eq.${contact.user_id}),and(sender_id.eq.${contact.user_id},recipient_id.eq.${user!.id})`
       )
       .order("created_at", { ascending: true })
-      .limit(200);
-    setThread((data as ChatMessage[]) || []);
+      .limit(200) as any);
+    setThread((data as unknown as ChatMessage[]) || []);
 
     // Mark all as read
-    await supabase
-      .from("messages" as any)
-      .update({ is_read: true })
+    await (supabase
+      .from("messages")
+      .update({ is_read: true } as any)
       .eq("recipient_id", user!.id)
-      .eq("sender_id", contact.user_id);
+      .eq("sender_id", contact.user_id) as any);
     setContacts((prev) => prev.map((c) => c.user_id === contact.user_id ? { ...c, unread: 0 } : c));
   };
 
@@ -198,20 +198,19 @@ export default function Messages() {
 
     const payload = {
       organization_id: profile!.organization_id,
-      thread_id: [user!.id, selectedContact.user_id].sort().join("-"),
       sender_id: user!.id,
       recipient_id: selectedContact.user_id,
+      subject: "Chat message",
       body,
       is_read: false,
-      email_sent: false,
     };
 
-    const { data, error } = await supabase.from("messages" as any).insert(payload).select().single();
+    const { data, error } = await (supabase.from("messages").insert(payload as any).select().single() as any);
     if (error) {
       toast.error("Failed to send message: " + error.message);
       setInput(body);
     } else {
-      setThread((prev) => [...prev, data as ChatMessage]);
+      setThread((prev) => [...prev, data as unknown as ChatMessage]);
       // Trigger email notification via edge function (best-effort)
       supabase.functions.invoke("send-message-email", {
         body: { recipient_id: selectedContact.user_id, sender_name: profile?.full_name || "A user", preview: body.slice(0, 100) }

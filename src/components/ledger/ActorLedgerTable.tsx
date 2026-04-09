@@ -21,11 +21,11 @@ export const ActorLedgerTable: React.FC<ActorLedgerTableProps> = ({ actorId, cur
     const fetchTransactions = async () => {
       setLoading(true);
       let query = supabase
-        .from("wallet_transactions")
+        .from("wallet_transactions" as any)
         .select("*")
         .eq("actor_id", actorId)
         .eq("currency", currency)
-        .order("transaction_date", { ascending: false });
+        .order("transaction_date", { ascending: false }) as any;
 
       if (systemAccount) {
         query = query.eq("system_account", systemAccount);
