@@ -1,424 +1,361 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Mail, Send, Inbox, ArrowUpRight, MessageSquare, Loader2, CheckCheck, Clock, Reply, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Loader2, Send, Search, MessageSquare, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
-interface Message {
+interface Contact {
+  user_id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  unread: number;
+  lastMessage?: string;
+  lastAt?: string;
+}
+
+interface ChatMessage {
   id: string;
   sender_id: string;
   recipient_id: string;
-  subject: string;
   body: string;
-  message_type: string;
-  related_entity_type: string | null;
-  related_entity_id: string | null;
-  parent_message_id: string | null;
   is_read: boolean;
   created_at: string;
-  organization_id: string | null;
+  thread_id: string;
+}
+
+function initials(name: string) {
+  return (name || "?")
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function formatTime(ts: string) {
+  const d = new Date(ts);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+  if (diffDays === 0) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (diffDays === 1) return "Yesterday";
+  return d.toLocaleDateString([], { day: "numeric", month: "short" });
 }
 
 export default function Messages() {
-  const { user } = useAuth();
-  const [inbox, setInbox] = useState<Message[]>([]);
-  const [sent, setSent] = useState<Message[]>([]);
+  const { user, profile } = useAuth();
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [thread, setThread] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  const [replyBody, setReplyBody] = useState("");
-  const [replying, setReplying] = useState(false);
-  const [composeOpen, setComposeOpen] = useState(false);
-  const [newSubject, setNewSubject] = useState("");
-  const [newBody, setNewBody] = useState("");
-  const [newRecipientEmail, setNewRecipientEmail] = useState("");
   const [sending, setSending] = useState(false);
-  const [senderNames, setSenderNames] = useState<Record<string, string>>({});
+  const [search, setSearch] = useState("");
+  const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Load allowed contacts (within tenancy hierarchy)
   useEffect(() => {
-    if (user) fetchMessages();
-  }, [user]);
+    if (user && profile) loadContacts();
+  }, [user, profile]);
 
-  // Subscribe to realtime
+  // Realtime subscription for incoming messages
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel('messages-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        const msg = payload.new as Message;
-        if (msg.recipient_id === user.id) {
-          setInbox(prev => [msg, ...prev]);
-        }
-        if (msg.sender_id === user.id) {
-          setSent(prev => [msg, ...prev]);
+      .channel("messages-rt-v2")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        const msg = payload.new as ChatMessage;
+        if (msg.recipient_id === user.id || msg.sender_id === user.id) {
+          setThread((prev) => {
+            if (selectedContact && (msg.sender_id === selectedContact.user_id || msg.recipient_id === selectedContact.user_id)) {
+              return [...prev, msg];
+            }
+            return prev;
+          });
+          // Update last message in contacts list
+          setContacts((prev) =>
+            prev.map((c) => {
+              if (c.user_id === msg.sender_id || c.user_id === msg.recipient_id) {
+                return {
+                  ...c,
+                  lastMessage: msg.body.slice(0, 60),
+                  lastAt: msg.created_at,
+                  unread: msg.recipient_id === user.id && msg.sender_id === c.user_id ? c.unread + 1 : c.unread,
+                };
+              }
+              return c;
+            })
+          );
         }
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [user, selectedContact]);
 
-  const fetchMessages = async () => {
+  // Scroll to bottom when thread loads or new message
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [thread]);
+
+  const loadContacts = async () => {
     setLoading(true);
-    const [inboxRes, sentRes] = await Promise.all([
-      supabase
-        .from("messages")
-        .select("*")
-        .eq("recipient_id", user!.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("messages")
-        .select("*")
-        .eq("sender_id", user!.id)
-        .order("created_at", { ascending: false }),
-    ]);
-
-    const inboxData = (inboxRes.data || []) as Message[];
-    const sentData = (sentRes.data || []) as Message[];
-    setInbox(inboxData);
-    setSent(sentData);
-
-    // Fetch sender names
-    const allUserIds = [...new Set([
-      ...inboxData.map(m => m.sender_id),
-      ...sentData.map(m => m.recipient_id),
-    ])];
-    if (allUserIds.length > 0) {
-      const { data: profiles } = await supabase
+    try {
+      // Pull all users in the same organization. Admins see everyone.
+      const { data: peers } = await supabase
         .from("profiles")
-        .select("user_id, full_name, email")
-        .in("user_id", allUserIds);
-      const names: Record<string, string> = {};
-      (profiles || []).forEach((p: any) => {
-        names[p.user_id] = p.full_name || p.email || "Unknown";
+        .select("id, full_name, email")
+        .eq("organization_id", profile!.organization_id!)
+        .neq("id", user!.id);
+
+      // Also include Vybrel platform admins for cross-tenancy support
+      const { data: adminProfiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", (
+          await supabase.from("user_roles").select("user_id").eq("role", "vybrel_admin")
+        ).data?.map((r: any) => r.user_id) || []);
+
+      const allContacts: any[] = [
+        ...(peers || []),
+        ...(adminProfiles || []).filter((a: any) => a.id !== user!.id && !(peers || []).find((p: any) => p.id === a.id)),
+      ];
+
+      // Fetch recent messages to get last message & unread counts
+      const { data: recentMsgs } = await supabase
+        .from("messages" as any)
+        .select("sender_id, recipient_id, body, is_read, created_at")
+        .or(`sender_id.eq.${user!.id},recipient_id.eq.${user!.id}`)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      const contactList: Contact[] = allContacts.map((peer: any) => {
+        const peerMsgs = (recentMsgs || []).filter(
+          (m: any) => m.sender_id === peer.user_id || m.recipient_id === peer.user_id
+        );
+        const last = peerMsgs[0];
+        const unread = peerMsgs.filter((m: any) => m.recipient_id === user!.id && !m.is_read && m.sender_id === peer.user_id).length;
+        return {
+          user_id: peer.user_id,
+          full_name: peer.full_name || peer.email,
+          email: peer.email,
+          role: "",
+          unread,
+          lastMessage: last?.body?.slice(0, 60),
+          lastAt: last?.created_at,
+        };
       });
-      setSenderNames(names);
-    }
 
-    setLoading(false);
+      // Sort: contacts with messages first (by most recent), then alphabetically
+      contactList.sort((a, b) => {
+        if (a.lastAt && b.lastAt) return new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime();
+        if (a.lastAt) return -1;
+        if (b.lastAt) return 1;
+        return (a.full_name || "").localeCompare(b.full_name || "");
+      });
+
+      setContacts(contactList);
+    } catch (e: any) {
+      toast.error("Failed to load contacts: " + e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const markAsRead = async (msg: Message) => {
-    if (!msg.is_read) {
-      await supabase.from("messages").update({ is_read: true }).eq("id", msg.id);
-      setInbox(prev => prev.map(m => m.id === msg.id ? { ...m, is_read: true } : m));
-    }
-    setSelectedMessage(msg);
+  const loadThread = async (contact: Contact) => {
+    setSelectedContact(contact);
+    setThread([]);
+    const { data } = await supabase
+      .from("messages" as any)
+      .select("*")
+      .or(
+        `and(sender_id.eq.${user!.id},recipient_id.eq.${contact.user_id}),and(sender_id.eq.${contact.user_id},recipient_id.eq.${user!.id})`
+      )
+      .order("created_at", { ascending: true })
+      .limit(200);
+    setThread((data as ChatMessage[]) || []);
+
+    // Mark all as read
+    await supabase
+      .from("messages" as any)
+      .update({ is_read: true })
+      .eq("recipient_id", user!.id)
+      .eq("sender_id", contact.user_id);
+    setContacts((prev) => prev.map((c) => c.user_id === contact.user_id ? { ...c, unread: 0 } : c));
   };
 
-  const handleReply = async () => {
-    if (!selectedMessage || !replyBody.trim() || !user) return;
-    setReplying(true);
-    const { error } = await supabase.from("messages").insert({
-      sender_id: user.id,
-      recipient_id: selectedMessage.sender_id,
-      subject: `Re: ${selectedMessage.subject}`,
-      body: replyBody,
-      message_type: "reply",
-      parent_message_id: selectedMessage.id,
-      organization_id: selectedMessage.organization_id,
-    });
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Reply sent");
-      setReplyBody("");
-      fetchMessages();
-    }
-    setReplying(false);
-  };
-
-  const handleCompose = async () => {
-    if (!newSubject.trim() || !newBody.trim() || !newRecipientEmail.trim() || !user) return;
+  const sendMessage = async () => {
+    if (!input.trim() || !selectedContact || sending) return;
     setSending(true);
+    const body = input.trim();
+    setInput("");
 
-    // Look up recipient by email
-    const { data: recipientProfiles } = await supabase
-      .from("profiles")
-      .select("user_id")
-      .eq("email", newRecipientEmail.trim())
-      .limit(1);
+    const payload = {
+      organization_id: profile!.organization_id,
+      thread_id: [user!.id, selectedContact.user_id].sort().join("-"),
+      sender_id: user!.id,
+      recipient_id: selectedContact.user_id,
+      body,
+      is_read: false,
+      email_sent: false,
+    };
 
-    if (!recipientProfiles || recipientProfiles.length === 0) {
-      toast.error("Recipient not found. Check the email address.");
-      setSending(false);
-      return;
-    }
-
-    const { error } = await supabase.from("messages").insert({
-      sender_id: user.id,
-      recipient_id: recipientProfiles[0].user_id,
-      subject: newSubject,
-      body: newBody,
-      message_type: "general",
-    });
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Message sent");
-      setNewSubject("");
-      setNewBody("");
-      setNewRecipientEmail("");
-      setComposeOpen(false);
-      fetchMessages();
+    const { data, error } = await supabase.from("messages" as any).insert(payload).select().single();
+    if (error) {
+      toast.error("Failed to send message: " + error.message);
+      setInput(body);
+    } else {
+      setThread((prev) => [...prev, data as ChatMessage]);
+      // Trigger email notification via edge function (best-effort)
+      supabase.functions.invoke("send-message-email", {
+        body: { recipient_id: selectedContact.user_id, sender_name: profile?.full_name || "A user", preview: body.slice(0, 100) }
+      }).catch(() => {}); // non-blocking
     }
     setSending(false);
   };
 
-  const unreadCount = inbox.filter(m => !m.is_read).length;
-
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
-    if (diffHours < 1) return `${Math.floor(diffMs / (1000 * 60))}m ago`;
-    if (diffHours < 24) return `${Math.floor(diffHours)}h ago`;
-    return d.toLocaleDateString();
-  };
-
-  const messageTypeLabel = (type: string) => {
-    switch (type) {
-      case "info_request": return "Info Request";
-      case "correction_request": return "Correction";
-      case "document_rejection": return "Doc Rejected";
-      case "document_approved": return "Doc Approved";
-      case "reply": return "Reply";
-      default: return "Message";
-    }
-  };
-
-  const messageTypeBadgeVariant = (type: string): "default" | "secondary" | "destructive" | "outline" => {
-    switch (type) {
-      case "document_rejection":
-      case "correction_request":
-        return "destructive";
-      case "document_approved":
-        return "default";
-      default:
-        return "secondary";
-    }
-  };
+  const filteredContacts = contacts.filter((c) =>
+    (c.full_name + c.email).toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Messages</h1>
-            <p className="text-sm text-muted-foreground">
-              {unreadCount > 0 ? `${unreadCount} unread` : "All caught up"}
-            </p>
+      <div className="h-[calc(100vh-8rem)] flex rounded-xl border bg-background shadow-sm overflow-hidden">
+        {/* ── Left panel: Contacts sidebar ──────────────────────────────── */}
+        <div className="w-80 flex-shrink-0 border-r flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b">
+            <div className="flex items-center gap-2 mb-3">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              <h1 className="font-semibold text-base">Messages</h1>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search contacts..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-8 text-sm"
+              />
+            </div>
           </div>
-          <Button onClick={() => setComposeOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> New Message
-          </Button>
+
+          {/* Contact list */}
+          <ScrollArea className="flex-1">
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredContacts.length === 0 ? (
+              <div className="flex flex-col items-center py-12 text-muted-foreground text-sm">
+                <Users className="h-8 w-8 mb-3 opacity-30" />
+                <p>No contacts found</p>
+              </div>
+            ) : (
+              filteredContacts.map((c) => (
+                <button
+                  key={c.user_id}
+                  onClick={() => loadThread(c)}
+                  className={cn(
+                    "w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-muted/60 transition-colors border-b border-border/50",
+                    selectedContact?.user_id === c.user_id && "bg-primary/5 border-l-2 border-l-primary"
+                  )}
+                >
+                  <Avatar className="h-9 w-9 flex-shrink-0 mt-0.5">
+                    <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">{initials(c.full_name)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className={cn("text-sm font-medium truncate", c.unread > 0 && "font-bold")}>{c.full_name}</span>
+                      {c.lastAt && <span className="text-[10px] text-muted-foreground flex-shrink-0 ml-1">{formatTime(c.lastAt)}</span>}
+                    </div>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <p className="text-xs text-muted-foreground truncate">{c.lastMessage || c.email}</p>
+                      {c.unread > 0 && (
+                        <Badge className="h-4 min-w-4 rounded-full px-1 text-[10px] bg-primary ml-1 flex-shrink-0">{c.unread}</Badge>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))
+            )}
+          </ScrollArea>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Message List */}
-          <div className="lg:col-span-1">
-            <Tabs defaultValue="inbox">
-              <TabsList className="w-full">
-                <TabsTrigger value="inbox" className="flex-1">
-                  <Inbox className="mr-1.5 h-3.5 w-3.5" />
-                  Inbox {unreadCount > 0 && <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0">{unreadCount}</Badge>}
-                </TabsTrigger>
-                <TabsTrigger value="sent" className="flex-1">
-                  <Send className="mr-1.5 h-3.5 w-3.5" />
-                  Sent
-                </TabsTrigger>
-              </TabsList>
+        {/* ── Right panel: Thread ────────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col">
+          {selectedContact ? (
+            <>
+              {/* Thread header */}
+              <div className="p-4 border-b flex items-center gap-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">{initials(selectedContact.full_name)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-semibold text-sm">{selectedContact.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{selectedContact.email}</p>
+                </div>
+              </div>
 
-              <TabsContent value="inbox" className="mt-3">
-                <Card>
-                  <CardContent className="p-0">
-                    {loading ? (
-                      <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-                    ) : inbox.length === 0 ? (
-                      <div className="flex flex-col items-center py-12">
-                        <Mail className="h-10 w-10 text-muted-foreground mb-3" />
-                        <p className="text-sm text-muted-foreground">No messages yet</p>
-                      </div>
-                    ) : (
-                      <ScrollArea className="h-[60vh]">
-                        {inbox.map((msg) => (
-                          <button
-                            key={msg.id}
-                            onClick={() => markAsRead(msg)}
-                            className={`w-full text-left p-4 border-b last:border-b-0 transition-colors hover:bg-muted/50 ${
-                              selectedMessage?.id === msg.id ? "bg-muted/70" : ""
-                            } ${!msg.is_read ? "bg-primary/5" : ""}`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                  {!msg.is_read && <div className="h-2 w-2 rounded-full bg-primary shrink-0" />}
-                                  <p className={`text-sm truncate ${!msg.is_read ? "font-semibold" : "font-medium"}`}>
-                                    {senderNames[msg.sender_id] || "Unknown"}
-                                  </p>
-                                </div>
-                                <p className="text-sm text-foreground truncate mt-0.5">{msg.subject}</p>
-                                <p className="text-xs text-muted-foreground truncate mt-0.5">{msg.body.slice(0, 80)}</p>
-                              </div>
-                              <div className="flex flex-col items-end gap-1 shrink-0">
-                                <span className="text-[10px] text-muted-foreground">{formatDate(msg.created_at)}</span>
-                                <Badge variant={messageTypeBadgeVariant(msg.message_type)} className="text-[10px]">
-                                  {messageTypeLabel(msg.message_type)}
-                                </Badge>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </ScrollArea>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="sent" className="mt-3">
-                <Card>
-                  <CardContent className="p-0">
-                    {loading ? (
-                      <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-                    ) : sent.length === 0 ? (
-                      <div className="flex flex-col items-center py-12">
-                        <Send className="h-10 w-10 text-muted-foreground mb-3" />
-                        <p className="text-sm text-muted-foreground">No sent messages</p>
-                      </div>
-                    ) : (
-                      <ScrollArea className="h-[60vh]">
-                        {sent.map((msg) => (
-                          <button
-                            key={msg.id}
-                            onClick={() => setSelectedMessage(msg)}
-                            className={`w-full text-left p-4 border-b last:border-b-0 transition-colors hover:bg-muted/50 ${
-                              selectedMessage?.id === msg.id ? "bg-muted/70" : ""
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium truncate">To: {senderNames[msg.recipient_id] || "Unknown"}</p>
-                                <p className="text-sm text-foreground truncate mt-0.5">{msg.subject}</p>
-                                <p className="text-xs text-muted-foreground truncate mt-0.5">{msg.body.slice(0, 80)}</p>
-                              </div>
-                              <span className="text-[10px] text-muted-foreground shrink-0">{formatDate(msg.created_at)}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </ScrollArea>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          {/* Message Detail */}
-          <div className="lg:col-span-2">
-            <Card className="h-full">
-              {selectedMessage ? (
-                <>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{selectedMessage.subject}</CardTitle>
-                        <CardDescription className="mt-1">
-                          {selectedMessage.sender_id === user?.id ? "To" : "From"}:{" "}
-                          {senderNames[selectedMessage.sender_id === user?.id ? selectedMessage.recipient_id : selectedMessage.sender_id] || "Unknown"}
-                          {" · "}
-                          {new Date(selectedMessage.created_at).toLocaleString()}
-                        </CardDescription>
-                      </div>
-                      <Badge variant={messageTypeBadgeVariant(selectedMessage.message_type)}>
-                        {messageTypeLabel(selectedMessage.message_type)}
-                      </Badge>
+              {/* Messages */}
+              <ScrollArea className="flex-1 p-4">
+                <div className="space-y-3">
+                  {thread.length === 0 && (
+                    <div className="text-center text-sm text-muted-foreground py-12">
+                      <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                      <p>No messages yet. Say hi!</p>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="rounded-lg border bg-muted/30 p-4">
-                      <p className="text-sm whitespace-pre-wrap">{selectedMessage.body}</p>
-                    </div>
-
-                    {selectedMessage.sender_id !== user?.id && (
-                      <div className="space-y-3">
-                        <Separator />
-                        <Label className="text-xs font-medium">Reply</Label>
-                        <Textarea
-                          value={replyBody}
-                          onChange={(e) => setReplyBody(e.target.value)}
-                          placeholder="Type your reply..."
-                          rows={4}
-                        />
-                        <Button onClick={handleReply} disabled={replying || !replyBody.trim()} size="sm">
-                          {replying ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Reply className="mr-2 h-3.5 w-3.5" />}
-                          Send Reply
-                        </Button>
+                  )}
+                  {thread.map((msg) => {
+                    const isMe = msg.sender_id === user!.id;
+                    return (
+                      <div key={msg.id} className={cn("flex", isMe ? "justify-end" : "justify-start")}>
+                        <div className={cn(
+                          "max-w-[70%] rounded-2xl px-4 py-2.5 text-sm shadow-sm",
+                          isMe ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-muted text-foreground rounded-tl-sm border"
+                        )}>
+                          <p className="whitespace-pre-wrap break-words">{msg.body}</p>
+                          <p className={cn("text-[10px] mt-1", isMe ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                            {formatTime(msg.created_at)}
+                          </p>
+                        </div>
                       </div>
-                    )}
-                  </CardContent>
-                </>
-              ) : (
-                <CardContent className="flex flex-col items-center justify-center py-24">
-                  <MessageSquare className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                  <p className="text-sm text-muted-foreground">Select a message to view</p>
-                </CardContent>
-              )}
-            </Card>
-          </div>
+                    );
+                  })}
+                  <div ref={bottomRef} />
+                </div>
+              </ScrollArea>
+
+              {/* Input bar */}
+              <div className="p-4 border-t flex gap-2 items-end">
+                <Input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                  placeholder={`Message ${selectedContact.full_name}...`}
+                  className="flex-1 text-sm"
+                  disabled={sending}
+                />
+                <Button size="icon" onClick={sendMessage} disabled={sending || !input.trim()}>
+                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
+              <MessageSquare className="h-16 w-16 mb-4 opacity-20" />
+              <p className="text-lg font-medium">Select a conversation</p>
+              <p className="text-sm mt-1">Choose a contact from the left to start messaging</p>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Compose Dialog */}
-      <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>New Message</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Recipient Email</Label>
-              <Input
-                type="email"
-                placeholder="recipient@company.com"
-                value={newRecipientEmail}
-                onChange={(e) => setNewRecipientEmail(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Subject</Label>
-              <Input
-                placeholder="Message subject"
-                value={newSubject}
-                onChange={(e) => setNewSubject(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Message</Label>
-              <Textarea
-                placeholder="Write your message..."
-                value={newBody}
-                onChange={(e) => setNewBody(e.target.value)}
-                rows={6}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setComposeOpen(false)}>Cancel</Button>
-            <Button onClick={handleCompose} disabled={sending || !newSubject.trim() || !newBody.trim() || !newRecipientEmail.trim()}>
-              {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-              Send
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </DashboardLayout>
   );
 }

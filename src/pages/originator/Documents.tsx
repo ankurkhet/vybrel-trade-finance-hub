@@ -135,9 +135,14 @@ export default function OriginatorDocuments() {
     queryFn: async () => {
       const { data: roleRecords } = await supabase.from('user_roles').select('user_id').eq('role', 'funder');
       const funderUserIds = roleRecords?.map((r: any) => r.user_id) || [];
-      const { data: profiles } = await supabase.from('profiles').select('*').eq('organization_id', profile?.organization_id).in('user_id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
-      const { data: funderDocs } = await supabase.from('funder_kyc').select('*').order('created_at', { ascending: false });
-      return (profiles || []).map(f => ({ ...f, documents: ((funderDocs as any[]) || []).filter(d => d.funder_user_id === f.user_id) }));
+      const { data: profiles } = await supabase.from('profiles').select('*').eq('organization_id', profile?.organization_id).in('id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
+      const validFunderIds = profiles?.map((p: any) => p.id) || [];
+      const funderKycQuery = supabase.from('funder_kyc').select('*');
+      const funderKycFiltered = validFunderIds.length
+        ? funderKycQuery.in('funder_user_id', validFunderIds)
+        : funderKycQuery.in('funder_user_id', ['00000000-0000-0000-0000-000000000000']);
+      const { data: funderDocs } = await funderKycFiltered.order('created_at', { ascending: false });
+      return (profiles || []).map(f => ({ ...f, documents: ((funderDocs as any[]) || []).filter(d => d.funder_user_id === f.id) }));
     },
     enabled: !!profile?.organization_id && activeTab === "funders"
   });
@@ -178,7 +183,7 @@ export default function OriginatorDocuments() {
     if (!docReviewDialog) return;
     const updates: any = {
       status: docAction,
-      reviewed_by: profile?.user_id,
+      reviewed_by: profile?.id,
       reviewed_at: new Date().toISOString(),
     };
     if (docAction === "rejected") updates.rejection_reason = docRejectionReason;
@@ -416,7 +421,7 @@ export default function OriginatorDocuments() {
                     <SelectTrigger className="w-[300px] h-9"><SelectValue placeholder="Filter by Funder" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Participating Funders</SelectItem>
-                        {funders.map((f: any) => (<SelectItem key={f.user_id} value={f.user_id}>{f.full_name || f.email}</SelectItem>))}
+                        {funders.map((f: any) => (<SelectItem key={f.id} value={f.id}>{f.full_name || f.email}</SelectItem>))}
                     </SelectContent>
                 </Select>
             </div>
@@ -424,8 +429,8 @@ export default function OriginatorDocuments() {
             {fundersLoading ? (
                <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
             ) : (
-                funders.filter((f: any) => selectedFunder === "all" || !selectedFunder || f.user_id === selectedFunder).map((f: any) => (
-                    <Card key={f.user_id} className="overflow-hidden border-l-4 border-l-primary/50">
+                funders.filter((f: any) => selectedFunder === "all" || !selectedFunder || f.id === selectedFunder).map((f: any) => (
+                    <Card key={f.id} className="overflow-hidden border-l-4 border-l-primary/50">
                         <CardHeader className="py-4 bg-muted/20">
                             <CardTitle className="text-sm flex items-center justify-between">
                                 <span className="flex items-center gap-2"><Users className="h-4 w-4 text-primary" /> {f.full_name || f.email}</span>

@@ -1,3 +1,9 @@
+// notify-counterparty
+// Required Supabase secrets (set via `supabase secrets set`):
+//   RESEND_API_KEY  — Resend API key for email delivery (from resend.com)
+//   APP_URL         — Public app URL, e.g. https://app.vybrel.com
+// Without RESEND_API_KEY the function still runs but skips email delivery.
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -71,7 +77,6 @@ Deno.serve(async (req) => {
     const supplierName = (invoice.borrowers as any)?.company_name || "a supplier";
     const counterpartyName = invoice.counterparty_name || "Counterparty";
 
-    // Send email notification using Lovable's built-in email capability
     const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -136,9 +141,44 @@ Deno.serve(async (req) => {
 </body>
 </html>`;
 
-    // Log the notification for audit purposes
     console.log(`[notify-counterparty] Sending verification email to ${invoice.counterparty_email} for invoice ${invoice.invoice_number}`);
-    console.log(`[notify-counterparty] Verification URL: ${verifyUrl}`);
+
+    // Attempt to send via Resend if API key is configured
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    let emailSent = false;
+    let emailError: string | null = null;
+
+    if (resendApiKey) {
+      try {
+        const resendRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "Vybrel Platform <noreply@vybrel.com>",
+            to: [invoice.counterparty_email],
+            subject: `Invoice Verification Required: ${invoice.invoice_number}`,
+            html: emailHtml,
+          }),
+        });
+
+        if (resendRes.ok) {
+          emailSent = true;
+          console.log(`[notify-counterparty] Email sent via Resend to ${invoice.counterparty_email}`);
+        } else {
+          const errBody = await resendRes.text();
+          emailError = `Resend API error (${resendRes.status}): ${errBody}`;
+          console.error(`[notify-counterparty] ${emailError}`);
+        }
+      } catch (sendErr: any) {
+        emailError = `Email send failed: ${sendErr.message}`;
+        console.error(`[notify-counterparty] ${emailError}`);
+      }
+    } else {
+      console.log("[notify-counterparty] RESEND_API_KEY not set — email logged but not sent");
+    }
 
     // Store notification record in metadata for tracking
     await supabase
@@ -148,6 +188,7 @@ Deno.serve(async (req) => {
           notification_sent_at: new Date().toISOString(),
           notification_email: invoice.counterparty_email,
           verification_url: verifyUrl,
+          email_sent: emailSent,
         },
       } as any)
       .eq("id", invoice_id);
@@ -155,9 +196,12 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Verification email prepared for ${invoice.counterparty_email}`,
+        message: emailSent
+          ? `Verification email sent to ${invoice.counterparty_email}`
+          : `Verification email prepared for ${invoice.counterparty_email} (not sent — RESEND_API_KEY not configured)`,
+        email_sent: emailSent,
+        email_error: emailError,
         verification_url: verifyUrl,
-        email_html: emailHtml,
         counterparty_email: invoice.counterparty_email,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

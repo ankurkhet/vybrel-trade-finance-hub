@@ -18,7 +18,7 @@ import type { CompanyFormData } from "@/lib/onboarding-types";
 
 export default function Borrowers() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, user, isBroker } = useAuth();
   const [borrowers, setBorrowers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -95,6 +95,7 @@ export default function Borrowers() {
 
     const { error } = await supabase.from("borrowers").insert({
       organization_id: profile.organization_id,
+      ...(isBroker && user?.id ? { broker_user_id: user.id } : {}),
       company_name: companyData.company_name,
       trading_name: companyData.trading_name || null,
       contact_email: companyData.contact_email,

@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
         const { data: borrowerEntities } = await supabaseAdmin.from('borrowers').select('id, company_name, user_id, organization_id');
 
         const users = (authUsers?.users || []).map(u => {
-          const profile = profiles?.find(p => p.user_id === u.id);
+          const profile = profiles?.find(p => p.id === u.id);
           const roles = userRoles?.filter(r => r.user_id === u.id).map(r => r.role) || [];
           const linkedBorrower = borrowerEntities?.find(b => b.user_id === u.id);
           return {
@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
             wasExisting = true;
 
             // Update profile name if provided
-            await supabaseAdmin.from('profiles').update({ full_name }).eq('user_id', userId);
+            await supabaseAdmin.from('profiles').update({ full_name }).eq('id', userId);
           } else {
             throw createErr;
           }
@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
 
         // Update profile with org
         if (organization_id) {
-          await supabaseAdmin.from('profiles').update({ organization_id }).eq('user_id', userId);
+          await supabaseAdmin.from('profiles').update({ organization_id }).eq('id', userId);
         }
 
         await logAudit('admin.user_create', 'user', userId, { email, role, organization_id, wasExisting });
@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
         if (updateErr) throw updateErr;
 
         // Update email in profile
-        await supabaseAdmin.from('profiles').update({ email: new_email }).eq('user_id', user_id);
+        await supabaseAdmin.from('profiles').update({ email: new_email }).eq('id', user_id);
 
         return new Response(JSON.stringify({
           success: true,
@@ -243,7 +243,7 @@ Deno.serve(async (req) => {
         if (!user_id || !roles) throw new Error('Missing user_id or roles');
 
         // Delete existing roles
-        await supabaseAdmin.from('user_roles').delete().eq('user_id', user_id);
+        await supabaseAdmin.from('user_roles').delete().eq('id', user_id);
 
         // Insert new roles
         if (roles.length > 0) {
@@ -265,7 +265,7 @@ Deno.serve(async (req) => {
 
         await supabaseAdmin.from('profiles').update({
           organization_id: organization_id || null,
-        }).eq('user_id', user_id);
+        }).eq('id', user_id);
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -276,7 +276,7 @@ Deno.serve(async (req) => {
         const { user_id, is_active } = body;
         if (!user_id) throw new Error('Missing user_id');
 
-        await supabaseAdmin.from('profiles').update({ is_active }).eq('user_id', user_id);
+        await supabaseAdmin.from('profiles').update({ is_active }).eq('id', user_id);
 
         if (!is_active) {
           // Ban user in auth
@@ -295,7 +295,7 @@ Deno.serve(async (req) => {
         if (!user_id) throw new Error('Missing user_id');
 
         // Unlink any existing borrower linked to this user
-        await supabaseAdmin.from('borrowers').update({ user_id: null }).eq('user_id', user_id);
+        await supabaseAdmin.from('borrowers').update({ user_id: null }).eq('id', user_id);
 
         // Link new borrower entity if provided
         if (borrower_id) {

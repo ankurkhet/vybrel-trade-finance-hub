@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import {
   Loader2, Plus, Banknote, FileText, CheckCircle2, Clock,
-  Download, ArrowRight, Receipt
+  Download, ArrowRight, Receipt, AlertTriangle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -65,7 +65,7 @@ export default function Collections() {
         .order("created_at", { ascending: false }),
       supabase
         .from("invoices")
-        .select("*, borrowers(company_name)")
+        .select("*, borrowers(company_name), accrued_late_fees")
         .eq("organization_id", orgId)
         .in("status", ["funded", "approved"])
         .order("due_date", { ascending: true }),
@@ -476,10 +476,20 @@ export default function Collections() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="rounded-lg border p-3 bg-muted/30">
+            <div className="rounded-lg border p-3 bg-muted/30 space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Invoice Amount</span>
                 <span className="font-medium">{selectedInvoice?.currency} {Number(selectedInvoice?.amount || 0).toLocaleString()}</span>
+              </div>
+              {Number(selectedInvoice?.accrued_late_fees || 0) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Accrued Late Fees</span>
+                  <span className="font-medium text-destructive">+ {selectedInvoice?.currency} {Number(selectedInvoice?.accrued_late_fees).toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm border-t pt-1 mt-1">
+                <span className="text-muted-foreground font-medium">Expected Total</span>
+                <span className="font-bold">{selectedInvoice?.currency} {(Number(selectedInvoice?.amount || 0) + Number(selectedInvoice?.accrued_late_fees || 0)).toLocaleString()}</span>
               </div>
             </div>
             <div className="space-y-2">
@@ -490,6 +500,23 @@ export default function Collections() {
                 onChange={(e) => setCollectedAmount(e.target.value)}
                 placeholder="Amount received"
               />
+              {collectedAmount && selectedInvoice && (() => {
+                const expected = Number(selectedInvoice.amount) + Number(selectedInvoice.accrued_late_fees || 0);
+                const collected = parseFloat(collectedAmount);
+                if (!isNaN(collected) && Math.abs(collected - expected) > 0.01) {
+                  return (
+                    <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span>
+                        Collected amount does not match expected total ({selectedInvoice.currency} {expected.toLocaleString()}).
+                        Difference: {selectedInvoice.currency} {Math.abs(collected - expected).toLocaleString()}.
+                        This may indicate a partial payment or shortfall.
+                      </span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
             <div className="space-y-2">
               <Label>Collection Date *</Label>

@@ -33,6 +33,9 @@ export default function Disbursements() {
   const [funders, setFunders] = useState<any[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState("");
   const [selectedFacility, setSelectedFacility] = useState("");
+  const [funderLimits, setFunderLimits] = useState<any[]>([]);
+  const [selectedFunderLimit, setSelectedFunderLimit] = useState("");
+  const [disbursementAmountOverride, setDisbursementAmountOverride] = useState("");
   const [disbForm, setDisbForm] = useState({
     advance_rate: "80",
     originator_fee: "0",
@@ -56,21 +59,21 @@ export default function Disbursements() {
   };
 
   const handleApprove = async (memo: any) => {
-    if (memo.created_by === profile?.user_id) {
+    if (memo.created_by === profile?.id) {
        toast.error("Maker-Checker Rule: You cannot approve a disbursement you created.");
        return;
     }
     setApproving(true);
     const { error } = await supabase.from("disbursement_memos").update({
       status: "approved",
-      approved_by: profile?.user_id,
+      approved_by: profile?.id,
       approved_at: new Date().toISOString(),
     }).eq("id", memo.id);
     if (error) toast.error(error.message);
     else {
       toast.success("Disbursement memo approved");
       await supabase.from("audit_logs").insert({
-        user_id: profile?.user_id, user_email: profile?.email,
+        user_id: profile?.id, user_email: profile?.email,
         action: "disbursement_approved", resource_type: "disbursement_memo", resource_id: memo.id,
         details: { memo_number: memo.memo_number, amount: memo.disbursement_amount },
       });
@@ -93,7 +96,7 @@ export default function Disbursements() {
     const { data: funderRoles } = await supabase.from("user_roles").select("user_id").eq("role", "funder");
     const funderIds = (funderRoles || []).map((r: any) => r.user_id);
 
-    const [{ data: invs }, { data: facs }, { data: fnds }] = await Promise.all([
+    const [{ data: invs }, { data: facs }, { data: fnds }, { data: limits }] = await Promise.all([
       supabase.from("invoices").select("*, borrowers(company_name)")
         .eq("organization_id", profile!.organization_id!)
         .eq("status", "approved")
@@ -102,13 +105,18 @@ export default function Disbursements() {
         .eq("organization_id", profile!.organization_id!)
         .eq("status", "approved")
         .order("created_at", { ascending: false }),
-      supabase.from("profiles").select("user_id, full_name")
+      supabase.from("profiles").select("id, full_name")
         .eq("organization_id", profile!.organization_id!)
-        .in("user_id", funderIds.length ? funderIds : ["00000000-0000-0000-0000-000000000000"])
+        .in("id", funderIds.length ? funderIds : ["00000000-0000-0000-0000-000000000000"]),
+      supabase.from("funder_limits").select("*, profiles(full_name)")
+        .eq("organization_id", profile!.organization_id!)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false }),
     ]);
     setApprovedInvoices(invs || []);
     setApprovedFacilities(facs || []);
     setFunders(fnds || []);
+    setFunderLimits(limits || []);
     setCreateDialog(true);
   };
 
@@ -149,6 +157,25 @@ export default function Disbursements() {
     }
   }, [selectedFacility, selectedInvoice]);
 
+  // Gap B: Auto-populate rates from selected funder limit
+  useEffect(() => {
+    if (selectedFunderLimit) {
+      const limit = funderLimits.find(l => l.id === selectedFunderLimit);
+      if (limit) {
+        const inv = approvedInvoices.find(i => i.id === selectedInvoice);
+        const invAmount = inv ? Number(inv.amount) : 0;
+        const totalRate = Number(limit.base_rate_value || 0) + Number(limit.margin_pct || 0);
+        const funderFeeAmt = invAmount > 0 ? ((invAmount * (totalRate / 100)) / 12).toFixed(2) : "0";
+        setDisbForm(f => ({
+          ...f,
+          funder_user_id: limit.funder_user_id || f.funder_user_id,
+          funder_fee: funderFeeAmt,
+        }));
+        toast.info(`Rates auto-applied from funding offer: ${limit.currency || ""} ${limit.base_rate_type || ""} +${limit.margin_pct || 0}%`);
+      }
+    }
+  }, [selectedFunderLimit]);
+
   const handleCreateDisbursement = async () => {
     if (!selectedInvoice) { toast.error("Select an invoice"); return; }
     const inv = approvedInvoices.find(i => i.id === selectedInvoice);
@@ -161,7 +188,12 @@ export default function Disbursements() {
     const origFee = Number(disbForm.originator_fee) || 0;
     const funderFee = Number(disbForm.funder_fee) || 0;
     const totalFee = origFee + funderFee;
-    const disbursementAmount = advanceAmount - totalFee;
+    const maxDisbursement = advanceAmount - totalFee;
+    // Gap E: use originator-entered override if provided, else use max
+    const disbursementAmount = disbursementAmountOverride
+      ? Math.min(parseFloat(disbursementAmountOverride), maxDisbursement)
+      : maxDisbursement;
+    const borrowerRequested = (inv as any).requested_funding_amount || null;
 
     // GAP-18: Currency Mismatch Guard
     if (selectedFacility) {
@@ -232,15 +264,17 @@ export default function Disbursements() {
       funder_fee: funderFee,
       total_fee: totalFee,
       disbursement_amount: disbursementAmount,
+      borrower_requested_amount: borrowerRequested,
+      funder_limit_id: selectedFunderLimit || null,
       status: "pending",
-      created_by: profile!.user_id,
+      created_by: profile!.id,
     });
 
     if (error) toast.error(error.message);
     else {
       toast.success("Disbursement memo created");
       await supabase.from("audit_logs").insert({
-        user_id: profile?.user_id, user_email: profile?.email,
+        user_id: profile?.id, user_email: profile?.email,
         action: "disbursement_created", resource_type: "disbursement_memo",
         details: { invoice_id: inv.id, facility_request_id: selectedFacility, amount: disbursementAmount, currency: inv.currency },
       });
@@ -248,6 +282,8 @@ export default function Disbursements() {
     setCreateDialog(false);
     setSelectedInvoice("");
     setSelectedFacility("");
+    setSelectedFunderLimit("");
+    setDisbursementAmountOverride("");
     setDisbForm({ advance_rate: "80", originator_fee: "0", funder_fee: "0", funder_user_id: "" });
     fetchMemos();
   };
@@ -265,7 +301,7 @@ export default function Disbursements() {
     else {
       toast.success("Payment confirmed — disbursement advise generated");
       await supabase.from("audit_logs").insert({
-        user_id: profile?.user_id, user_email: profile?.email,
+        user_id: profile?.id, user_email: profile?.email,
         action: "disbursement_payment_confirmed", resource_type: "disbursement_memo", resource_id: paymentDialog.id,
         details: { ...paymentData },
       });
@@ -439,7 +475,7 @@ export default function Disbursements() {
               <div className="flex gap-2 pt-2">
                 {detailMemo.status === "pending" && (
                   <>
-                    <Button className="flex-1" onClick={() => handleApprove(detailMemo)} disabled={approving || detailMemo.created_by === profile?.user_id}>
+                    <Button className="flex-1" onClick={() => handleApprove(detailMemo)} disabled={approving || detailMemo.created_by === profile?.id}>
                       {approving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                       Approve
                     </Button>
@@ -537,7 +573,7 @@ export default function Disbursements() {
                 <Select value={disbForm.funder_user_id} onValueChange={(v) => setDisbForm(p => ({ ...p, funder_user_id: v }))}>
                   <SelectTrigger><SelectValue placeholder="Select funder" /></SelectTrigger>
                   <SelectContent>
-                    {funders.map(f => <SelectItem key={f.user_id} value={f.user_id}>{f.full_name}</SelectItem>)}
+                    {funders.map(f => <SelectItem key={f.id} value={f.id}>{f.full_name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -552,19 +588,75 @@ export default function Disbursements() {
                 <Input type="number" value={disbForm.funder_fee} disabled={!!selectedFacility} onChange={(e) => setDisbForm(p => ({ ...p, funder_fee: e.target.value }))} />
               </div>
             </div>
+            {/* Gap B: Funding Offer (funder rate card) */}
+            {funderLimits.length > 0 && (
+              <div className="space-y-2">
+                <Label>Funding Offer (optional)</Label>
+                <Select value={selectedFunderLimit} onValueChange={setSelectedFunderLimit}>
+                  <SelectTrigger><SelectValue placeholder="Select funder rate card..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {funderLimits.map(l => (
+                      <SelectItem key={l.id} value={l.id}>
+                        {(l.profiles as any)?.full_name || "Funder"} — {l.currency} — {l.base_rate_type} +{l.margin_pct}%
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {selectedInvoice && (() => {
               const inv = approvedInvoices.find(i => i.id === selectedInvoice);
               if (!inv) return null;
               const val = Number(inv.amount);
               const adv = val * Number(disbForm.advance_rate) / 100;
               const fees = Number(disbForm.originator_fee) + Number(disbForm.funder_fee);
+              const maxDisb = adv - fees;
+              const override = parseFloat(disbursementAmountOverride) || 0;
+              const finalDisb = disbursementAmountOverride ? Math.min(override, maxDisb) : maxDisb;
+              const isOverMax = disbursementAmountOverride && override > maxDisb;
               return (
-                <div className="rounded-lg border divide-y text-sm">
-                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Invoice Value</span><span>{inv.currency} {val.toLocaleString()}</span></div>
-                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Advance ({disbForm.advance_rate}%)</span><span>{inv.currency} {adv.toLocaleString()}</span></div>
-                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Retained</span><span>{inv.currency} {(val - adv).toLocaleString()}</span></div>
-                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Total Fee</span><span>{inv.currency} {fees.toLocaleString()}</span></div>
-                  <div className="flex justify-between px-4 py-2 font-bold bg-muted/50"><span>Disbursement</span><span>{inv.currency} {(adv - fees).toLocaleString()}</span></div>
+                <div className="space-y-3">
+                  {/* Gap E: Borrower's requested amount */}
+                  {(inv as any).requested_funding_amount && (
+                    <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 px-4 py-2 text-sm flex justify-between">
+                      <span className="text-blue-700 dark:text-blue-300">Borrower Requested</span>
+                      <span className="font-semibold text-blue-800 dark:text-blue-200">
+                        {(inv as any).requested_funding_currency || inv.currency} {Number((inv as any).requested_funding_amount).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="rounded-lg border divide-y text-sm">
+                    <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Invoice Value</span><span>{inv.currency} {val.toLocaleString()}</span></div>
+                    <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Advance ({disbForm.advance_rate}%)</span><span>{inv.currency} {adv.toLocaleString()}</span></div>
+                    <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Retained</span><span>{inv.currency} {(val - adv).toLocaleString()}</span></div>
+                    <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Total Fee</span><span>{inv.currency} {fees.toLocaleString()}</span></div>
+                    <div className="flex justify-between px-4 py-2 font-bold bg-muted/50"><span>Max Eligible</span><span>{inv.currency} {maxDisb.toLocaleString()}</span></div>
+                  </div>
+
+                  {/* Gap E: Originator disbursement amount override */}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Disbursement Amount (leave blank for maximum)</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder={`Max: ${inv.currency} ${maxDisb.toLocaleString()}`}
+                        value={disbursementAmountOverride}
+                        onChange={e => setDisbursementAmountOverride(e.target.value)}
+                        className={`h-9 text-sm ${isOverMax ? "border-destructive" : ""}`}
+                        min={0}
+                        max={maxDisb}
+                        step={0.01}
+                      />
+                      <span className="text-sm text-muted-foreground shrink-0">{inv.currency}</span>
+                    </div>
+                    {isOverMax && <p className="text-xs text-destructive">Cannot exceed max eligible of {inv.currency} {maxDisb.toLocaleString()}</p>}
+                    {disbursementAmountOverride && !isOverMax && (
+                      <p className="text-xs text-muted-foreground font-medium">Final disbursement: {inv.currency} {finalDisb.toLocaleString()}</p>
+                    )}
+                  </div>
                 </div>
               );
             })()}

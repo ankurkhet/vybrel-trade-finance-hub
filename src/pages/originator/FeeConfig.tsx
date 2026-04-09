@@ -22,6 +22,8 @@ interface FeeConfig {
   product_type: ProductType;
   originator_fee_pct: number;
   platform_fee_pct: number;
+  broker_fee_pct?: number;
+  broker_name?: string | null;
   default_discount_rate: number;
   settlement_days: number;
   settlement_timing: SettlementTiming;
@@ -55,7 +57,7 @@ const PRODUCT_LABELS: Record<ProductType, { label: string; description: string }
 const ALL_PRODUCTS: ProductType[] = ["receivables_purchase", "reverse_factoring", "payables_finance"];
 
 export default function FeeConfigPage() {
-  const { profile } = useAuth();
+  const { profile, isBroker } = useAuth();
   const orgId = profile?.organization_id;
 
   const [configs, setConfigs] = useState<FeeConfig[]>([]);
@@ -100,6 +102,8 @@ export default function FeeConfigPage() {
         product_type: productType,
         originator_fee_pct: 0,
         platform_fee_pct: 0,
+        broker_fee_pct: 0,
+        broker_name: null,
         default_discount_rate: 0,
         settlement_days: 1,
         payment_instructions: {} as any,
@@ -159,6 +163,8 @@ export default function FeeConfigPage() {
     const updateData: Record<string, unknown> = {
       originator_fee_pct: config.originator_fee_pct,
       platform_fee_pct: config.platform_fee_pct,
+      broker_fee_pct: config.broker_fee_pct || 0,
+      broker_name: config.broker_name || null,
       default_discount_rate: config.default_discount_rate,
       settlement_days: config.settlement_days,
       payment_instructions: config.payment_instructions as any,
@@ -188,7 +194,7 @@ export default function FeeConfigPage() {
               Set fee structures, discount rates, and payment instructions per product type.
             </p>
           </div>
-          {unconfiguredTypes.length > 0 && (
+          {!isBroker && unconfiguredTypes.length > 0 && (
             <Select onValueChange={(v) => addConfig(v as ProductType)}>
               <SelectTrigger className="w-auto gap-2">
                 <Plus className="h-4 w-4" />
@@ -202,6 +208,9 @@ export default function FeeConfigPage() {
                 ))}
               </SelectContent>
             </Select>
+          )}
+          {isBroker && (
+            <Badge variant="secondary" className="text-xs">View only</Badge>
           )}
         </div>
 
@@ -237,10 +246,15 @@ export default function FeeConfigPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {isBroker && (
+                    <div className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+                      View only — brokers cannot modify fee configurations.
+                    </div>
+                  )}
                   {/* Fee Structure */}
                   <div>
                     <h3 className="mb-3 text-sm font-medium text-foreground">Fee Structure</h3>
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       <div className="space-y-2">
                         <Label>Originator Fee (%)</Label>
                         <Input
@@ -249,6 +263,7 @@ export default function FeeConfigPage() {
                           min="0"
                           max="100"
                           value={config.originator_fee_pct}
+                          disabled={isBroker}
                           onChange={(e) =>
                             updateField(config.id!, "originator_fee_pct", parseFloat(e.target.value) || 0)
                           }
@@ -265,12 +280,45 @@ export default function FeeConfigPage() {
                           min="0"
                           max="100"
                           value={config.platform_fee_pct}
+                          disabled={isBroker}
                           onChange={(e) =>
                             updateField(config.id!, "platform_fee_pct", parseFloat(e.target.value) || 0)
                           }
                         />
                         <p className="text-xs text-muted-foreground">
                           Platform commission deducted from settlement
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Broker Fee (%)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          value={config.broker_fee_pct || 0}
+                          disabled={isBroker}
+                          onChange={(e) =>
+                            updateField(config.id!, "broker_fee_pct", parseFloat(e.target.value) || 0)
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Broker commission percentage
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Broker Name</Label>
+                        <Input
+                          type="text"
+                          value={config.broker_name || ""}
+                          disabled={isBroker}
+                          placeholder="e.g. Acme Brokers Ltd"
+                          onChange={(e) =>
+                            updateField(config.id!, "broker_name", e.target.value)
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Name of the broker for this product
                         </p>
                       </div>
                       <div className="space-y-2">
@@ -281,6 +329,7 @@ export default function FeeConfigPage() {
                           min="0"
                           max="100"
                           value={config.default_discount_rate}
+                          disabled={isBroker}
                           onChange={(e) =>
                             updateField(config.id!, "default_discount_rate", parseFloat(e.target.value) || 0)
                           }
@@ -296,6 +345,7 @@ export default function FeeConfigPage() {
                           min="0"
                           max="365"
                           value={config.settlement_days}
+                          disabled={isBroker}
                           onChange={(e) =>
                             updateField(config.id!, "settlement_days", parseInt(e.target.value) || 0)
                           }
@@ -314,6 +364,7 @@ export default function FeeConfigPage() {
                       <Label>Advance / Arrears</Label>
                       <Select
                         value={config.settlement_timing || "arrears"}
+                        disabled={isBroker}
                         onValueChange={(v) => updateField(config.id!, "settlement_timing", v)}
                       >
                         <SelectTrigger>
@@ -344,6 +395,7 @@ export default function FeeConfigPage() {
                         <Label>Bank Name</Label>
                         <Input
                           value={config.payment_instructions.bank_name || ""}
+                          disabled={isBroker}
                           onChange={(e) => updatePaymentField(config.id!, "bank_name", e.target.value)}
                           placeholder="e.g. Barclays"
                           maxLength={100}
@@ -353,6 +405,7 @@ export default function FeeConfigPage() {
                         <Label>Account Name</Label>
                         <Input
                           value={config.payment_instructions.account_name || ""}
+                          disabled={isBroker}
                           onChange={(e) => updatePaymentField(config.id!, "account_name", e.target.value)}
                           placeholder="e.g. Acme Ltd Client Account"
                           maxLength={100}
@@ -362,6 +415,7 @@ export default function FeeConfigPage() {
                         <Label>Account Number</Label>
                         <Input
                           value={config.payment_instructions.account_number || ""}
+                          disabled={isBroker}
                           onChange={(e) => updatePaymentField(config.id!, "account_number", e.target.value)}
                           placeholder="12345678"
                           maxLength={20}
@@ -371,6 +425,7 @@ export default function FeeConfigPage() {
                         <Label>Sort Code</Label>
                         <Input
                           value={config.payment_instructions.sort_code || ""}
+                          disabled={isBroker}
                           onChange={(e) => updatePaymentField(config.id!, "sort_code", e.target.value)}
                           placeholder="12-34-56"
                           maxLength={10}
@@ -380,6 +435,7 @@ export default function FeeConfigPage() {
                         <Label>IBAN</Label>
                         <Input
                           value={config.payment_instructions.iban || ""}
+                          disabled={isBroker}
                           onChange={(e) => updatePaymentField(config.id!, "iban", e.target.value)}
                           placeholder="GB29NWBK60161331926819"
                           maxLength={34}
@@ -389,6 +445,7 @@ export default function FeeConfigPage() {
                         <Label>SWIFT / BIC</Label>
                         <Input
                           value={config.payment_instructions.swift || ""}
+                          disabled={isBroker}
                           onChange={(e) => updatePaymentField(config.id!, "swift", e.target.value)}
                           placeholder="NWBKGB2L"
                           maxLength={11}
@@ -398,6 +455,7 @@ export default function FeeConfigPage() {
                         <Label>Reference Prefix</Label>
                         <Input
                           value={config.payment_instructions.reference_prefix || ""}
+                          disabled={isBroker}
                           onChange={(e) => updatePaymentField(config.id!, "reference_prefix", e.target.value)}
                           placeholder="e.g. SETTLE-RP-"
                           maxLength={30}
@@ -416,6 +474,7 @@ export default function FeeConfigPage() {
                     <Label>Internal Notes</Label>
                     <Textarea
                       value={config.notes || ""}
+                      disabled={isBroker}
                       onChange={(e) => updateField(config.id!, "notes", e.target.value)}
                       placeholder="Internal notes about this fee configuration..."
                       rows={2}
@@ -423,18 +482,20 @@ export default function FeeConfigPage() {
                     />
                   </div>
 
-                  <Button
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/85"
-                    onClick={() => saveConfig(config)}
-                    disabled={saving === config.id}
-                  >
-                    {saving === config.id ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="mr-2 h-4 w-4" />
-                    )}
-                    Save {PRODUCT_LABELS[config.product_type].label} Config
-                  </Button>
+                  {!isBroker && (
+                    <Button
+                      className="w-full bg-primary text-primary-foreground hover:bg-primary/85"
+                      onClick={() => saveConfig(config)}
+                      disabled={saving === config.id}
+                    >
+                      {saving === config.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="mr-2 h-4 w-4" />
+                      )}
+                      Save {PRODUCT_LABELS[config.product_type].label} Config
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ))}

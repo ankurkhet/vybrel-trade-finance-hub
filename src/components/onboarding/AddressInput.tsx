@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { MapPin, Search, X, Loader2 } from "lucide-react";
 import type { AddressData } from "@/lib/onboarding-types";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AddressInputProps {
   value: AddressData;
@@ -11,30 +12,132 @@ interface AddressInputProps {
   label: string;
   required?: boolean;
   disabled?: boolean;
+  countryCode?: string; // ISO-2 country code to scope results (e.g. "GB")
 }
 
-interface PhotonFeature {
-  type: string;
-  geometry: { type: string; coordinates: [number, number] };
-  properties: {
-    osm_id?: number;
-    name?: string;
-    street?: string;
-    housenumber?: string;
-    postcode?: string;
-    city?: string;
-    state?: string;
-    country?: string;
-    countrycode?: string;
-    district?: string;
-    locality?: string;
-    type?: string;
-  };
+interface AddressSuggestion {
+  displayName: string;
+  line1: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  raw?: any;
 }
 
-export function AddressInput({ value, onChange, label, required, disabled }: AddressInputProps) {
+// ─── Active address provider lookup (reads from registry_api_configs) ─────────
+async function fetchAddressSuggestions(query: string, countryCode?: string): Promise<AddressSuggestion[]> {
+  // Discover the active address-lookup provider from registry_api_configs.
+  // This lets the Vybrel Admin switch providers without code changes.
+  const { data: configs } = await supabase
+    .from("registry_api_configs")
+    .select("registry_name, api_base_url, api_key_value, capabilities, is_active")
+    .contains("capabilities", ["address_lookup"])
+    .eq("is_active", true)
+    .limit(1);
+
+  const provider = configs?.[0];
+
+  if (!provider) {
+    // Fallback to Photon (free, no key required) if no provider configured
+    return fetchPhoton(query, countryCode);
+  }
+
+  const name = (provider.registry_name || "").toLowerCase();
+
+  if (name.includes("google")) {
+    return fetchGoogle(query, countryCode, provider.api_key_value);
+  }
+  if (name.includes("loqate")) {
+    return fetchLoqate(query, countryCode, provider.api_key_value, provider.api_base_url);
+  }
+  // Default: Photon
+  return fetchPhoton(query, countryCode);
+}
+
+// ─── Photon (OpenStreetMap) ───────────────────────────────────────────────────
+async function fetchPhoton(query: string, countryCode?: string): Promise<AddressSuggestion[]> {
+  const countryParam = countryCode ? `&layer=address&countrycodes=${countryCode.toLowerCase()}` : "";
+  const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=6${countryParam}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.features || []).map((f: any) => {
+    const p = f.properties;
+    const parts: string[] = [];
+    if (p.housenumber && p.street) parts.push(`${p.housenumber} ${p.street}`);
+    else if (p.street) parts.push(p.street);
+    else if (p.name) parts.push(p.name);
+    if (p.city || p.district) parts.push(p.city || p.district);
+    if (p.state) parts.push(p.state);
+    if (p.postcode) parts.push(p.postcode);
+    if (p.country) parts.push(p.country);
+    const line1Parts: string[] = [];
+    if (p.housenumber) line1Parts.push(p.housenumber);
+    if (p.street) line1Parts.push(p.street);
+    if (!line1Parts.length && p.name) line1Parts.push(p.name);
+    return {
+      displayName: parts.join(", "),
+      line1: line1Parts.join(" "),
+      city: p.city || p.district || "",
+      state: p.state || "",
+      postal_code: p.postcode || "",
+      country: p.country || "",
+      raw: f,
+    };
+  });
+}
+
+// ─── Google Places ────────────────────────────────────────────────────────────
+async function fetchGoogle(query: string, countryCode: string | undefined, apiKey: string): Promise<AddressSuggestion[]> {
+  if (!apiKey) return fetchPhoton(query, countryCode); // fallback if key missing
+  const components = countryCode ? `&components=country:${countryCode.toUpperCase()}` : "";
+  const res = await fetch(
+    `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}${components}&key=${apiKey}&language=en&result_type=street_address|locality`
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.results || []).slice(0, 6).map((r: any) => {
+    const getComponent = (type: string) =>
+      r.address_components?.find((c: any) => c.types.includes(type))?.long_name || "";
+    return {
+      displayName: r.formatted_address,
+      line1: [getComponent("street_number"), getComponent("route")].filter(Boolean).join(" "),
+      city: getComponent("locality") || getComponent("postal_town"),
+      state: getComponent("administrative_area_level_1"),
+      postal_code: getComponent("postal_code"),
+      country: getComponent("country"),
+      raw: r,
+    };
+  });
+}
+
+// ─── Loqate ───────────────────────────────────────────────────────────────────
+async function fetchLoqate(query: string, countryCode: string | undefined, apiKey: string, baseUrl?: string): Promise<AddressSuggestion[]> {
+  if (!apiKey) return fetchPhoton(query, countryCode); // fallback
+  const base = baseUrl || "https://api.addressy.com/Capture/Interactive/Find/v1.10/json3.ws";
+  const country = countryCode?.toUpperCase() || "";
+  const res = await fetch(
+    `${base}?Key=${apiKey}&Text=${encodeURIComponent(query)}&Countries=${country}&IsMiddleware=False&Limit=6&Language=en`
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.Items || [])
+    .filter((item: any) => item.Type !== "Container")
+    .map((item: any) => ({
+      displayName: [item.Text, item.Description].filter(Boolean).join(", "),
+      line1: item.Text || "",
+      city: item.Description?.split(",")[0]?.trim() || "",
+      state: "",
+      postal_code: "",
+      country: countryCode || "",
+      raw: item,
+    }));
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+export function AddressInput({ value, onChange, label, required, disabled, countryCode }: AddressInputProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<PhotonFeature[]>([]);
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searching, setSearching] = useState(false);
   const [showManual, setShowManual] = useState(false);
@@ -58,18 +161,14 @@ export function AddressInput({ value, onChange, label, required, disabled }: Add
     }
     setSearching(true);
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const res = await fetch(
-        `${supabaseUrl}/functions/v1/address-lookup?q=${encodeURIComponent(query)}&limit=5`
-      );
-      const data = await res.json();
-      setSuggestions((data.features as PhotonFeature[]) || []);
-      setShowSuggestions(true);
+      const results = await fetchAddressSuggestions(query, countryCode);
+      setSuggestions(results);
+      setShowSuggestions(results.length > 0);
     } catch {
       setSuggestions([]);
     }
     setSearching(false);
-  }, []);
+  }, [countryCode]);
 
   const handleSearchChange = (val: string) => {
     setSearchQuery(val);
@@ -77,34 +176,16 @@ export function AddressInput({ value, onChange, label, required, disabled }: Add
     debounceRef.current = setTimeout(() => searchAddress(val), 350);
   };
 
-  const formatDisplayName = (props: PhotonFeature["properties"]) => {
-    const parts: string[] = [];
-    if (props.housenumber && props.street) parts.push(`${props.housenumber} ${props.street}`);
-    else if (props.street) parts.push(props.street);
-    else if (props.name) parts.push(props.name);
-    if (props.city) parts.push(props.city);
-    if (props.state) parts.push(props.state);
-    if (props.postcode) parts.push(props.postcode);
-    if (props.country) parts.push(props.country);
-    return parts.join(", ");
-  };
-
-  const selectSuggestion = (feature: PhotonFeature) => {
-    const p = feature.properties;
-    const line1Parts: string[] = [];
-    if (p.housenumber) line1Parts.push(p.housenumber);
-    if (p.street) line1Parts.push(p.street);
-    if (!line1Parts.length && p.name) line1Parts.push(p.name);
-
+  const selectSuggestion = (s: AddressSuggestion) => {
     onChange({
-      line1: line1Parts.join(" "),
+      line1: s.line1,
       line2: "",
-      city: p.city || p.district || "",
-      state: p.state || "",
-      postal_code: p.postcode || "",
-      country: p.country || "",
+      city: s.city,
+      state: s.state,
+      postal_code: s.postal_code,
+      country: s.country,
     });
-    setSearchQuery(formatDisplayName(p));
+    setSearchQuery(s.displayName);
     setShowSuggestions(false);
     setShowManual(true);
   };
@@ -134,11 +215,11 @@ export function AddressInput({ value, onChange, label, required, disabled }: Add
         </Button>
       </div>
 
-      {/* Photon search bar */}
+      {/* Dynamic provider search bar */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Start typing an address..."
+          placeholder={countryCode ? `Start typing an address (${countryCode})...` : "Start typing an address..."}
           value={searchQuery}
           onChange={(e) => handleSearchChange(e.target.value)}
           className="pl-9 pr-8"
@@ -164,12 +245,12 @@ export function AddressInput({ value, onChange, label, required, disabled }: Add
             {suggestions.map((s, i) => (
               <button
                 type="button"
-                key={s.properties.osm_id ?? i}
+                key={i}
                 className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm hover:bg-accent transition-colors"
                 onClick={() => selectSuggestion(s)}
               >
                 <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="text-foreground">{formatDisplayName(s.properties)}</span>
+                <span className="text-foreground">{s.displayName}</span>
               </button>
             ))}
           </div>

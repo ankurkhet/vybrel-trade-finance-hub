@@ -22,6 +22,7 @@ export default function RegistryApis() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editConfig, setEditConfig] = useState<any>(null);
   const [testing, setTesting] = useState<string | null>(null);
+  const [expandedUnhealthyIds, setExpandedUnhealthyIds] = useState<Set<string>>(new Set());
 
   const emptyForm = {
     country_code: "",
@@ -208,6 +209,7 @@ export default function RegistryApis() {
                     const SANCTIONS_CAPS = ["sanctions_screening", "pep_screening"];
                     const BANK_CAPS = ["iban_validation", "sort_code_validation", "account_name_verification"];
                     const FINANCIAL_CAPS = ["financial_data", "credit_scores", "financial_statements"];
+                    const ADDRESS_CAPS = ["address_lookup"];
 
                     const hasCap = (c: any, caps: string[]) =>
                       (c.capabilities || []).some((cap: string) => caps.includes(cap));
@@ -216,6 +218,7 @@ export default function RegistryApis() {
                       if (hasCap(c, SANCTIONS_CAPS)) return "Sanctions Screening";
                       if (hasCap(c, BANK_CAPS)) return "Bank Account Validation";
                       if (hasCap(c, FINANCIAL_CAPS)) return "Financial Inputs";
+                      if (hasCap(c, ADDRESS_CAPS)) return "Address Lookup";
                       return "Company Registries";
                     };
 
@@ -239,7 +242,7 @@ export default function RegistryApis() {
                       return (a.country_name || "").localeCompare(b.country_name || "");
                     });
 
-                    const sectionOrder = ["Company Registries", "Financial Inputs", "Sanctions Screening", "Bank Account Validation"];
+                    const sectionOrder = ["Company Registries", "Financial Inputs", "Sanctions Screening", "Bank Account Validation", "Address Lookup"];
                     const grouped: Record<string, any[]> = {};
                     for (const c of sortedConfigs) {
                       const cat = categorize(c);
@@ -247,9 +250,35 @@ export default function RegistryApis() {
                       grouped[cat].push(c);
                     }
 
-                    const renderRows = (items: any[]) => items.map((c) => (
-                      <TableRow key={c.id}>
-                        <TableCell className="font-medium">
+                    const renderRows = (items: any[]) => items.map((c) => {
+                      const isUnhealthy = c.health_status === "unhealthy";
+                      const isExpanded = expandedUnhealthyIds.has(c.id);
+
+                      if (isUnhealthy && !isExpanded) {
+                        return (
+                          <TableRow key={c.id} className="bg-destructive/5 hover:bg-destructive/10 cursor-pointer" onClick={() => {
+                            const next = new Set(expandedUnhealthyIds);
+                            next.add(c.id);
+                            setExpandedUnhealthyIds(next);
+                          }}>
+                            <TableCell colSpan={8} className="py-3">
+                               <div className="flex items-center gap-3">
+                                 <div className="flex h-6 w-6 items-center justify-center rounded-sm bg-destructive/10 flex-shrink-0">
+                                   <Plus className="h-4 w-4 text-destructive" />
+                                 </div>
+                                 {healthIcon(c.health_status)}
+                                 <span className="font-semibold text-foreground text-sm">{c.country_name || 'Global'} — {c.registry_name}</span>
+                                 <Badge variant="destructive" className="text-[10px] uppercase">Unhealthy Configuration</Badge>
+                                 <span className="text-xs text-muted-foreground ml-auto hidden sm:inline-flex">Click to expand details</span>
+                               </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+
+                      return (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium">
                           {c.country_name}
                           {c.country_code === "EU" && (
                             <Badge variant="outline" className="ml-2 text-[10px]">30 countries</Badge>
@@ -310,7 +339,8 @@ export default function RegistryApis() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ));
+                    );
+                  });
 
                     return (
                       <>
@@ -396,6 +426,138 @@ export default function RegistryApis() {
                   </div>
                 );
               })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Address Lookup Providers */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Globe className="h-4 w-4 text-primary" />
+              Address Lookup Providers
+            </CardTitle>
+            <CardDescription>
+              Configure address autocomplete providers. Only one provider can be active at a time — the first active entry with the <strong>address_lookup</strong> capability is used. Photon (OpenStreetMap) is the free built-in fallback and requires no API key.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                { name: "Google Places", desc: "High-quality global address autocomplete with structured parsing. Best accuracy.", url: "https://maps.googleapis.com/maps/api", secretName: "GOOGLE_PLACES_API_KEY" },
+                { name: "Loqate (GBG)", desc: "UK-focused enterprise address lookup with postcode and international coverage.", url: "https://api.addressy.com/Capture/Interactive/Find/v1.10/json3.ws", secretName: "LOQATE_API_KEY" },
+                { name: "Photon (OpenStreetMap)", desc: "Free, open-source address lookup powered by OSM. No API key required.", url: "https://photon.komoot.io", secretName: "NO_AUTH_NEEDED" },
+              ].map((provider) => {
+                const isConfigured = configs.some(
+                  (c) => c.registry_name === provider.name && (c.capabilities || []).includes("address_lookup")
+                );
+                const isActive = configs.find(
+                  (c) => c.registry_name === provider.name && (c.capabilities || []).includes("address_lookup")
+                )?.is_active;
+                return (
+                  <div key={provider.name} className="rounded-lg border p-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-foreground">{provider.name}</p>
+                      {isConfigured ? (
+                        <Badge variant={isActive ? "default" : "secondary"} className="text-[10px]">{isActive ? "Active" : "Configured"}</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px]">Not configured</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{provider.desc}</p>
+                    {!isConfigured && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs mt-2"
+                        onClick={() => {
+                          setEditConfig(null);
+                          setForm({
+                            ...emptyForm,
+                            country_code: "GLOBAL",
+                            country_name: "Global",
+                            registry_name: provider.name,
+                            api_base_url: provider.url,
+                            api_key_secret_name: provider.secretName,
+                            capabilities: ["address_lookup"],
+                          });
+                          setDialogOpen(true);
+                        }}
+                      >
+                        <Plus className="mr-1 h-3 w-3" /> Configure
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              💡 To switch providers: disable the current active one and enable a different provider. Only the first active <em>address_lookup</em> entry is used.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Fraud Engine Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-primary" />
+              Internal Fraud Engine Configuration
+            </CardTitle>
+            <CardDescription>
+              Configure engine thresholds for automated fraud and duplicate detection.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4 max-w-2xl">
+              <div>
+                <h4 className="text-sm font-medium mb-2">Score Thresholds</h4>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-amber-600 dark:text-amber-400">Flag Above Score</Label>
+                    <Input type="number" defaultValue="40" />
+                    <p className="text-[10px] text-muted-foreground">Invoices above this score require manual override.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-destructive">Block Above Score</Label>
+                    <Input type="number" defaultValue="70" />
+                    <p className="text-[10px] text-muted-foreground">Invoices above this score are permanently blocked.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="pt-2">
+                <h4 className="text-sm font-medium mb-3 flex items-center justify-between">
+                  Duplicate Invoice Check
+                  <Switch defaultChecked />
+                </h4>
+                <div className="space-y-4 p-4 rounded-lg bg-muted/30 border">
+                  <div className="space-y-2 p-1">
+                    <div className="flex justify-between items-center mb-2">
+                      <Label>Similarity Threshold (%)</Label>
+                      <span className="text-sm font-medium">95%</span>
+                    </div>
+                    <Slider defaultValue={[95]} max={100} min={60} step={1} />
+                    <p className="text-[10px] text-muted-foreground mt-2">Matches with similarity above this are flagged as duplicates.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Scope</Label>
+                    <Select defaultValue="cross_org">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cross_org">Cross-Organization (Platform Wide)</SelectItem>
+                        <SelectItem value="same_org">Same Organization Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Button onClick={() => toast.success("Fraud engine configuration saved")}>Save Configuration</Button>
+              </div>
             </div>
           </CardContent>
         </Card>

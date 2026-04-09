@@ -6,6 +6,7 @@ import { ReportChart } from "@/components/reports/ReportChart";
 import { CreditCard, FileCheck, Receipt, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { ActorWalletCard } from "@/components/ledger/ActorWalletCard";
 import { format, subMonths, parseISO, isAfter } from "date-fns";
 
 export default function BorrowerReports() {
@@ -147,6 +148,7 @@ export default function BorrowerReports() {
         onRefresh={fetchData}
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {user?.id && <ActorWalletCard actorId={user.id} />}
           <ReportCard title="Available Limit" value={formatCurrency(summary.limit)} icon={Wallet} />
           <ReportCard title="Outstanding Balance" value={formatCurrency(summary.outstanding)} icon={CreditCard} />
           <ReportCard title="Total Invoices" value={summary.totalInvoices.toString()} icon={Receipt} />

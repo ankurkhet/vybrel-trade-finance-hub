@@ -59,7 +59,7 @@ serve(async (req) => {
     await supabase
       .from("profiles")
       .update({ organization_id: invitation.organization_id })
-      .eq("user_id", user_id);
+      .eq("id", user_id);
 
     // Mark invitation as accepted
     await supabase

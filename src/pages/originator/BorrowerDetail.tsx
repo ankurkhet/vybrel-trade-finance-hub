@@ -48,6 +48,7 @@ export default function BorrowerDetail() {
   const [ccApps, setCcApps] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
   const [feeConfigs, setFeeConfigs] = useState<any[]>([]);
+  const [msaSigned, setMsaSigned] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [companyData, setCompanyData] = useState<CompanyFormData>({ ...emptyCompanyForm });
@@ -134,6 +135,15 @@ export default function BorrowerDetail() {
 
     if (b) {
       setBorrower(b);
+      // Check MSA: borrower has MSA signed if there is at least one active funder_relationship with a signed MSA
+      // We use metadata flag or check funder_limits with status=approved as proxy
+      const { data: msaCheck } = await supabase
+        .from('funder_limits')
+        .select('id')
+        .eq('borrower_id', id!)
+        .eq('status', 'approved')
+        .limit(1);
+      setMsaSigned((msaCheck ?? []).length > 0);
       setCompanyData({
         company_name: b.company_name || "",
         trading_name: b.trading_name || "",
@@ -249,7 +259,7 @@ export default function BorrowerDetail() {
     if (error) { toast.error(error.message); return; }
 
     await supabase.from("audit_logs").insert({
-      user_id: profile?.user_id, user_email: profile?.email,
+      user_id: profile?.id, user_email: profile?.email,
       action: "borrower_status_changed", resource_type: "borrower", resource_id: id!,
       details: { from: borrower.onboarding_status, to: newStatus, note: statusNote },
     });
@@ -266,6 +276,10 @@ export default function BorrowerDetail() {
     if (facilityApproval.status === "approved") {
       if (ccApps.length === 0) {
         toast.error("Facility cannot be approved: A verified, approved Credit Committee application is required.");
+        return;
+      }
+      if (!msaSigned) {
+        toast.error("Facility Offer Letter (FOL) is blocked: No approved funder limit (MSA) is on record for this borrower. Refer to a Funder and obtain limit approval first.");
         return;
       }
       if (!facilityApproval.contract_id && contracts.length > 0) {
@@ -296,7 +310,7 @@ export default function BorrowerDetail() {
       updates.overdue_fee_pct = facilityApproval.overdue_fee_pct ? Number(facilityApproval.overdue_fee_pct) : 0;
       
       updates.approved_at = new Date().toISOString();
-      updates.approved_by = profile?.user_id;
+      updates.approved_by = profile?.id;
     } else {
       updates.rejection_reason = facilityApproval.rejection_reason;
     }
@@ -305,7 +319,7 @@ export default function BorrowerDetail() {
     else {
       toast.success(`Facility ${facilityApproval.status}`);
       await supabase.from("audit_logs").insert({
-        user_id: profile?.user_id, user_email: profile?.email,
+        user_id: profile?.id, user_email: profile?.email,
         action: `facility_${facilityApproval.status}`, resource_type: "facility_request", resource_id: facilityDialog.id,
         details: updates,
       });
@@ -324,7 +338,7 @@ export default function BorrowerDetail() {
     if (!docReviewDialog) return;
     const updates: any = {
       status: docAction,
-      reviewed_by: profile?.user_id,
+      reviewed_by: profile?.id,
       reviewed_at: new Date().toISOString(),
     };
     if (docAction === "rejected") updates.rejection_reason = docRejectionReason;
@@ -384,6 +398,12 @@ export default function BorrowerDetail() {
                   onClick={() => setKycDialog(true)}
                 >
                   KYC: {borrower.kyc_completed ? "Complete ✓" : "Pending — Review"}
+                </Badge>
+                <Badge
+                  variant={msaSigned ? "default" : "secondary"}
+                  className={`text-xs ${msaSigned ? "bg-emerald-600 text-white" : "bg-amber-100 text-amber-800 border border-amber-300"}`}
+                >
+                  {msaSigned ? "MSA ✓ FOL Ready" : "FOL Blocked — Awaiting Funder Approval"}
                 </Badge>
                 {borrower.country && (
                   <span className="text-xs text-muted-foreground">
@@ -456,32 +476,55 @@ export default function BorrowerDetail() {
             <CompanyInfoStep data={companyData} onChange={setCompanyData} />
           </TabsContent>
 
-          {/* Signatory Tab */}
+          {/* Signatory Tab — includes authorized signatories among directors */}
           <TabsContent value="signatory" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5 text-primary" /> Signatory Information</CardTitle>
+                <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5 text-primary" /> Signatory & Authorized Persons</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <InfoField label="Full Name" value={signatoryInfo.full_name || borrower.signatory_name} />
-                  <InfoField label="Designation" value={signatoryInfo.designation || borrower.signatory_designation} />
-                  <InfoField label="Date of Birth" value={signatoryInfo.dob || borrower.signatory_dob} />
-                  <InfoField label="Is Director/Signatory" value={
-                    signatoryInfo.is_director === true ? "Yes" :
-                    signatoryInfo.is_director === false ? "No" :
-                    borrower.signatory_is_director === true ? "Yes" :
-                    borrower.signatory_is_director === false ? "No" : "—"
-                  } />
-                  {(signatoryInfo.is_director === false || borrower.signatory_is_director === false) && (
-                    <>
-                      <InfoField label="Director/Signatory Name" value={signatoryInfo.director_name} />
-                      <InfoField label="Director/Signatory Email" value={signatoryInfo.director_email || borrower.signatory_email} />
-                    </>
+              <CardContent className="space-y-6">
+                {/* Primary Signatory from onboarding */}
+                <div>
+                  <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">Primary Signatory (Onboarding)</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <InfoField label="Full Name" value={signatoryInfo.full_name || borrower.signatory_name} />
+                    <InfoField label="Designation" value={signatoryInfo.designation || borrower.signatory_designation} />
+                    <InfoField label="Date of Birth" value={signatoryInfo.dob || borrower.signatory_dob} />
+                    <InfoField label="Is Director/Signatory" value={
+                      signatoryInfo.is_director === true ? "Yes" :
+                      signatoryInfo.is_director === false ? "No" :
+                      borrower.signatory_is_director === true ? "Yes" :
+                      borrower.signatory_is_director === false ? "No" : "—"
+                    } />
+                    {(signatoryInfo.is_director === false || borrower.signatory_is_director === false) && (
+                      <>
+                        <InfoField label="Director/Signatory Name" value={signatoryInfo.director_name} />
+                        <InfoField label="Director/Signatory Email" value={signatoryInfo.director_email || borrower.signatory_email} />
+                      </>
+                    )}
+                  </div>
+                  {borrower.nda_signed && (
+                    <Badge className="mt-4">NDA Signed {borrower.nda_signed_at ? `on ${new Date(borrower.nda_signed_at).toLocaleDateString()}` : ""}</Badge>
                   )}
                 </div>
-                {borrower.nda_signed && (
-                  <Badge className="mt-4">NDA Signed {borrower.nda_signed_at ? `on ${new Date(borrower.nda_signed_at).toLocaleDateString()}` : ""}</Badge>
+
+                {/* Authorized Signatories from Directors list */}
+                {directors.filter(d => d.role === 'both').length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">Authorized Signatories (Directors)</p>
+                    <div className="space-y-3">
+                      {directors
+                        .filter(d => d.role === 'both')
+                        .map((d, i) => (
+                          <div key={i} className="rounded-lg border p-3 bg-muted/30 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <InfoField label="Name" value={`${d.first_name} ${d.last_name}`} />
+                            <InfoField label="Role" value={d.role?.replace(/_/g, ' ')} />
+                            <InfoField label="Email" value={d.email} />
+                            {d.shareholding_pct && <InfoField label="Shareholding" value={`${d.shareholding_pct}%`} />}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -1028,13 +1071,13 @@ export default function BorrowerDetail() {
             <Button
               disabled={!requestUpdateSection || !requestUpdateMessage}
               onClick={async () => {
-                if (!borrower.user_id || !profile?.user_id) {
+                if (!borrower.user_id || !profile?.id) {
                   toast.error("Borrower has no linked user account");
                   return;
                 }
                 // Send message via messaging system
                 const { error } = await supabase.from("messages").insert({
-                  sender_id: profile.user_id,
+                  sender_id: profile.id,
                   recipient_id: borrower.user_id,
                   organization_id: profile.organization_id,
                   subject: `Update Requested: ${requestUpdateSection.replace(/_/g, " ")}`,
@@ -1054,7 +1097,7 @@ export default function BorrowerDetail() {
                     .update({ onboarding_status: "documents_requested" as any })
                     .eq("id", id!);
                   await supabase.from("audit_logs").insert({
-                    user_id: profile.user_id,
+                    user_id: profile.id,
                     user_email: profile.email,
                     action: "borrower_update_requested",
                     resource_type: "borrower",

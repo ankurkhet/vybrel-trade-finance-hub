@@ -17,11 +17,12 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import {
   Building2, Users, FileText, Brain, CreditCard, Upload, BarChart3, Shield,
-  Receipt, Settings2, Table as TableIcon, BarChart2, Eye, EyeOff,
+  Receipt, Settings2, Table as TableIcon, BarChart2, Eye, EyeOff, Search
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { ActorWalletCard } from "@/components/ledger/ActorWalletCard";
 
 // ─── Widget definitions per role ────────────────────────────────────────────
 
@@ -184,8 +185,8 @@ export default function Dashboard() {
       });
     }
 
-    if (isOriginatorAdmin || isBroker) {
-      supabase.from("borrowers").select("id, onboarding_status, credit_limit").then(({ data }) => {
+    if ((isOriginatorAdmin || isBroker) && profile?.organization_id) {
+      supabase.from("borrowers").select("id, onboarding_status, credit_limit").eq("organization_id", profile.organization_id).then(({ data }) => {
         set("orig_borrowers", String(data?.length ?? 0), [
           { name: "Approved", value: data?.filter((b) => b.onboarding_status === "approved").length ?? 0 },
           { name: "Under Review", value: data?.filter((b) => b.onboarding_status === "under_review").length ?? 0 },
@@ -195,10 +196,10 @@ export default function Dashboard() {
         const totalLimits = (data || []).reduce((sum, b) => sum + (Number(b.credit_limit) || 0), 0);
         set("orig_limits", totalLimits > 0 ? `£${(totalLimits / 1000).toFixed(0)}K` : "£0");
       });
-      supabase.from("counterparties").select("id", { count: "exact", head: true }).then(({ count }) => {
+      supabase.from("counterparties").select("id", { count: "exact", head: true }).eq("organization_id", profile.organization_id).then(({ count }) => {
         set("orig_counterparties", String(count ?? 0));
       });
-      supabase.from("contracts").select("id, status").then(({ data }) => {
+      supabase.from("contracts").select("id, status").eq("organization_id", profile.organization_id).then(({ data }) => {
         const active = data?.filter((c) => c.status === "active").length ?? 0;
         set("orig_contracts", String(active), [
           { name: "Active", value: active },
@@ -206,7 +207,7 @@ export default function Dashboard() {
           { name: "Draft", value: data?.filter((c) => c.status === "draft").length ?? 0 },
         ]);
       });
-      supabase.from("invoices").select("id, status, amount, due_date, accrued_late_fees").then(({ data }) => {
+      supabase.from("invoices").select("id, status, amount, due_date, accrued_late_fees").eq("organization_id", profile.organization_id).then(({ data }) => {
         const invs = (data || []) as any[];
         const pending = invs.filter((i) => i.status === "pending").length;
         set("orig_invoices", String(pending), [
@@ -249,22 +250,23 @@ export default function Dashboard() {
 
         set("orig_overdue", totalOverdue > 0 ? `£${(totalOverdue / 1000).toFixed(0)}K` : "£0", chartData);
       });
-      supabase.from("credit_memos").select("id", { count: "exact", head: true }).eq("status", "draft").then(({ count }) => {
+      supabase.from("credit_memos").select("id", { count: "exact", head: true }).eq("status", "draft").eq("organization_id", profile.organization_id).then(({ count }) => {
         set("orig_memos", String(count ?? 0));
       });
     }
 
-    if (isBorrower) {
-      supabase.from("documents").select("id", { count: "exact", head: true }).then(({ count }) => {
+    if (isBorrower && profile?.organization_id) {
+      supabase.from("documents").select("id", { count: "exact", head: true }).eq("organization_id", profile.organization_id).then(({ count }) => {
         set("borr_docs", String(count ?? 0));
       });
-      supabase.from("invoices").select("id, status").then(({ data }) => {
+      supabase.from("invoices").select("id, status").eq("organization_id", profile.organization_id).then(({ data }) => {
         set("borr_invoices", String(data?.length ?? 0), [
           { name: "Pending", value: data?.filter((i) => i.status === "pending").length ?? 0 },
           { name: "Approved", value: data?.filter((i) => i.status === "approved").length ?? 0 },
         ]);
       });
-      supabase.from("borrowers").select("credit_limit").limit(1).then(({ data }) => {
+      // Assuming borrower only has access to their own data via RLS, or we use organization_id / id depending on schema
+      supabase.from("borrowers").select("credit_limit").eq("organization_id", profile.organization_id).limit(1).then(({ data }) => {
         const limit = data?.[0]?.credit_limit;
         set("borr_credit", limit ? `$${(Number(limit) / 1000000).toFixed(1)}M` : "$0");
       });
@@ -308,6 +310,50 @@ export default function Dashboard() {
                   {role.replace("_", " ")}
                 </Badge>
               ))}
+            </div>
+            
+            {/* Quick Actions */}
+            <div className="mt-6 flex flex-wrap gap-3">
+              {isAdmin && (
+                <Button onClick={() => navigate("/admin/organizations")} className="gap-2">
+                  <Building2 className="h-4 w-4" /> Add Originator
+                </Button>
+              )}
+              {isOriginatorAdmin && (
+                <>
+                  <Button onClick={() => navigate("/originator/invoices")} className="gap-2">
+                    <FileText className="h-4 w-4" /> New Invoice
+                  </Button>
+                  <Button onClick={() => navigate("/originator/invite")} variant="outline" className="gap-2">
+                    <Users className="h-4 w-4" /> Invite User
+                  </Button>
+                </>
+              )}
+              {isBroker && (
+                <>
+                  <Button onClick={() => navigate("/broker/invoices")} className="gap-2">
+                    <FileText className="h-4 w-4" /> New Invoice
+                  </Button>
+                  <Button onClick={() => navigate("/broker/borrowers")} variant="outline" className="gap-2">
+                    <Users className="h-4 w-4" /> Add Borrower
+                  </Button>
+                </>
+              )}
+              {isBorrower && (
+                <>
+                  <Button onClick={() => navigate("/borrower/invoices")} className="gap-2">
+                    <FileText className="h-4 w-4" /> Submit Invoice
+                  </Button>
+                  <Button onClick={() => navigate("/borrower/documents")} variant="outline" className="gap-2">
+                    <Upload className="h-4 w-4" /> Upload Document
+                  </Button>
+                </>
+              )}
+              {isFunder && (
+                <Button onClick={() => navigate("/funder/marketplace")} className="gap-2">
+                  <Search className="h-4 w-4" /> Browse Marketplace
+                </Button>
+              )}
             </div>
           </div>
 
@@ -365,6 +411,10 @@ export default function Dashboard() {
         </div>
 
         {/* Widgets grid */}
+        <div className="mb-6">
+          {user?.id && <ActorWalletCard actorId={user.id} />}
+        </div>
+        
         {visibleWidgets.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center py-12">

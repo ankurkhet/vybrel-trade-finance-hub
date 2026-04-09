@@ -64,7 +64,7 @@ export function CreditCommitteeSettings() {
     queryFn: async () => {
       if (members.length === 0) return [];
       const userIds = members.map((m: any) => m.user_id);
-      const { data } = await supabase.from("profiles").select("user_id, full_name, email").in("user_id", userIds);
+      const { data } = await supabase.from("profiles").select("id, full_name, email").in("id", userIds);
       return data || [];
     },
     enabled: members.length > 0,
@@ -93,18 +93,18 @@ export function CreditCommitteeSettings() {
   const addMemberMutation = useMutation({
     mutationFn: async () => {
       // Look up user by email
-      const { data: prof } = await supabase.from("profiles").select("user_id").eq("email", addEmail).maybeSingle();
+      const { data: prof } = await supabase.from("profiles").select("id").eq("email", addEmail).maybeSingle();
       if (!prof) throw new Error("No user found with that email in this organization");
 
       // Add as member
       const { error } = await supabase.from("credit_committee_members").insert({
         organization_id: orgId!,
-        user_id: prof.user_id,
+        user_id: prof.id,
       });
       if (error) throw error;
 
       // Also assign the role
-      await supabase.from("user_roles").insert({ user_id: prof.user_id, role: "credit_committee_member" as any });
+      await supabase.from("user_roles").insert({ user_id: prof.id, role: "credit_committee_member" as any });
     },
     onSuccess: () => {
       toast.success("Member added");
@@ -125,7 +125,7 @@ export function CreditCommitteeSettings() {
     },
   });
 
-  const getProfile = (userId: string) => memberProfiles.find((p: any) => p.user_id === userId);
+  const getProfile = (userId: string) => memberProfiles.find((p: any) => p.id === userId);
 
   return (
     <div className="space-y-6">

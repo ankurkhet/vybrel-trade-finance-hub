@@ -32,6 +32,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
   const [productLimits, setProductLimits] = useState<{ receivables_purchase: string; reverse_factoring: string; payables_finance: string }>({
     receivables_purchase: "", reverse_factoring: "", payables_finance: "",
   });
+  const [funderLimits, setFunderLimits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -59,11 +60,23 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
 
   const fetchMemos = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("credit_memos")
-      .select("*")
-      .eq("borrower_id", borrowerId)
-      .order("created_at", { ascending: false });
+    const [{ data }, { data: fl }] = await Promise.all([
+      supabase
+        .from("credit_memos")
+        .select("*")
+        .eq("borrower_id", borrowerId)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("funder_limits")
+        .select(`
+          id, overall_limit, currency, status, counterparty_name, validity_date, valid_from,
+          profiles!inner(full_name, company_name)
+        `)
+        .eq("borrower_id", borrowerId)
+        .in("status", ["pending", "approved"])
+    ]);
+    
+    setFunderLimits(fl || []);
     setMemos(data || []);
     if (data && data.length > 0) {
       setActiveMemo(data[0]);
@@ -141,7 +154,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
           },
           final_memo: editedText,
           status: "submitted_to_committee",
-          reviewed_by: profile?.user_id,
+          reviewed_by: profile?.id,
           reviewed_at: new Date().toISOString(),
         } as any)
         .eq("id", activeMemo.id);
@@ -159,7 +172,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
           application_number: appNum,
           status: "submitted",
           submitted_at: new Date().toISOString(),
-          created_by: profile?.user_id,
+          created_by: profile?.id,
           metadata: {
             credit_memo_id: activeMemo.id,
             proposed_limit: Number(proposedLimit),
@@ -321,6 +334,22 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
                     onCurrencyChange={setProposedCurrency}
                   />
                 </div>
+                
+                {funderLimits.length > 0 && (
+                  <div className="mt-3 p-3 bg-muted/40 rounded-lg border flex flex-col gap-2">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">Funder Recommendations</p>
+                    {funderLimits.map((fl: any) => (
+                      <div key={fl.id} className="flex items-center justify-between text-sm">
+                        <span>{fl.profiles?.company_name || fl.profiles?.full_name} <span className="text-muted-foreground">({fl.counterparty_name || "All Counterparties"})</span></span>
+                        <div className="flex gap-2 items-center">
+                          <Badge variant={fl.status === "approved" ? "default" : "secondary"} className="h-5 text-[10px] capitalize px-1.5">{fl.status}</Badge>
+                          <span className="font-semibold">{formatCurrency(fl.overall_limit, fl.currency || "GBP")}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <Separator />
                 <p className="text-xs text-muted-foreground">Per-product breakdown (optional)</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

@@ -102,6 +102,9 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
   const [documentComments, setDocumentComments] = useState<Record<number, string>>({});
   const [overallComment, setOverallComment] = useState("");
 
+  // Requested funding amount (Gap D)
+  const [requestedFundingAmount, setRequestedFundingAmount] = useState("");
+
   // Fraud check state
   const [fraudResult, setFraudResult] = useState<any>(null);
   const [fraudChecking, setFraudChecking] = useState(false);
@@ -382,6 +385,8 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
         counterparty_name: requiresAcceptance ? counterpartyName : null,
         acceptance_status: requiresAcceptance ? "pending" : "accepted",
         facility_request_id: selectedFacilityId || null,
+        requested_funding_amount: requestedFundingAmount ? parseFloat(requestedFundingAmount) : null,
+        requested_funding_currency: requestedFundingAmount ? currency : null,
       } as any).select("id").single();
 
       if (invErr) throw new Error(invErr.message);
@@ -629,6 +634,46 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
                   </p>
                 </div>
               )}
+
+              {/* Requested Funding Amount (Gap D) */}
+              {selectedFacilityId && totalAmount && (() => {
+                const fac = approvedFacilities.find(f => f.id === selectedFacilityId);
+                const invoiceVal = parseFloat(totalAmount) || 0;
+                const advanceRate = Number(fac?.final_advance_rate || fac?.funder_advance_rate || 80) / 100;
+                const maxEligible = invoiceVal * advanceRate;
+                const requested = parseFloat(requestedFundingAmount) || 0;
+                const isOverMax = requested > maxEligible && requestedFundingAmount !== "";
+                return maxEligible > 0 ? (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Funding Request (Optional)</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Maximum eligible advance: <span className="font-semibold text-foreground">{currency} {maxEligible.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span> ({Number(fac?.final_advance_rate || fac?.funder_advance_rate || 80).toFixed(0)}% advance rate)
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder={`Max: ${currency} ${maxEligible.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+                        value={requestedFundingAmount}
+                        onChange={e => setRequestedFundingAmount(e.target.value)}
+                        className={`h-9 text-sm ${isOverMax ? "border-destructive" : ""}`}
+                        min={0}
+                        max={maxEligible}
+                        step={0.01}
+                      />
+                      <span className="text-sm text-muted-foreground shrink-0">{currency}</span>
+                    </div>
+                    {isOverMax && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        Cannot exceed maximum eligible advance of {currency} {maxEligible.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </p>
+                    )}
+                    {!requestedFundingAmount && (
+                      <p className="text-xs text-muted-foreground">Leave blank to request the full eligible amount</p>
+                    )}
+                  </div>
+                ) : null;
+              })()}
 
               {/* Extracted Invoice Details */}
               <Card>

@@ -6,6 +6,118 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ─── AI Interpretation ─────────────────────────────────────────────────────────
+async function interpretRegistryData(
+  resultType: string,
+  rawData: any,
+  borrower: any,
+  registryName: string,
+): Promise<any> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) return null;
+
+  const systemPrompt = `You are a KYB (Know Your Business) analyst at a trade finance originator. 
+You will be given raw data from a company registry API and the borrower's submitted details.
+Your job is to extract ONLY the meaningful, human-readable information and highlight any discrepancies or red flags.
+Respond ONLY with valid JSON in the exact schema requested — no markdown, no prose outside JSON.`;
+
+  const userPrompt = `Registry: ${registryName}
+Check type: ${resultType}
+
+Borrower submitted:
+- Company name: ${borrower?.company_name || "N/A"}
+- Registration number: ${borrower?.registration_number || "N/A"}
+- Registered address: ${JSON.stringify(borrower?.registered_address || {})}
+- Country: ${borrower?.country || "N/A"}
+- Directors on record: ${JSON.stringify((borrower?.directors || []).map((d: any) => `${d.first_name} ${d.last_name}`).join(", ") || "N/A")}
+
+Raw registry API response:
+${JSON.stringify(rawData, null, 2).substring(0, 6000)}
+
+Extract meaningful KYB findings. Return JSON only, no extra text.`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "kyb_findings",
+            description: "Extract structured KYB findings from raw registry data",
+            parameters: {
+              type: "object",
+              properties: {
+                verdict: {
+                  type: "string",
+                  enum: ["verified", "partial_match", "discrepancy_found", "not_found", "manual_review_required"],
+                  description: "Overall KYB verification verdict for this check"
+                },
+                summary: {
+                  type: "string",
+                  description: "1-2 sentence plain-English summary of findings for this check"
+                },
+                key_facts: {
+                  type: "array",
+                  description: "Key facts extracted from the registry, as bullet points. Only include meaningful facts.",
+                  items: {
+                    type: "object",
+                    properties: {
+                      label: { type: "string" },
+                      value: { type: "string" }
+                    }
+                  }
+                },
+                flags: {
+                  type: "array",
+                  description: "Discrepancies, risks, or red flags found. Empty array if none.",
+                  items: {
+                    type: "object",
+                    properties: {
+                      severity: { type: "string", enum: ["high", "medium", "low", "info"] },
+                      message: { type: "string", description: "Plain-English description of the issue" },
+                      field: { type: "string", description: "Which field or area the issue relates to" }
+                    }
+                  }
+                },
+                recommendation: {
+                  type: "string",
+                  description: "What action the analyst should take next, if any"
+                },
+                data_quality: {
+                  type: "string",
+                  enum: ["good", "partial", "poor", "no_data"],
+                  description: "Quality of data returned by the registry"
+                }
+              },
+              required: ["verdict", "summary", "key_facts", "flags", "data_quality"]
+            }
+          }
+        }],
+        tool_choice: { type: "function", function: { name: "kyb_findings" } },
+      }),
+    });
+
+    if (!response.ok) return null;
+    const result = await response.json();
+    const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall) return null;
+    return JSON.parse(toolCall.function.arguments);
+  } catch (err) {
+    console.error("AI interpretation error:", err);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -35,7 +147,6 @@ serve(async (req) => {
         });
       }
 
-      // TrueLayer uses its own edge function for health check
       const isTrueLayer = (config.registry_name || "").toLowerCase().includes("truelayer");
       if (isTrueLayer) {
         let healthStatus = "unhealthy";
@@ -71,7 +182,6 @@ serve(async (req) => {
       let healthMessage = "API key not configured";
 
       const isCkan = config.registry_type === "ckan";
-      // Allow health check if we have an API key, it's CKAN, or no auth is needed
       if (apiKey || isCkan || noAuthNeeded) {
         try {
           const isFmp = isFmpRegistry(config.registry_name);
@@ -82,10 +192,8 @@ serve(async (req) => {
           if (apiKey && !noAuthNeeded && !isFmp) {
             Object.assign(testHeaders, isCkan ? getCkanHeaders(apiKey) : getAuthHeaders(config.country_code, apiKey));
           }
-          console.log(`Health check URL: ${testUrl}, noAuth: ${noAuthNeeded}`);
           const res = await fetch(testUrl, { headers: testHeaders });
           const resBody = await res.text();
-          console.log(`Health check response: status=${res.status}, body=${resBody.substring(0, 500)}`);
 
           if (isCkan) {
             try {
@@ -144,14 +252,12 @@ serve(async (req) => {
       );
     }
 
-    // EU/EEA countries that can fall back to Open BRIS
     const openBrisCountries = [
       "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
       "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK",
       "SI", "ES", "SE", "IS", "LI", "NO"
     ];
 
-    // Find active registry for this country
     const { data: registries } = await supabase
       .from("registry_api_configs")
       .select("*")
@@ -160,7 +266,6 @@ serve(async (req) => {
 
     let activeRegistries = registries || [];
 
-    // If no country-specific registry found, fall back to Open BRIS for EU/EEA countries
     if (activeRegistries.length === 0 && openBrisCountries.includes(country_code)) {
       const { data: brisRegistries } = await supabase
         .from("registry_api_configs")
@@ -169,7 +274,6 @@ serve(async (req) => {
         .eq("is_active", true);
       
       if (brisRegistries && brisRegistries.length > 0) {
-        console.log(`No country-specific registry for ${country_code}, falling back to Open BRIS`);
         activeRegistries = brisRegistries;
       }
     }
@@ -181,6 +285,13 @@ serve(async (req) => {
         result_type: "company_profile",
         data: { message: `No active registry configured for country ${country_code}` },
         match_analysis: {},
+        ai_summary: {
+          verdict: "not_found",
+          summary: `No active registry API is configured for ${country_code}. Manual verification required.`,
+          key_facts: [],
+          flags: [{ severity: "medium", message: `No registry configured for country ${country_code}`, field: "registry_config" }],
+          data_quality: "no_data"
+        }
       });
 
       return new Response(
@@ -189,6 +300,13 @@ serve(async (req) => {
       );
     }
 
+    // Fetch borrower for AI context
+    const { data: borrower } = await supabase
+      .from("borrowers")
+      .select("*, borrower_directors(*)")
+      .eq("id", borrower_id)
+      .single();
+
     const results: any[] = [];
 
     for (const registry of activeRegistries) {
@@ -196,7 +314,6 @@ serve(async (req) => {
       const apiKey = noAuth ? null : (registry.api_key_value || Deno.env.get(registry.api_key_secret_name));
       const isCkan = registry.registry_type === "ckan";
 
-      // CKAN portals and no-auth APIs don't need keys
       if (!apiKey && !isCkan && !noAuth) {
         results.push({
           registry: registry.registry_name,
@@ -211,14 +328,16 @@ serve(async (req) => {
           : await fetchCompanyData(registry, apiKey!, company_name, registration_number, country_code);
 
         if (companyData) {
-          const { data: borrower } = await supabase
-            .from("borrowers")
-            .select("*")
-            .eq("id", borrower_id)
-            .single();
-
           for (const [resultType, data] of Object.entries(companyData)) {
             const matchAnalysis = analyzeMatch(resultType, data, borrower);
+
+            // AI Interpretation — extract human-readable findings from raw data
+            const aiSummary = await interpretRegistryData(
+              resultType,
+              data,
+              { ...borrower, directors: borrower?.borrower_directors || [] },
+              registry.registry_name
+            );
 
             await supabase.from("registry_results").insert({
               borrower_id,
@@ -227,9 +346,11 @@ serve(async (req) => {
               result_type: resultType,
               data: data as any,
               match_analysis: matchAnalysis,
+              ai_summary: aiSummary || null,
+              fetched_at: new Date().toISOString(),
             });
 
-            results.push({ registry: registry.registry_name, type: resultType, data });
+            results.push({ registry: registry.registry_name, type: resultType, data, ai_summary: aiSummary });
           }
         }
       } catch (err) {
@@ -258,20 +379,17 @@ serve(async (req) => {
   }
 });
 
-// ─── CKAN helpers ───────────────────────────────────────────────────
+// ─── CKAN helpers ───────────────────────────────────────────────────────────────
 
 function getCkanBaseUrl(rawUrl: string): string {
-  // Strip trailing slash and /api/3/action suffix if already included
   return rawUrl.replace(/\/+$/, "").replace(/\/api\/3\/action\/?$/, "");
 }
 
 function getCkanHealthCheckUrl(config: any): string {
   const base = getCkanBaseUrl(config.api_base_url);
-  // Use package_show with the configured dataset to verify connectivity
   if (config.ckan_dataset_id) {
     return `${base}/api/3/action/package_show?id=${encodeURIComponent(config.ckan_dataset_id)}`;
   }
-  // Fallback: site_read action (always available on CKAN)
   return `${base}/api/3/action/site_read`;
 }
 
@@ -290,14 +408,10 @@ async function fetchCkanCompanyData(
   const headers = apiKey ? getCkanHeaders(apiKey) : {};
   const results: Record<string, any> = {};
   const fieldMapping = registry.ckan_query_field_mapping || {};
-
-  // Determine the search query value
   const queryValue = registrationNumber || companyName;
 
-  // If resource_id is set → use datastore_search
   if (registry.ckan_resource_id) {
     const searchUrl = `${base}/api/3/action/datastore_search?resource_id=${encodeURIComponent(registry.ckan_resource_id)}&q=${encodeURIComponent(queryValue)}&limit=10`;
-    console.log(`CKAN datastore_search: ${searchUrl}`);
     const res = await fetch(searchUrl, { headers });
     if (!res.ok) {
       const body = await res.text();
@@ -312,17 +426,12 @@ async function fetchCkanCompanyData(
     return Object.keys(results).length > 0 ? results : null;
   }
 
-  // Otherwise use package_search / package_show flow
   const searchAction = registry.ckan_search_action || "package_search";
   const showAction = registry.ckan_show_action || "package_show";
-
-  // Determine which query parameter to use from mapping
   const queryParam = Object.values(fieldMapping)[0] as string || "q";
 
   if (searchAction === "package_search") {
-    // Search for datasets matching the query
     const searchUrl = `${base}/api/3/action/${searchAction}?${queryParam}=${encodeURIComponent(queryValue)}&rows=5`;
-    console.log(`CKAN package_search: ${searchUrl}`);
     const res = await fetch(searchUrl, { headers });
     if (!res.ok) {
       const body = await res.text();
@@ -346,10 +455,8 @@ async function fetchCkanCompanyData(
       results.company_profile = { message: "No matching datasets found", searched: queryValue };
     }
   } else {
-    // Use configured show action with the dataset
     const datasetId = registry.ckan_dataset_id;
     const showUrl = `${base}/api/3/action/${showAction}?id=${encodeURIComponent(datasetId)}`;
-    console.log(`CKAN ${showAction}: ${showUrl}`);
     const res = await fetch(showUrl, { headers });
     if (!res.ok) {
       const body = await res.text();
@@ -357,12 +464,10 @@ async function fetchCkanCompanyData(
     }
     const data = await res.json();
 
-    // If dataset has datastore-enabled resources, search within them
     if (data.success && data.result?.resources?.length > 0) {
       const dsResource = data.result.resources.find((r: any) => r.datastore_active);
       if (dsResource) {
         const dsUrl = `${base}/api/3/action/datastore_search?resource_id=${dsResource.id}&q=${encodeURIComponent(queryValue)}&limit=10`;
-        console.log(`CKAN auto-datastore: ${dsUrl}`);
         const dsRes = await fetch(dsUrl, { headers });
         if (dsRes.ok) {
           const dsData = await dsRes.json();
@@ -381,7 +486,6 @@ async function fetchCkanCompanyData(
 }
 
 function normalizeCkanRecords(records: any[], _registry: any): any {
-  // Try to map common CKAN company data fields to structured output
   return {
     source: "ckan_datastore",
     count: records.length,
@@ -398,36 +502,24 @@ function normalizeCkanRecords(records: any[], _registry: any): any {
   };
 }
 
-// ─── REST helpers (existing) ────────────────────────────────────────
+// ─── REST helpers ───────────────────────────────────────────────────────────────
 
 function getHealthCheckUrl(countryCode: string, baseUrl: string, registryName?: string, apiKey?: string | null): string {
-  // Handle specific registries by name first
   const name = (registryName || "").toLowerCase();
-  if (name.includes("openiban")) {
-    return `${baseUrl.replace(/\/+$/, "")}/validate/DE89370400440532013000`;
-  }
-  if (name.includes("sortcode")) {
-    return baseUrl.replace(/\/+$/, "");
-  }
+  if (name.includes("openiban")) return `${baseUrl.replace(/\/+$/, "")}/validate/DE89370400440532013000`;
+  if (name.includes("sortcode")) return baseUrl.replace(/\/+$/, "");
   if (name.includes("financial modeling") || name.includes("fmp")) {
-    // FMP uses query-param auth and stable API endpoints
     const key = apiKey || "demo";
     const stableBase = baseUrl.replace(/\/+$/, "").replace(/\/api\/v[0-9]+$/, "");
     return `${stableBase}/stable/profile?symbol=AAPL&apikey=${encodeURIComponent(key)}`;
   }
-  if (name.includes("creditsafe")) {
-    return `${baseUrl.replace(/\/+$/, "")}/authenticate`;
-  }
+  if (name.includes("creditsafe")) return `${baseUrl.replace(/\/+$/, "")}/authenticate`;
 
   switch (countryCode) {
-    case "GB":
-      return `${baseUrl}/search/companies?q=test&items_per_page=1`;
-    case "DK":
-      return `${baseUrl}?search=test&country=dk`;
-    case "EU":
-      return `${baseUrl}/api/search?q=test&country=de`;
-    default:
-      return baseUrl;
+    case "GB": return `${baseUrl}/search/companies?q=test&items_per_page=1`;
+    case "DK": return `${baseUrl}?search=test&country=dk`;
+    case "EU": return `${baseUrl}/api/search?q=test&country=de`;
+    default: return baseUrl;
   }
 }
 
@@ -438,12 +530,9 @@ function isFmpRegistry(registryName?: string): boolean {
 
 function getAuthHeaders(countryCode: string, apiKey: string): Record<string, string> {
   switch (countryCode) {
-    case "GB":
-      return { Authorization: `Basic ${btoa(apiKey + ":")}` };
-    case "FR":
-      return { Authorization: `Bearer ${apiKey}` };
-    default:
-      return { Authorization: `Bearer ${apiKey}`, "X-API-Key": apiKey };
+    case "GB": return { Authorization: `Basic ${btoa(apiKey + ":")}` };
+    case "FR": return { Authorization: `Bearer ${apiKey}` };
+    default: return { Authorization: `Bearer ${apiKey}`, "X-API-Key": apiKey };
   }
 }
 
@@ -512,8 +601,6 @@ async function fetchCompanyData(
       const searchUrl = registrationNumber
         ? `${registry.api_base_url}/api/company/${countryParam}/${encodeURIComponent(registrationNumber)}`
         : `${registry.api_base_url}/api/search?q=${encodeURIComponent(companyName)}&country=${countryParam}`;
-      
-      console.log(`Open BRIS lookup: ${searchUrl} for country ${lookupCountryCode}`);
       const res = await fetch(searchUrl, { headers });
       if (!res.ok) throw new Error(`Open BRIS API error: ${res.status}`);
       results.company_profile = await res.json();

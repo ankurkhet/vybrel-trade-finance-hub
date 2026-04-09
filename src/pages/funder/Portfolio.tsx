@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Wallet, TrendingUp, CheckCircle2, Clock, Activity, Handshake } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { ActorWalletCard } from "@/components/ledger/ActorWalletCard";
 
 export default function FunderPortfolio() {
   const { user } = useAuth();
@@ -82,6 +83,7 @@ export default function FunderPortfolio() {
         )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {user?.id && <ActorWalletCard actorId={user.id} />}
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">

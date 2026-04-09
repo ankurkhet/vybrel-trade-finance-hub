@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FileText, Loader2, Upload, Handshake, AlertTriangle, Search, Info, TrendingUp } from "lucide-react";
+import { FileText, Loader2, Handshake, Search, Info, TrendingUp, ChevronDown, ChevronUp, History, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -32,6 +32,15 @@ export default function LenderManagement() {
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
+  const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
+
+  const toggleHistory = (funderId: string) => {
+    setExpandedHistory(prev => {
+      const next = new Set(prev);
+      if (next.has(funderId)) { next.delete(funderId); } else { next.add(funderId); }
+      return next;
+    });
+  };
 
   const orgId = profile?.organization_id;
 
@@ -63,7 +72,7 @@ export default function LenderManagement() {
         .from('profiles')
         .select('*')
         .eq('organization_id', orgId)
-        .in('user_id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
+        .in('id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
       if (pError) throw pError;
 
       const { data: rels, error: rError } = await (supabase as any)
@@ -74,7 +83,7 @@ export default function LenderManagement() {
       if (rError) throw rError;
 
       return profiles.map(f => {
-        const history = rels.filter(r => r.funder_user_id === f.user_id);
+        const history = rels.filter(r => r.funder_user_id === f.id);
         const activeRel = history[0]; 
         return {
           ...f,
@@ -167,7 +176,7 @@ export default function LenderManagement() {
         user_email: user?.email,
         action: 'msa_rate_updated',
         resource_type: 'funder_relationship',
-        resource_id: funderDialog.user_id,
+        resource_id: funderDialog.id,
         details: {
           funder_name: funderDialog.full_name || funderDialog.email,
           base_rate_type: formData.base_rate_type,
@@ -198,7 +207,7 @@ export default function LenderManagement() {
       const { error: pError } = await supabase
         .from('profiles')
         .update({ organization_id: orgId })
-        .eq('user_id', request.user_id);
+        .eq('id', request.user_id);
       if (pError) throw pError;
 
       // 2. Create the initial active relationship
@@ -227,7 +236,7 @@ export default function LenderManagement() {
 
       // 3. Record Audit Log
       await supabase.from('audit_logs').insert({
-        user_id: profile?.user_id,
+        user_id: profile?.id,
         action: 'funder_authorized',
         resource_type: 'funder_relationship',
         resource_id: request.user_id,
@@ -244,7 +253,43 @@ export default function LenderManagement() {
     }
   };
 
-  const filtered = funders.filter(f => 
+  const handleReInviteFunder = async (request: any) => {
+    const email = request.contact_email;
+    if (!email || !orgId) return;
+
+    // Check for an existing invitation for this email in this org
+    const { data: existing } = await supabase
+      .from('invitations')
+      .select('id, expires_at, resent_count')
+      .eq('organization_id', orgId)
+      .eq('email', email)
+      .eq('role', 'funder')
+      .is('accepted_at', null)
+      .maybeSingle();
+
+    if (existing) {
+      // Extend existing invitation
+      const { error } = await supabase.from('invitations').update({
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        resent_count: (existing.resent_count || 0) + 1,
+        last_resent_at: new Date().toISOString(),
+      }).eq('id', existing.id);
+      if (error) { toast.error(error.message); return; }
+      toast.success(`Invitation re-sent to ${email} — expires in 7 days`);
+    } else {
+      // Create a new invitation
+      const { error } = await supabase.from('invitations').insert({
+        organization_id: orgId,
+        email,
+        role: 'funder' as any,
+        invited_by: profile?.id,
+      });
+      if (error) { toast.error(error.message); return; }
+      toast.success(`New invitation sent to ${email}`);
+    }
+  };
+
+  const filtered = funders.filter(f =>
     (f.full_name || f.email || "").toLowerCase().includes(search.toLowerCase())
   );
 
@@ -322,7 +367,7 @@ export default function LenderManagement() {
                       filtered.map((f) => {
                         const terms = f.activeTerms;
                         return (
-                        <TableRow key={f.id}>
+                        <> <TableRow key={f.id}>
                           <TableCell>
                             <div className="font-medium">{f.full_name || '—'}</div>
                             <div className="text-[10px] text-muted-foreground">{f.email}</div>
@@ -351,22 +396,69 @@ export default function LenderManagement() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button size="sm" variant="outline" onClick={() => {
-                              setFormData({
-                                base_rate_type: terms?.base_rate_type || "SOFR",
-                                margin_receivable_purchase: terms ? String(terms.margin_receivable_purchase) : "0.50",
-                                margin_reverse_factoring: terms ? String(terms.margin_reverse_factoring) : "0.50",
-                                margin_payable_finance: terms ? String(terms.margin_payable_finance) : "0.50",
-                                effective_date: new Date().toISOString().split('T')[0],
-                              });
-                              setFunderDialog(f);
-                            }}>
-                              <Handshake className="h-4 w-4 mr-2" />
-                              Manage Terms
-                            </Button>
+                            <div className="flex items-center justify-end gap-2">
+                              {f.history && f.history.filter((r: any) => r.agreement_status === 'superseded').length > 0 && (
+                                <Button size="sm" variant="ghost" onClick={() => toggleHistory(f.id)} title="Rate history">
+                                  <History className="h-4 w-4 mr-1" />
+                                  {expandedHistory.has(f.id) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                </Button>
+                              )}
+                              <Button size="sm" variant="outline" onClick={() => {
+                                setFormData({
+                                  base_rate_type: terms?.base_rate_type || "SOFR",
+                                  margin_receivable_purchase: terms ? String(terms.margin_receivable_purchase) : "0.50",
+                                  margin_reverse_factoring: terms ? String(terms.margin_reverse_factoring) : "0.50",
+                                  margin_payable_finance: terms ? String(terms.margin_payable_finance) : "0.50",
+                                  effective_date: new Date().toISOString().split('T')[0],
+                                });
+                                setFunderDialog(f);
+                              }}>
+                                <Handshake className="h-4 w-4 mr-2" />
+                                Manage Terms
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
-                      );
+                        {/* Gap C: Rate History */}
+                        {expandedHistory.has(f.id) && (() => {
+                          const superseded = (f.history || [])
+                            .filter((r: any) => r.agreement_status === 'superseded')
+                            .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                          return (
+                            <TableRow key={`${f.id}-history`} className="bg-muted/30">
+                              <TableCell colSpan={8} className="p-0">
+                                <div className="px-6 py-3 space-y-2">
+                                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                                    <History className="h-3 w-3" /> Rate History ({superseded.length} previous)
+                                  </p>
+                                  <table className="w-full text-xs border rounded-lg overflow-hidden">
+                                    <thead className="bg-muted/50">
+                                      <tr>
+                                        <th className="text-left p-2 font-medium">Effective From</th>
+                                        <th className="text-left p-2 font-medium">Base Index</th>
+                                        <th className="text-left p-2 font-medium">Rec. Purchase</th>
+                                        <th className="text-left p-2 font-medium">Rev. Factoring</th>
+                                        <th className="text-left p-2 font-medium">Pay. Finance</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {superseded.map((r: any) => (
+                                        <tr key={r.id} className="border-t">
+                                          <td className="p-2 text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
+                                          <td className="p-2">{r.base_rate_type}</td>
+                                          <td className="p-2">+{r.margin_receivable_purchase}%</td>
+                                          <td className="p-2">+{r.margin_reverse_factoring}%</td>
+                                          <td className="p-2">+{r.margin_payable_finance}%</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })()}
+                        </>);
                     })}
                   </TableBody>
                 </Table>
@@ -421,10 +513,15 @@ export default function LenderManagement() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button size="sm" onClick={() => handleAuthorizeFunder(req)} disabled={submitting}>
-                              {submitting && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-                              Authorize & Connect
-                            </Button>
+                            <div className="flex items-center justify-end gap-2">
+                              <Button size="sm" variant="ghost" onClick={() => handleReInviteFunder(req)} title="Re-send invitation">
+                                <RotateCcw className="h-3.5 w-3.5 mr-1" /> Re-invite
+                              </Button>
+                              <Button size="sm" onClick={() => handleAuthorizeFunder(req)} disabled={submitting}>
+                                {submitting && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                                Authorize & Connect
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}

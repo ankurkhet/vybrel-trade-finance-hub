@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -36,6 +36,7 @@ export function ReferToFunderDialog({ open, onOpenChange, borrowerId, organizati
     base_rate_type: "Fixed Rate",
     base_rate_value: "",
     margin_pct: "",
+    originator_margin_pct: "",
   });
 
   useEffect(() => {
@@ -84,7 +85,16 @@ export function ReferToFunderDialog({ open, onOpenChange, borrowerId, organizati
   };
 
   const fetchFunders = async () => {
-    const { data } = await supabase.rpc("get_org_funder_profiles", { _org_id: organizationId });
+    // Replaced RPC with safe direct query mapped against profiles
+    const { data: roleRecords } = await supabase.from('user_roles').select('user_id').eq('role', 'funder');
+    const funderUserIds = roleRecords?.map((r: any) => r.user_id) || [];
+    
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .eq('organization_id', organizationId)
+      .in('id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
+      
     if (data) setFunders(data);
     else setFunders([]);
   };
@@ -174,6 +184,7 @@ export function ReferToFunderDialog({ open, onOpenChange, borrowerId, organizati
           base_rate_type: formData.base_rate_type,
           base_rate_value: parseFloat(formData.base_rate_value || "0"),
           margin_pct: parseFloat(formData.margin_pct || "0"),
+          originator_margin_pct: parseFloat(formData.originator_margin_pct || "0"),
           status: "pending",
           referral_id: (referral as any)?.id || null,
           valid_from: new Date().toISOString().split("T")[0],
@@ -198,6 +209,7 @@ export function ReferToFunderDialog({ open, onOpenChange, borrowerId, organizati
           base_rate_type: formData.base_rate_type,
           base_rate_value: parseFloat(formData.base_rate_value || "0"),
           margin_pct: parseFloat(formData.margin_pct || "0"),
+          originator_margin_pct: parseFloat(formData.originator_margin_pct || "0"),
           status: "pending",
           valid_from: new Date().toISOString().split("T")[0],
         };
@@ -239,7 +251,7 @@ export function ReferToFunderDialog({ open, onOpenChange, borrowerId, organizati
               <SelectTrigger><SelectValue placeholder="Choose funder..." /></SelectTrigger>
               <SelectContent>
                 {funders.length === 0 && <SelectItem value="none" disabled>No active funders with MSA</SelectItem>}
-                {funders.map(f => <SelectItem key={f.user_id} value={f.user_id}>{f.full_name}</SelectItem>)}
+                {funders.map(f => <SelectItem key={f.id} value={f.id}>{f.full_name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -305,6 +317,28 @@ export function ReferToFunderDialog({ open, onOpenChange, borrowerId, organizati
             <Label className="flex items-center gap-2">Funder Margin (%) {msaTerms && <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 ml-2">MSA Default</Badge>}</Label>
             <Input type="number" step="0.01" value={formData.margin_pct} onChange={(e) => setFormData(f => ({ ...f, margin_pct: e.target.value }))} />
           </div>
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2 text-purple-700">Originator Margin (%)</Label>
+            <Input type="number" step="0.01" value={formData.originator_margin_pct} onChange={(e) => setFormData(f => ({ ...f, originator_margin_pct: e.target.value }))} />
+            <p className="text-[10px] text-muted-foreground">Hidden from Funder</p>
+          </div>
+          
+          {(formData.base_rate_value || formData.margin_pct || formData.originator_margin_pct) && (
+             <div className="col-span-2 bg-muted/50 p-3 rounded-lg border text-sm mt-2">
+               Effective Client Rate: <strong>{(Number(formData.base_rate_value) + Number(formData.margin_pct) + Number(formData.originator_margin_pct)).toFixed(2)}%</strong>
+               <span className="text-xs text-muted-foreground block mt-1">({formData.base_rate_type} {formData.base_rate_value}% + Funder {formData.margin_pct}% + Vybrel {formData.originator_margin_pct}%)</span>
+             </div>
+          )}
+          
+          {!msaTerms && formData.funder_user_id && (
+             <div className="col-span-2 bg-amber-50 text-amber-800 p-3 rounded-lg border border-amber-200 text-sm mt-2 flex items-start gap-2">
+               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+               <div>
+                 <p className="font-semibold text-xs">Missing Master Agreement (MSA)</p>
+                 <p className="text-[10px]">You can request limits now, but the Facility Offer Letter (FOL) will be blocked until an active MSA is recorded and Credit Committee approval is obtained.</p>
+               </div>
+             </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

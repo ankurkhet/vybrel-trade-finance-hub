@@ -169,7 +169,11 @@ export default function DocumentTemplates() {
                       {activeTemplate ? (
                         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 w-full sm:justify-end">
                           <div className="text-right">
-                            <p className="text-sm font-medium text-foreground truncate max-w-[200px]" title={activeTemplate.template_name}>
+                            <p 
+                              className="text-sm font-medium text-primary hover:underline cursor-pointer truncate max-w-[200px]" 
+                              title={activeTemplate.template_name}
+                              onClick={() => viewFile(activeTemplate.file_path)}
+                            >
                               {activeTemplate.template_name}
                             </p>
                             <p className="text-xs text-muted-foreground">

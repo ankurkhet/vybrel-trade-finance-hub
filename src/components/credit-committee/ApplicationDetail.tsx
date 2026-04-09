@@ -32,10 +32,10 @@ function CommitteeMembersCard({ votes, organizationId }: { votes: any[]; organiz
       const userIds = ccMembers.map((m: any) => m.user_id);
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("user_id, full_name, email")
-        .in("user_id", userIds);
+        .select("id, full_name, email")
+        .in("id", userIds);
       return ccMembers.map((m: any) => {
-        const p = profiles?.find((pr: any) => pr.user_id === m.user_id);
+        const p = profiles?.find((pr: any) => pr.id === m.user_id);
         const vote = votes.find((v: any) => v.user_id === m.user_id);
         return { ...m, full_name: p?.full_name || p?.email || "Unknown", vote };
       });

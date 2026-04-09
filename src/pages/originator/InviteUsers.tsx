@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { UserPlus, Loader2, Mail, Clock, CheckCircle2 } from "lucide-react";
+import { UserPlus, Loader2, Mail, Clock, CheckCircle2, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -110,6 +110,22 @@ export default function InviteUsers() {
     setSubRoles(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]);
   };
 
+  const handleResendInvite = async (inv: any) => {
+    const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabase.from("invitations").update({
+      expires_at: newExpiry,
+      resent_count: (inv.resent_count || 0) + 1,
+      last_resent_at: new Date().toISOString(),
+    }).eq("id", inv.id);
+
+    if (error) {
+      toast.error("Failed to resend invitation: " + error.message);
+    } else {
+      toast.success(`Invitation resent to ${inv.email} — expires in 7 days`);
+      fetchInvitations();
+    }
+  };
+
   const roleColor = (r: string) => {
     switch (r) {
       case "originator_admin": return "default";
@@ -176,6 +192,7 @@ export default function InviteUsers() {
                     <TableHead>Sent</TableHead>
                     <TableHead>Expires</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -196,6 +213,20 @@ export default function InviteUsers() {
                           <Badge variant="destructive" className="text-xs">Expired</Badge>
                         ) : (
                           <Badge variant="secondary" className="text-xs"><Clock className="mr-1 h-3 w-3" /> Pending</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {!inv.accepted_at && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleResendInvite(inv)}
+                            title={inv.resent_count ? `Resend (sent ${inv.resent_count}x already)` : "Resend invitation"}
+                          >
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                            Resend
+                            {inv.resent_count > 0 && <span className="ml-1 text-[10px] text-muted-foreground">×{inv.resent_count}</span>}
+                          </Button>
                         )}
                       </TableCell>
                     </TableRow>

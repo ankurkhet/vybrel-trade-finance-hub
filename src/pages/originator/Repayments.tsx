@@ -93,14 +93,14 @@ export default function Repayments() {
       retained_reimbursement: retainedReimb,
       payment_reference: repaymentForm.payment_reference || null,
       status: "pending",
-      created_by: profile!.user_id,
+      created_by: profile!.id,
     } as any);
 
     if (error) toast.error(error.message);
     else {
       toast.success("Repayment memo created");
       await supabase.from("audit_logs").insert({
-        user_id: profile?.user_id, user_email: profile?.email,
+        user_id: profile?.id, user_email: profile?.email,
         action: "repayment_memo_created", resource_type: "repayment_memo",
         details: { disbursement_memo_id: disb.id, repayment_amount: repaymentAmount },
       });
@@ -113,13 +113,13 @@ export default function Repayments() {
 
   const handleApprove = async (memo: any) => {
     // GAP-34: Maker-checker — cannot approve your own repayment memo
-    if (memo.created_by === profile?.user_id) {
+    if (memo.created_by === profile?.id) {
       toast.error("Maker-Checker Rule: You cannot approve a repayment you created.");
       return;
     }
     setApproving(true);
     const { error } = await supabase.from("repayment_memos").update({
-      status: "approved", approved_by: profile?.user_id, approved_at: new Date().toISOString(),
+      status: "approved", approved_by: profile?.id, approved_at: new Date().toISOString(),
     }).eq("id", memo.id);
     if (error) {
        toast.error(error.message);
@@ -136,7 +136,7 @@ export default function Repayments() {
       }
 
       await supabase.from("audit_logs").insert({
-        user_id: profile?.user_id, user_email: profile?.email,
+        user_id: profile?.id, user_email: profile?.email,
         action: "repayment_approved", resource_type: "repayment_memo", resource_id: memo.id,
       });
     }

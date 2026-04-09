@@ -24,6 +24,7 @@ interface AuthContextType {
   isFunder: boolean;
   isBroker: boolean;
   isAccountManager: boolean;
+  isCreditCommitteeMember: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Use queueMicrotask instead of setTimeout for more reliable timing
         queueMicrotask(async () => {
           if (!mounted) return;
-          await fetchProfileAndRoles(newSession.user.id);
+          await fetchProfileAndRoles(newSession.user.id, newSession);
           if (mounted) setLoading(false);
         });
       } else {
@@ -64,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(existingSession);
       setUser(existingSession?.user ?? null);
       if (existingSession?.user) {
-        await fetchProfileAndRoles(existingSession.user.id);
+        await fetchProfileAndRoles(existingSession.user.id, existingSession);
       }
       if (mounted) setLoading(false);
     });
@@ -75,13 +76,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const fetchProfileAndRoles = async (userId: string) => {
-    const [profileRes, rolesRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("user_id", userId).single(),
-      supabase.rpc("get_user_roles", { _user_id: userId }),
-    ]);
+  const fetchProfileAndRoles = async (userId: string, currentSession?: Session | null) => {
+    // Prefer JWT app_metadata claims (set by custom-jwt-claims hook after re-login)
+    const appMeta = currentSession?.user?.app_metadata;
+    const jwtRoles = appMeta?.roles as AppRole[] | undefined;
+
+    const profileRes = await supabase.from("profiles").select("*").eq("id", userId).single();
     if (profileRes.data) setProfile(profileRes.data);
-    if (rolesRes.data) setRoles(rolesRes.data as AppRole[]);
+
+    if (jwtRoles && jwtRoles.length > 0) {
+      // Fast path: roles from JWT claim (no extra DB round-trip)
+      setRoles(jwtRoles);
+    } else {
+      // Fallback: DB RPC for users who haven't re-logged in since hook registration
+      const rolesRes = await supabase.rpc("get_user_roles", { _user_id: userId });
+      if (rolesRes.data) setRoles(rolesRes.data as AppRole[]);
+    }
   };
 
   const signIn = async (email: string, password: string) => {
@@ -136,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isFunder: hasRole("funder"),
         isBroker: hasRole("broker_admin"),
         isAccountManager: hasRole("account_manager"),
+        isCreditCommitteeMember: hasRole("credit_committee_member"),
       }}
     >
       {children}

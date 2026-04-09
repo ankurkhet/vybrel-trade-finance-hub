@@ -277,7 +277,7 @@ Deno.serve(async (req) => {
         const { data: funderProfile } = await supabase
           .from("profiles")
           .select("full_name, email")
-          .eq("user_id", offer.funder_user_id)
+          .eq("id", offer.funder_user_id)
           .single();
 
         const funderAdvice = {
@@ -319,6 +319,50 @@ Deno.serve(async (req) => {
           console.error("Failed to create funder settlement:", faErr);
         } else {
           advices.push(fa);
+
+          // Create payment_instructions row for this settlement advice
+          // Vybrel writes the instruction; PSP executes it.
+          // Use upsert-like pattern: get or create PSP virtual accounts for payer/payee.
+          const getOrCreatePspAccount = async (actorId: string, actorType: string) => {
+            const { data: existing } = await supabase
+              .from("psp_virtual_accounts")
+              .select("id")
+              .eq("actor_id", actorId)
+              .eq("currency", collection.currency)
+              .eq("organization_id", collection.organization_id)
+              .maybeSingle();
+            if (existing) return existing.id;
+            const { data: created } = await supabase
+              .from("psp_virtual_accounts")
+              .insert({
+                organization_id: collection.organization_id,
+                actor_id: actorId,
+                actor_type: actorType,
+                currency: collection.currency,
+                psp_provider: "manual",
+              })
+              .select("id")
+              .single();
+            return created?.id;
+          };
+
+          try {
+            const [payerAccountId, payeeAccountId] = await Promise.all([
+              getOrCreatePspAccount(collection.organization_id, "originator"),
+              getOrCreatePspAccount(offer.funder_user_id, "funder"),
+            ]);
+            await supabase.from("payment_instructions").insert({
+              organization_id: collection.organization_id,
+              settlement_advice_id: fa.id,
+              payer_psp_account_id: payerAccountId,
+              payee_psp_account_id: payeeAccountId,
+              amount: funderReturn.netReturn,
+              currency: collection.currency,
+              status: "pending",
+            });
+          } catch (piErr) {
+            console.warn("[generate-settlement] Could not create payment_instruction:", piErr);
+          }
         }
       }
     }

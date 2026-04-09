@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
       // Update profile with org
       await supabaseAdmin.from('profiles').update({
         organization_id: orgId,
-      }).eq('user_id', userId);
+      }).eq('id', userId);
 
       // If borrower, create borrower record
       if (tu.role === 'borrower') {

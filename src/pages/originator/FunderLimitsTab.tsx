@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { ShieldCheck, Loader2, Plus } from "lucide-react";
+import { ShieldCheck, Loader2, Plus, Info, AlertCircle, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
     base_rate_type: "Fixed Rate",
     base_rate_value: "",
     margin_pct: "",
+    originator_margin_pct: "",
     overall_limit: "",
     limit_receivables_purchase: "",
     limit_reverse_factoring: "",
@@ -34,6 +35,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
     scope: "specific_counterparty",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [counterOfferAction, setCounterOfferAction] = useState<{ limitId: string; action: "accepted" | "rejected" } | null>(null);
 
   useEffect(() => {
     fetchFunders();
@@ -53,7 +55,16 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
   };
 
   const fetchFunders = async () => {
-    const { data } = await supabase.rpc("get_org_funder_profiles", { _org_id: organizationId });
+    // Replaced RPC with safe direct query mapped against profiles
+    const { data: roleRecords } = await supabase.from('user_roles').select('user_id').eq('role', 'funder');
+    const funderUserIds = roleRecords?.map((r: any) => r.user_id) || [];
+    
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .eq('organization_id', organizationId)
+      .in('id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
+      
     if (data) setFunders(data);
     else setFunders([]);
   };
@@ -99,7 +110,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
   const resetForm = () => {
     setFormData({
       funder_user_id: "", counterparty_id: "", limit_amount: "", currency: "GBP",
-      base_rate_type: "Fixed Rate", base_rate_value: "", margin_pct: "",
+      base_rate_type: "Fixed Rate", base_rate_value: "", margin_pct: "", originator_margin_pct: "",
       overall_limit: "", limit_receivables_purchase: "", limit_reverse_factoring: "",
       limit_payable_finance: "", scope: "specific_counterparty",
     });
@@ -135,6 +146,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
       base_rate_type: formData.base_rate_type,
       base_rate_value: parseFloat(formData.base_rate_value || "0"),
       margin_pct: parseFloat(formData.margin_pct || "0"),
+      originator_margin_pct: parseFloat(formData.originator_margin_pct || "0"),
       status: "pending"
     };
 
@@ -150,6 +162,21 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
     setSubmitting(false);
   };
 
+  const handleCounterOfferResponse = async (limitId: string, action: "accepted" | "rejected") => {
+    setCounterOfferAction({ limitId, action });
+    const { error } = await supabase
+      .from("funder_limits")
+      .update({ status: action } as any)
+      .eq("id", limitId);
+    if (error) {
+      toast.error("Failed to update counter-offer: " + error.message);
+    } else {
+      toast.success(`Counter-offer ${action}`);
+      fetchLimits();
+    }
+    setCounterOfferAction(null);
+  };
+
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
@@ -161,6 +188,15 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
         </div>
         <Button size="sm" onClick={() => { resetForm(); setReferDialog(true); }}><Plus className="h-4 w-4 mr-2" /> Request Funder Limit</Button>
       </CardHeader>
+      <div className="bg-blue-50/50 border-y border-blue-100 p-3 mx-6 mb-4 rounded-md">
+        <div className="flex items-start gap-2">
+           <Info className="h-4 w-4 text-blue-600 mt-0.5" />
+           <div className="text-xs text-blue-800">
+             <span className="font-semibold block mb-0.5">Multi-Funder Distribution Strategy</span>
+             You can refer this borrower to multiple funders. The platform automatically aggregates these limits into a <strong>Global Ceiling</strong> for the borrower.
+           </div>
+        </div>
+      </div>
       <CardContent>
         {limits.length === 0 ? (
            <div className="text-center py-8 text-sm text-muted-foreground border rounded-lg border-dashed">
@@ -201,9 +237,37 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
                   <TableCell className="font-mono text-xs">{l.limit_payable_finance ? `${l.currency} ${Number(l.limit_payable_finance).toLocaleString()}` : "—"}</TableCell>
                   <TableCell className="text-xs">{l.base_rate_type} + {l.margin_pct}%</TableCell>
                   <TableCell>
-                    <Badge variant={l.status === 'pending' ? "secondary" : l.status === 'approved' ? "outline" : "destructive"}>
-                      {l.status}
-                    </Badge>
+                    {l.status === 'counter_offered' ? (
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50">Counter-offered</Badge>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-1.5 text-green-700 hover:bg-green-50"
+                          disabled={!!counterOfferAction}
+                          onClick={() => handleCounterOfferResponse(l.id, "accepted")}
+                        >
+                          {counterOfferAction?.limitId === l.id && counterOfferAction.action === "accepted"
+                            ? <Loader2 className="h-3 w-3 animate-spin" />
+                            : <CheckCircle2 className="h-3.5 w-3.5" />}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-1.5 text-destructive hover:bg-red-50"
+                          disabled={!!counterOfferAction}
+                          onClick={() => handleCounterOfferResponse(l.id, "rejected")}
+                        >
+                          {counterOfferAction?.limitId === l.id && counterOfferAction.action === "rejected"
+                            ? <Loader2 className="h-3 w-3 animate-spin" />
+                            : <XCircle className="h-3.5 w-3.5" />}
+                        </Button>
+                      </div>
+                    ) : (
+                      <Badge variant={l.status === 'pending' ? "secondary" : l.status === 'approved' || l.status === 'accepted' ? "outline" : "destructive"}>
+                        {l.status}
+                      </Badge>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -227,7 +291,7 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
                 <SelectTrigger><SelectValue placeholder="Choose funder..." /></SelectTrigger>
                 <SelectContent>
                   {funders.length === 0 && <SelectItem value="none" disabled>No active funders with MSA</SelectItem>}
-                  {funders.map(f => <SelectItem key={f.user_id} value={f.user_id}>{f.full_name}</SelectItem>)}
+                  {funders.map(f => <SelectItem key={f.id} value={f.id}>{f.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -243,7 +307,8 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
             </div>
 
             <div className="col-span-2 border-t pt-3">
-              <p className="text-xs font-semibold text-muted-foreground mb-3">REQUESTED LIMITS (specify overall and/or per-product)</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-1">REQUESTED LIMITS (specify overall and/or per-product)</p>
+              <p className="text-[10px] text-muted-foreground mb-3 flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Funder limit allocations construct the Global Ceiling limit for the borrower automatically.</p>
             </div>
 
             <div className="space-y-2">
@@ -287,6 +352,28 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
               <Label className="flex items-center gap-2">Funder Margin (%) {msaTerms && <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 ml-2">MSA Default</Badge>}</Label>
               <Input type="number" step="0.01" value={formData.margin_pct} onChange={(e) => setFormData(f => ({...f, margin_pct: e.target.value}))} />
             </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2 text-purple-700">Originator Margin (%)</Label>
+              <Input type="number" step="0.01" value={formData.originator_margin_pct} onChange={(e) => setFormData(f => ({...f, originator_margin_pct: e.target.value}))} />
+              <p className="text-[10px] text-muted-foreground">Hidden from Funder</p>
+            </div>
+            
+            {(formData.base_rate_value || formData.margin_pct || formData.originator_margin_pct) && (
+               <div className="col-span-2 bg-muted/50 p-3 rounded-lg border text-sm mt-2">
+                 Effective Client Rate: <strong>{(Number(formData.base_rate_value) + Number(formData.margin_pct) + Number(formData.originator_margin_pct)).toFixed(2)}%</strong>
+                 <span className="text-xs text-muted-foreground block mt-1">({formData.base_rate_type} {formData.base_rate_value}% + Funder {formData.margin_pct}% + Vybrel {formData.originator_margin_pct}%)</span>
+               </div>
+            )}
+            
+            {!msaTerms && formData.funder_user_id && (
+               <div className="col-span-2 bg-amber-50 text-amber-800 p-3 rounded-lg border border-amber-200 text-sm mt-2 flex items-start gap-2">
+                 <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                 <div>
+                   <p className="font-semibold text-xs">Missing Master Agreement (MSA)</p>
+                   <p className="text-[10px]">You can request limits now, but the Facility Offer Letter (FOL) will be blocked until an active MSA is recorded and Credit Committee approval is obtained.</p>
+                 </div>
+               </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReferDialog(false)}>Cancel</Button>
