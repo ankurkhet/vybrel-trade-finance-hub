@@ -260,10 +260,10 @@ export default function LenderManagement() {
     // Check for an existing invitation for this email in this org
     const { data: existing } = await supabase
       .from('invitations')
-      .select('id, expires_at, resent_count')
+      .select('id, expires_at')
       .eq('organization_id', orgId)
       .eq('email', email)
-      .eq('role', 'funder')
+      .eq('role', 'funder' as any)
       .is('accepted_at', null)
       .maybeSingle();
 
@@ -271,9 +271,7 @@ export default function LenderManagement() {
       // Extend existing invitation
       const { error } = await supabase.from('invitations').update({
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        resent_count: (existing.resent_count || 0) + 1,
-        last_resent_at: new Date().toISOString(),
-      }).eq('id', existing.id);
+      } as any).eq('id', existing.id);
       if (error) { toast.error(error.message); return; }
       toast.success(`Invitation re-sent to ${email} — expires in 7 days`);
     } else {

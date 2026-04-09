@@ -137,11 +137,11 @@ export default function OriginatorDocuments() {
       const funderUserIds = roleRecords?.map((r: any) => r.user_id) || [];
       const { data: profiles } = await supabase.from('profiles').select('*').eq('organization_id', profile?.organization_id).in('id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
       const validFunderIds = profiles?.map((p: any) => p.id) || [];
-      const funderKycQuery = supabase.from('funder_kyc').select('*');
+      const funderKycQuery = supabase.from('funder_kyc' as any).select('*');
       const funderKycFiltered = validFunderIds.length
         ? funderKycQuery.in('funder_user_id', validFunderIds)
         : funderKycQuery.in('funder_user_id', ['00000000-0000-0000-0000-000000000000']);
-      const { data: funderDocs } = await funderKycFiltered.order('created_at', { ascending: false });
+      const { data: funderDocs } = await (funderKycFiltered as any).order('created_at', { ascending: false });
       return (profiles || []).map(f => ({ ...f, documents: ((funderDocs as any[]) || []).filter(d => d.funder_user_id === f.id) }));
     },
     enabled: !!profile?.organization_id && activeTab === "funders"
