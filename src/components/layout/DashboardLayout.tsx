@@ -162,10 +162,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
+        <Link to="/" className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6 hover:opacity-80 transition-opacity">
           <Hexagon className="h-5 w-5 text-sidebar-primary" strokeWidth={1.5} />
           <span className="text-lg font-semibold tracking-tight">Vybrel</span>
-        </div>
+        </Link>
 
         {roles.length > 1 && (
           <div className="px-3 pt-4 pb-1">

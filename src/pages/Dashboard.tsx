@@ -272,19 +272,22 @@ export default function Dashboard() {
       });
     }
 
-    if (isFunder) {
-      supabase.from("funding_offers").select("offer_amount, status").then(({ data }) => {
-        const accepted = data?.filter((o) => o.status === "accepted") ?? [];
-        const total = accepted.reduce((sum, o) => sum + Number(o.offer_amount), 0);
-        set("fund_portfolio", total > 0 ? `$${(total / 1000000).toFixed(1)}M` : "$0", [
+    if (isFunder && user) {
+      (supabase as any).from("funding_offers").select("offer_amount, status").eq("funder_user_id", user.id).then(({ data }: any) => {
+        const accepted = data?.filter((o: any) => o.status === "accepted") ?? [];
+        const total = accepted.reduce((sum: number, o: any) => sum + Number(o.offer_amount), 0);
+        set("fund_portfolio", total > 0 ? `£${(total / 1000000).toFixed(1)}M` : "£0", [
           { name: "Accepted", value: accepted.length },
-          { name: "Pending", value: data?.filter((o) => o.status === "pending").length ?? 0 },
+          { name: "Pending", value: data?.filter((o: any) => o.status === "pending").length ?? 0 },
         ]);
       });
-      supabase.from("funding_offers").select("id", { count: "exact", head: true }).eq("status", "accepted").then(({ count }) => {
+      (supabase as any).from("funding_offers").select("id", { count: "exact", head: true }).eq("funder_user_id", user.id).eq("status", "accepted").then(({ count }: any) => {
         set("fund_deals", String(count ?? 0));
       });
-      set("fund_market", "Browse");
+      // Show count of pending limit referrals
+      supabase.from("funder_limits").select("id", { count: "exact", head: true }).eq("funder_user_id", user.id).eq("status", "pending").then(({ count }) => {
+        set("fund_market", count && count > 0 ? `${count} pending` : "Review");
+      });
     }
   }, [isAdmin, isOriginatorAdmin, isBorrower, isFunder, isBroker]);
 

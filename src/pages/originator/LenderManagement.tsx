@@ -575,10 +575,11 @@ export default function LenderManagement() {
                     <Select value={formData.base_rate_type} onValueChange={(v) => setFormData(p => ({...p, base_rate_type: v}))}>
                       <SelectTrigger id="base_rate_type"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="SOFR">SOFR (USD)</SelectItem>
-                        <SelectItem value="SONIA">SONIA (GBP)</SelectItem>
+                        <SelectItem value="SOFR">SOFR (USD overnight)</SelectItem>
+                        <SelectItem value="SONIA">SONIA (GBP overnight)</SelectItem>
                         <SelectItem value="EURIBOR-3M">EURIBOR 3M (EUR)</SelectItem>
-                        <SelectItem value="BOE">BOE Base Rate</SelectItem>
+                        <SelectItem value="BOE">BOE Base Rate (GBP)</SelectItem>
+                        <SelectItem value="ESTR">€STR (EUR overnight)</SelectItem>
                         <SelectItem value="Fixed">Fixed Rate</SelectItem>
                       </SelectContent>
                     </Select>

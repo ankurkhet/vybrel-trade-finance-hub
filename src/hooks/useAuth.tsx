@@ -38,36 +38,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let initialized = false;
 
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      if (!mounted) return;
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-
-      if (newSession?.user) {
-        // Use queueMicrotask instead of setTimeout for more reliable timing
-        queueMicrotask(async () => {
-          if (!mounted) return;
-          await fetchProfileAndRoles(newSession.user.id, newSession);
-          if (mounted) setLoading(false);
-        });
-      } else {
-        setProfile(null);
-        setRoles([]);
-        setLoading(false);
-      }
-    });
-
-    // THEN check for existing session
+    // FIRST restore any existing session synchronously
     supabase.auth.getSession().then(async ({ data: { session: existingSession } }) => {
       if (!mounted) return;
+      initialized = true;
       setSession(existingSession);
       setUser(existingSession?.user ?? null);
       if (existingSession?.user) {
         await fetchProfileAndRoles(existingSession.user.id, existingSession);
       }
       if (mounted) setLoading(false);
+    });
+
+    // THEN listen for auth state changes (sign in, sign out, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      if (!mounted) return;
+
+      // Skip the initial INITIAL_SESSION event if getSession() already handled it
+      if (event === "INITIAL_SESSION" && initialized) return;
+
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+
+      if (newSession?.user) {
+        await fetchProfileAndRoles(newSession.user.id, newSession);
+        if (mounted) setLoading(false);
+      } else {
+        setProfile(null);
+        setRoles([]);
+        if (mounted) setLoading(false);
+      }
     });
 
     return () => {

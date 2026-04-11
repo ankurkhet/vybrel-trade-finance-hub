@@ -19,11 +19,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-type PrimaryRole = "originator_admin" | "originator_user" | "funder" | "broker_admin" | "borrower";
+type PrimaryRole = "originator_admin" | "originator_user" | "account_manager" | "operations_manager" | "credit_committee_member" | "funder" | "broker_admin" | "borrower";
 
 const INTERNAL_ROLES: { value: PrimaryRole; label: string }[] = [
   { value: "originator_admin", label: "Originator Admin" },
   { value: "originator_user", label: "Originator User" },
+  { value: "account_manager", label: "Account Manager" },
+  { value: "operations_manager", label: "Operations Manager" },
+  { value: "credit_committee_member", label: "Credit Committee Member" },
 ];
 
 const EXTERNAL_ROLES: { value: PrimaryRole; label: string }[] = [
@@ -43,12 +46,13 @@ const ORIGINATOR_USER_SUB_ROLES = [
 const ROLE_LABELS: Record<string, string> = {
   originator_admin: "Originator Admin",
   originator_user: "Originator User",
+  account_manager: "Account Manager",
+  operations_manager: "Operations Manager",
+  credit_committee_member: "Credit Committee Member",
   funder: "Funder / Lender",
   broker_admin: "Broker",
   borrower: "Borrower",
-  credit_committee_member: "Credit Committee",
   credit_manager: "Credit Manager",
-  operations_manager: "Operations Manager",
   relationship_manager: "Relationship Manager",
   legal: "Legal",
 };
@@ -245,7 +249,7 @@ function ProfilesTab({ orgId }: { orgId: string }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
+  const fetchProfiles = () => {
     if (!orgId) return;
     setLoading(true);
     supabase
@@ -254,6 +258,16 @@ function ProfilesTab({ orgId }: { orgId: string }) {
       .eq("organization_id", orgId)
       .order("created_at", { ascending: false })
       .then(({ data }) => { setProfiles(data || []); setLoading(false); });
+  };
+
+  useEffect(() => {
+    fetchProfiles();
+    const channel = supabase
+      .channel("profiles-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles", filter: `organization_id=eq.${orgId}` }, fetchProfiles)
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_roles" }, fetchProfiles)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [orgId]);
 
   const filtered = profiles.filter(p =>

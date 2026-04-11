@@ -116,13 +116,25 @@ export default function BorrowerOnboarding() {
   }, [profile]);
 
   const loadExistingData = async () => {
-    if (!profile?.user_id) return;
+    if (!profile?.user_id && !profile?.id) return;
+    const userId = profile?.user_id || profile?.id;
     setLoading(true);
     try {
+      // Check if NDA was already accepted (at signup or previously)
+      const { data: ndaRecord } = await supabase
+        .from("document_acceptances" as any)
+        .select("id")
+        .eq("user_id", userId)
+        .eq("document_type", "nda")
+        .maybeSingle();
+      if (ndaRecord) {
+        setSignatoryData(prev => ({ ...prev, nda_status: "signed" }));
+      }
+
       const { data: borrower } = await supabase
         .from("borrowers")
         .select("*")
-        .eq("user_id", profile.user_id)
+        .eq("user_id", userId)
         .maybeSingle();
 
       if (borrower) {
@@ -240,7 +252,8 @@ export default function BorrowerOnboarding() {
   };
 
   const handleSave = useCallback(async (showToast = true) => {
-    if (!profile?.user_id) return;
+    const userId = profile?.user_id || profile?.id;
+    if (!userId) return;
     setSaving(true);
     try {
       const orgId = profile.organization_id;
@@ -280,7 +293,7 @@ export default function BorrowerOnboarding() {
           docNotes,
         })),
         organization_id: orgId,
-        user_id: profile.user_id,
+        user_id: userId,
       };
 
       let currentBorrowerId = borrowerId;
@@ -382,7 +395,7 @@ export default function BorrowerOnboarding() {
 
     // Audit log
     await supabase.from("audit_logs").insert({
-      user_id: profile?.user_id,
+      user_id: profile?.user_id || profile?.id,
       user_email: profile?.email,
       action: "borrower_onboarding_submitted",
       resource_type: "borrower",

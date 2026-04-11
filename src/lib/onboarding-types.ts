@@ -476,6 +476,16 @@ export const DEFAULT_REGISTRIES: Omit<RegistryApiConfig, "id" | "last_health_che
     is_active: false,
     capabilities: ["company_search", "company_profile", "directors", "charges"],
   },
+  // ─── Legal Entity Identifier (LEI) ──────────────────────────
+  {
+    country_code: "GLOBAL",
+    country_name: "Global",
+    registry_name: "GLEIF (Global LEI Foundation)",
+    api_base_url: "https://api.gleif.org/api/v1",
+    api_key_secret_name: "GLEIF_API_KEY",
+    is_active: false,
+    capabilities: ["company_search", "company_profile"],
+  },
   // ─── Sanctions Screening ─────────────────────────────────────
   {
     country_code: "GLOBAL",

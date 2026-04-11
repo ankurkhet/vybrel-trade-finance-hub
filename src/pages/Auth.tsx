@@ -2,12 +2,13 @@ import { useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Hexagon, Building2, Users, BarChart3, FileCheck, Shield, Eye, EyeOff } from "lucide-react";
+import { Loader2, Hexagon, Building2, Users, BarChart3, FileCheck, Shield, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 const roles = [
@@ -28,6 +29,12 @@ export default function Auth() {
   const [loginPassword, setLoginPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  // MFA state
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState("");
+  const [mfaChallengeId, setMfaChallengeId] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaLoading, setMfaLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +43,38 @@ export default function Auth() {
     setLoading(false);
     if (error) {
       toast.error(error.message);
+      return;
+    }
+    // Check if user has MFA enrolled
+    const { data: assuranceData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (assuranceData?.nextLevel === "aal2" && assuranceData.currentLevel === "aal1") {
+      // MFA is enrolled, challenge required
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const totpFactor = factors?.totp?.[0];
+      if (totpFactor) {
+        const { data: challenge } = await supabase.auth.mfa.challenge({ factorId: totpFactor.id });
+        if (challenge) {
+          setMfaFactorId(totpFactor.id);
+          setMfaChallengeId(challenge.id);
+          setMfaRequired(true);
+          return;
+        }
+      }
+    }
+    navigate("/dashboard");
+  };
+
+  const handleMfaVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMfaLoading(true);
+    const { error } = await supabase.auth.mfa.verify({
+      factorId: mfaFactorId,
+      challengeId: mfaChallengeId,
+      code: mfaCode,
+    });
+    setMfaLoading(false);
+    if (error) {
+      toast.error("Invalid verification code. Please try again.");
     } else {
       navigate("/dashboard");
     }
@@ -102,6 +141,59 @@ export default function Auth() {
   }
 
   const activeRole = roles.find((r) => r.key === selectedRole)!;
+
+  // MFA challenge screen
+  if (mfaRequired) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background text-foreground" style={{ fontFamily: "'Outfit', sans-serif" }}>
+        <header className="flex items-center px-6 py-6">
+          <Link to="/" className="flex items-center gap-2.5">
+            <Hexagon className="h-7 w-7 text-primary" strokeWidth={1.5} />
+            <span className="text-xl font-semibold tracking-tight">Vybrel</span>
+          </Link>
+        </header>
+        <div className="flex flex-1 items-center justify-center p-6">
+          <div className="w-full max-w-sm">
+            <div className="mb-6 text-center">
+              <ShieldCheck className="mx-auto h-10 w-10 text-primary mb-3" />
+              <h1 className="text-2xl font-light tracking-tight" style={{ fontFamily: "'Source Serif 4', serif" }}>Two-Factor Authentication</h1>
+              <p className="mt-2 text-sm text-muted-foreground">Enter the 6-digit code from your authenticator app.</p>
+            </div>
+            <Card>
+              <form onSubmit={handleMfaVerify}>
+                <CardContent className="space-y-4 pt-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="mfa-code">Verification Code</Label>
+                    <Input
+                      id="mfa-code"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={mfaCode}
+                      onChange={e => setMfaCode(e.target.value.replace(/\D/g, ""))}
+                      className="text-center text-2xl tracking-widest"
+                      autoFocus
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter className="flex flex-col gap-3">
+                  <Button type="submit" className="w-full" disabled={mfaLoading || mfaCode.length !== 6}>
+                    {mfaLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Verify
+                  </Button>
+                  <button type="button" onClick={() => { setMfaRequired(false); setMfaCode(""); }} className="text-xs text-muted-foreground hover:text-primary">
+                    ← Back to sign in
+                  </button>
+                </CardFooter>
+              </form>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground" style={{ fontFamily: "'Outfit', sans-serif" }}>

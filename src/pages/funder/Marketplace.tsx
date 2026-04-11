@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { ShieldCheck, Loader2, Search, DollarSign, Info } from "lucide-react";
+import { ShieldCheck, Loader2, Search, DollarSign, Info, Handshake, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -24,6 +25,7 @@ export default function LimitAssessment() {
   const [hasActiveMsa, setHasActiveMsa] = useState<boolean | null>(null);
   const [msaRates, setMsaRates] = useState<any>(null);
   const [otherFunderLimits, setOtherFunderLimits] = useState<any[]>([]);
+  const [msas, setMsas] = useState<any[]>([]);
 
   // Assessment form state
   const [formOverall, setFormOverall] = useState("");
@@ -54,7 +56,17 @@ export default function LimitAssessment() {
       .eq("agreement_status", "active")
       .limit(1);
     setHasActiveMsa((msaData?.length ?? 0) > 0);
-    
+    if (msaData && msaData.length > 0) setMsas(msaData);
+    else {
+      // Fetch all MSAs (including pending/inactive) so funder can see their agreement status
+      const { data: allMsas } = await supabase
+        .from("funder_relationships")
+        .select("*, organization:organizations(name)")
+        .eq("funder_user_id", user!.id)
+        .order("created_at", { ascending: false });
+      setMsas(allMsas || []);
+    }
+
     const { data, error } = await supabase
       .from("funder_limits")
       .select("*, borrowers(company_name)")
@@ -152,26 +164,63 @@ export default function LimitAssessment() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Limit Assessment</h1>
-          <p className="text-sm text-muted-foreground">Review and approve credit limit referrals from Originators</p>
+          <h1 className="text-2xl font-bold text-foreground">Marketplace</h1>
+          <p className="text-sm text-muted-foreground">Review limit referrals and manage your funding commitments</p>
         </div>
 
-        {hasActiveMsa === false && (
+        {/* MSA Overview */}
+        {msas.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2"><Handshake className="h-4 w-4 text-primary" />Master Service Agreements</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30">
+                    <TableHead className="text-xs">Originator</TableHead>
+                    <TableHead className="text-xs">Base Rate</TableHead>
+                    <TableHead className="text-xs">Margin</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {msas.map((msa: any) => (
+                    <TableRow key={msa.id}>
+                      <TableCell className="text-sm font-medium">{(msa as any).organization?.name || "Originator"}</TableCell>
+                      <TableCell className="text-sm">{msa.master_base_rate_type} ({msa.master_base_rate_value || 0}%)</TableCell>
+                      <TableCell className="text-sm">+{msa.master_margin_pct}%</TableCell>
+                      <TableCell>
+                        <Badge variant={msa.agreement_status === "active" ? "default" : msa.agreement_status === "pending" ? "secondary" : "outline"} className="text-xs">
+                          {msa.agreement_status === "active" ? <CheckCircle2 className="h-3 w-3 mr-1" /> : <Clock className="h-3 w-3 mr-1" />}
+                          {msa.agreement_status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+
+        {hasActiveMsa === false && msas.length === 0 && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-5 flex items-start gap-4">
             <ShieldCheck className="h-6 w-6 text-amber-600 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-amber-800 dark:text-amber-300">Master Service Agreement Required</p>
               <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
-                You do not yet have an active MSA with any Originator. Please contact your Originator to configure the Master Agreement and rates before you can review and approve limit referrals.
+                You do not yet have an active MSA with any Originator. Your Originator needs to set up the Master Agreement and rates. Please complete your KYC/KYB onboarding first if you haven't already.
               </p>
             </div>
           </div>
         )}
 
+        {/* Stats */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="rounded-lg bg-primary/10 p-2"><ShieldCheck className="h-5 w-5 text-primary" /></div>
+              <div className="rounded-lg bg-amber-500/10 p-2"><Clock className="h-5 w-5 text-amber-600" /></div>
               <div>
                 <p className="text-xs text-muted-foreground">Pending Referrals</p>
                 <p className="text-xl font-bold text-foreground">{limits.filter(l => l.status === 'pending').length}</p>
@@ -180,84 +229,116 @@ export default function LimitAssessment() {
           </Card>
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="rounded-lg bg-emerald-500/10 p-2"><DollarSign className="h-5 w-5 text-emerald-600" /></div>
+              <div className="rounded-lg bg-emerald-500/10 p-2"><CheckCircle2 className="h-5 w-5 text-emerald-600" /></div>
               <div>
-                <p className="text-xs text-muted-foreground">Total Capital Deployed</p>
+                <p className="text-xs text-muted-foreground">Approved Limits</p>
+                <p className="text-xl font-bold text-foreground">{limits.filter(l => l.status === 'approved').length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="rounded-lg bg-primary/10 p-2"><DollarSign className="h-5 w-5 text-primary" /></div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total Capital Committed</p>
                 <p className="text-xl font-bold text-foreground">
-                  {limits.filter(l => l.status === 'approved').reduce((s, i) => s + Number(i.overall_limit || i.limit_amount || 0), 0).toLocaleString()}
+                  £{limits.filter(l => l.status === 'approved').reduce((s, i) => s + Number(i.overall_limit || i.limit_amount || 0), 0).toLocaleString()}
                 </p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search Borrowers or Counterparties..." value={search}
-            onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-        </div>
+        <Tabs defaultValue="pending">
+          <TabsList>
+            <TabsTrigger value="pending" className="gap-1.5">
+              Pending Referrals
+              {limits.filter(l => l.status === 'pending').length > 0 && (
+                <span className="ml-1 bg-amber-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5">{limits.filter(l => l.status === 'pending').length}</span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="approved">My Approved Limits</TabsTrigger>
+            <TabsTrigger value="all">All Referrals</TabsTrigger>
+          </TabsList>
 
-        <Card>
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-            ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center py-12">
-                <ShieldCheck className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">No pending limit referrals to assess</p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Borrower</TableHead>
-                    <TableHead>Scope</TableHead>
-                    <TableHead>Overall</TableHead>
-                    <TableHead>Recv. Purchase</TableHead>
-                    <TableHead>Rev. Factoring</TableHead>
-                    <TableHead>Pay. Finance</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((lim) => (
-                    <TableRow key={lim.id}>
-                      <TableCell className="font-medium">{lim.borrowers?.company_name || "—"}</TableCell>
-                      <TableCell>
-                        {lim.counterparty_name ? (
-                          <span className="text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 text-xs font-semibold">
-                            {lim.counterparty_name}
-                          </span>
-                        ) : (
-                          <span className="text-purple-600 bg-purple-50 px-2 py-1 rounded-md border border-purple-100 text-xs font-semibold">
-                            All Counterparties
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">{lim.overall_limit ? `${lim.currency} ${Number(lim.overall_limit).toLocaleString()}` : `${lim.currency} ${Number(lim.limit_amount).toLocaleString()}`}</TableCell>
-                      <TableCell className="font-mono text-xs">{lim.limit_receivables_purchase ? `${lim.currency} ${Number(lim.limit_receivables_purchase).toLocaleString()}` : "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">{lim.limit_reverse_factoring ? `${lim.currency} ${Number(lim.limit_reverse_factoring).toLocaleString()}` : "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">{lim.limit_payable_finance ? `${lim.currency} ${Number(lim.limit_payable_finance).toLocaleString()}` : "—"}</TableCell>
-                      <TableCell>
-                        <Badge variant={lim.status === 'pending' ? "secondary" : lim.status === 'approved' ? "outline" : "destructive"}>
-                          {lim.status.toUpperCase()}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {lim.status === 'pending' && (
-                          <Button size="sm" onClick={() => openAssessDialog(lim)}>
-                            Assess Limit
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+          {["pending", "approved", "all"].map(tab => {
+            const tabLimits = tab === "all" ? limits : limits.filter(l => l.status === (tab === "approved" ? "approved" : "pending"));
+            const tabFiltered = tabLimits.filter((lim) =>
+              (lim.borrowers?.company_name || "").toLowerCase().includes(search.toLowerCase()) ||
+              (lim.counterparty_name || "").toLowerCase().includes(search.toLowerCase())
+            );
+            return (
+              <TabsContent key={tab} value={tab} className="mt-4 space-y-4">
+                <div className="relative max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Search Borrowers or Counterparties..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+                </div>
+                <Card>
+                  <CardContent className="p-0">
+                    {loading ? (
+                      <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+                    ) : tabFiltered.length === 0 ? (
+                      <div className="flex flex-col items-center py-12">
+                        <ShieldCheck className="h-10 w-10 text-muted-foreground mb-3" />
+                        <p className="text-sm font-medium text-muted-foreground">
+                          {tab === "pending" ? "No pending limit referrals" : tab === "approved" ? "No approved limits yet" : "No referrals found"}
+                        </p>
+                        {tab === "pending" && hasActiveMsa && <p className="text-xs text-muted-foreground mt-1">Your Originator will send limit referrals here for you to review and approve.</p>}
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Borrower</TableHead>
+                            <TableHead>Scope</TableHead>
+                            <TableHead>Currency</TableHead>
+                            <TableHead>Overall Limit</TableHead>
+                            <TableHead>Rec. Purchase</TableHead>
+                            <TableHead>Rev. Factoring</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {tabFiltered.map((lim) => (
+                            <TableRow key={lim.id}>
+                              <TableCell className="font-medium">{lim.borrowers?.company_name || "—"}</TableCell>
+                              <TableCell>
+                                {lim.counterparty_name ? (
+                                  <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-xs">{lim.counterparty_name}</span>
+                                ) : (
+                                  <span className="text-purple-600 bg-purple-50 px-2 py-0.5 rounded text-xs">All Counterparties</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-xs font-mono">{lim.currency}</TableCell>
+                              <TableCell className="font-mono text-xs">{lim.overall_limit ? Number(lim.overall_limit).toLocaleString() : Number(lim.limit_amount || 0).toLocaleString()}</TableCell>
+                              <TableCell className="font-mono text-xs">{lim.limit_receivables_purchase ? Number(lim.limit_receivables_purchase).toLocaleString() : "—"}</TableCell>
+                              <TableCell className="font-mono text-xs">{lim.limit_reverse_factoring ? Number(lim.limit_reverse_factoring).toLocaleString() : "—"}</TableCell>
+                              <TableCell>
+                                <Badge variant={lim.status === 'pending' ? "secondary" : lim.status === 'approved' ? "default" : "destructive"} className="text-xs">
+                                  {lim.status === 'approved' ? <CheckCircle2 className="h-3 w-3 mr-1" /> : lim.status === 'rejected' ? <XCircle className="h-3 w-3 mr-1" /> : <Clock className="h-3 w-3 mr-1" />}
+                                  {lim.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {lim.status === 'pending' && (
+                                  <Button size="sm" onClick={() => openAssessDialog(lim)}>Assess</Button>
+                                )}
+                                {lim.status === 'approved' && (
+                                  <Button size="sm" variant="outline" onClick={() => openAssessDialog(lim)}>View / Edit</Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            );
+          })}
+        </Tabs>
       </div>
 
       {/* Assess Dialog */}

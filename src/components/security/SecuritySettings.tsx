@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Plus, Trash2, Monitor, Smartphone, Laptop } from "lucide-react";
+import { Shield, Plus, Trash2, Monitor, Smartphone, Laptop, ShieldCheck, ShieldOff, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface TrustedDevice {
   id: string;
@@ -23,6 +25,54 @@ interface IPWhitelistEntry {
 }
 
 export function SecuritySettings() {
+  // MFA state
+  const [mfaStatus, setMfaStatus] = useState<"loading" | "enrolled" | "not_enrolled">("loading");
+  const [mfaEnrolling, setMfaEnrolling] = useState(false);
+  const [mfaQrUri, setMfaQrUri] = useState("");
+  const [mfaSecret, setMfaSecret] = useState("");
+  const [mfaFactorId, setMfaFactorId] = useState("");
+  const [mfaVerifyCode, setMfaVerifyCode] = useState("");
+  const [mfaVerifying, setMfaVerifying] = useState(false);
+  const [mfaDisabling, setMfaDisabling] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.mfa.listFactors().then(({ data }) => {
+      const enrolled = (data?.totp || []).some((f: any) => f.status === "verified");
+      setMfaStatus(enrolled ? "enrolled" : "not_enrolled");
+    });
+  }, []);
+
+  const handleEnrollMfa = async () => {
+    setMfaEnrolling(true);
+    const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", friendlyName: "Authenticator App" });
+    if (error || !data) { toast.error(error?.message || "Failed to enroll MFA"); setMfaEnrolling(false); return; }
+    setMfaQrUri(data.totp.qr_code);
+    setMfaSecret(data.totp.secret);
+    setMfaFactorId(data.id);
+    setMfaEnrolling(false);
+  };
+
+  const handleVerifyMfaEnrollment = async () => {
+    setMfaVerifying(true);
+    const { data: challenge } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
+    if (!challenge) { toast.error("Failed to create challenge"); setMfaVerifying(false); return; }
+    const { error } = await supabase.auth.mfa.verify({ factorId: mfaFactorId, challengeId: challenge.id, code: mfaVerifyCode });
+    if (error) { toast.error("Invalid code, please try again"); } else { toast.success("MFA enabled successfully!"); setMfaStatus("enrolled"); setMfaQrUri(""); setMfaSecret(""); setMfaVerifyCode(""); }
+    setMfaVerifying(false);
+  };
+
+  const handleDisableMfa = async () => {
+    setMfaDisabling(true);
+    const { data } = await supabase.auth.mfa.listFactors();
+    const factors = data?.totp || [];
+    for (const f of factors) {
+      await supabase.auth.mfa.unenroll({ factorId: f.id });
+    }
+    toast.success("MFA has been disabled");
+    setMfaStatus("not_enrolled");
+    setMfaDisabling(false);
+  };
+
   const [ipWhitelisting, setIpWhitelisting] = useState(false);
   const [newIp, setNewIp] = useState("");
   const [newIpLabel, setNewIpLabel] = useState("");
@@ -64,6 +114,81 @@ export function SecuritySettings() {
           Configure banking-grade security for your organization
         </p>
       </div>
+
+      {/* Two-Factor Authentication */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            Two-Factor Authentication (2FA)
+          </CardTitle>
+          <CardDescription>Add an extra layer of security using an authenticator app (TOTP).</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {mfaStatus === "loading" && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Checking MFA status...</div>}
+
+          {mfaStatus === "enrolled" && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="font-medium">2FA is enabled</p>
+                  <p className="text-xs text-muted-foreground">Your account is protected with an authenticator app.</p>
+                </div>
+              </div>
+              <Button variant="destructive" size="sm" onClick={handleDisableMfa} disabled={mfaDisabling}>
+                {mfaDisabling ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ShieldOff className="h-4 w-4 mr-1" />}
+                Disable 2FA
+              </Button>
+            </div>
+          )}
+
+          {mfaStatus === "not_enrolled" && !mfaQrUri && (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">2FA is not enabled</p>
+                <p className="text-xs text-muted-foreground">Use an authenticator app (Google Authenticator, Authy) for extra security.</p>
+              </div>
+              <Button size="sm" onClick={handleEnrollMfa} disabled={mfaEnrolling}>
+                {mfaEnrolling ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-1" />}
+                Enable 2FA
+              </Button>
+            </div>
+          )}
+
+          {mfaQrUri && (
+            <div className="space-y-4">
+              <p className="text-sm font-medium">Scan this QR code with your authenticator app:</p>
+              <div className="flex justify-center">
+                <img src={mfaQrUri} alt="MFA QR Code" className="w-48 h-48 border rounded-lg p-2 bg-white" />
+              </div>
+              {mfaSecret && (
+                <p className="text-xs text-muted-foreground text-center">Manual key: <code className="font-mono bg-muted px-1 py-0.5 rounded">{mfaSecret}</code></p>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="mfa-verify">Enter the 6-digit code to confirm setup</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="mfa-verify"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={mfaVerifyCode}
+                    onChange={e => setMfaVerifyCode(e.target.value.replace(/\D/g, ""))}
+                    className="text-center tracking-widest max-w-[120px]"
+                  />
+                  <Button onClick={handleVerifyMfaEnrollment} disabled={mfaVerifying || mfaVerifyCode.length !== 6}>
+                    {mfaVerifying ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+                    Confirm
+                  </Button>
+                  <Button variant="outline" onClick={() => { setMfaQrUri(""); setMfaSecret(""); setMfaVerifyCode(""); }}>Cancel</Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Session Settings */}
       <Card>

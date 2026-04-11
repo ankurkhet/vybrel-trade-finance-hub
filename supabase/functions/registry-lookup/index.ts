@@ -514,6 +514,7 @@ function getHealthCheckUrl(countryCode: string, baseUrl: string, registryName?: 
     return `${stableBase}/stable/profile?symbol=AAPL&apikey=${encodeURIComponent(key)}`;
   }
   if (name.includes("creditsafe")) return `${baseUrl.replace(/\/+$/, "")}/authenticate`;
+  if (name.includes("gleif")) return `${baseUrl.replace(/\/+$/, "")}/lei-records?page[size]=1`;
 
   switch (countryCode) {
     case "GB": return `${baseUrl}/search/companies?q=test&items_per_page=1`;

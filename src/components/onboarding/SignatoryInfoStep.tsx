@@ -2,7 +2,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { UserCheck } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { UserCheck, CheckCircle2 } from "lucide-react";
 import { DateInput } from "@/components/ui/date-input";
 import { AddressInput } from "./AddressInput";
 import type { SignatoryFormData } from "@/lib/onboarding-types";
@@ -109,6 +110,31 @@ export function SignatoryInfoStep({ data, onChange, disabled }: SignatoryInfoSte
             </div>
           </div>
         )}
+
+        {/* NDA Acceptance */}
+        <div className={`rounded-lg border p-4 space-y-2 ${data.nda_status === "signed" ? "border-green-500 bg-green-50 dark:bg-green-950/20" : "border-amber-300 bg-amber-50 dark:bg-amber-950/20"}`}>
+          <div className="flex items-start gap-3">
+            {data.nda_status === "signed" ? (
+              <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+            ) : (
+              <Checkbox
+                id="nda-accept"
+                checked={data.nda_status === "signed"}
+                onCheckedChange={(checked) => update("nda_status", checked ? "signed" : "pending")}
+                disabled={disabled}
+                className="mt-0.5"
+              />
+            )}
+            <div className="flex-1">
+              <Label htmlFor="nda-accept" className={`font-medium cursor-pointer ${data.nda_status === "signed" ? "text-green-700 dark:text-green-400" : ""}`}>
+                {data.nda_status === "signed" ? "Non-Disclosure Agreement Signed" : "I agree to the Non-Disclosure Agreement"} <span className="text-destructive">*</span>
+              </Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                By checking this box, I confirm I have read and agree to Vybrel's NDA, which governs the confidentiality of information shared during this onboarding process.
+              </p>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

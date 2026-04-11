@@ -53,6 +53,10 @@ export default function BorrowerDetail() {
   const [offerLetters, setOfferLetters] = useState<any[]>([]);
   const [offerLetterWizardOpen, setOfferLetterWizardOpen] = useState(false);
   const [msaSigned, setMsaSigned] = useState(false);
+  const [counterparties, setCounterparties] = useState<any[]>([]);
+  const [cpDialog, setCpDialog] = useState(false);
+  const [cpForm, setCpForm] = useState({ company_name: "", contact_email: "", contact_name: "", contact_phone: "", registration_number: "", country: "" });
+  const [cpSaving, setCpSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [companyData, setCompanyData] = useState<CompanyFormData>({ ...emptyCompanyForm });
@@ -144,6 +148,13 @@ export default function BorrowerDetail() {
       .eq("borrower_id", id!)
       .order("created_at", { ascending: false });
     setOfferLetters(ols || []);
+
+    // Fetch counterparties for this borrower
+    const { data: cpLinks } = await supabase
+      .from("borrower_counterparties")
+      .select("counterparty_id, counterparties(id, company_name, contact_email, contact_name, contact_phone, registration_number, country, created_at)")
+      .eq("borrower_id", id!);
+    setCounterparties((cpLinks || []).map((l: any) => l.counterparties).filter(Boolean));
 
     if (b) {
       setBorrower(b);
@@ -482,6 +493,7 @@ export default function BorrowerDetail() {
             <TabsTrigger value="credit-memo" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Credit Memo</TabsTrigger>
             <TabsTrigger value="contracts" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Contracts</TabsTrigger>
             <TabsTrigger value="offer_letters" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Offer Letters</TabsTrigger>
+            <TabsTrigger value="counterparties" className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" /> Counterparties</TabsTrigger>
           </TabsList>
 
           {/* Company Tab */}
@@ -889,8 +901,117 @@ export default function BorrowerDetail() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Counterparties Tab */}
+          <TabsContent value="counterparties" className="mt-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-primary" /> Counterparties / Debtors
+                    </CardTitle>
+                    <CardDescription>Buyers and trading partners associated with this borrower's invoices.</CardDescription>
+                  </div>
+                  <Button size="sm" onClick={() => setCpDialog(true)}><Plus className="mr-2 h-3.5 w-3.5" />Add Counterparty</Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {counterparties.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-8 text-center bg-muted/20">
+                    <p className="text-sm font-medium">No counterparties yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Add the debtors/buyers this borrower trades with.</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Company Name</TableHead>
+                        <TableHead>Registration No.</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Country</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {counterparties.map((cp: any) => (
+                        <TableRow key={cp.id}>
+                          <TableCell className="font-medium text-sm">{cp.company_name}</TableCell>
+                          <TableCell className="text-xs font-mono text-muted-foreground">{cp.registration_number || "—"}</TableCell>
+                          <TableCell className="text-xs">{cp.contact_name || "—"}</TableCell>
+                          <TableCell className="text-xs">{cp.contact_email}</TableCell>
+                          <TableCell className="text-xs">{cp.country || "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
+
+      {/* Counterparty Dialog */}
+      <Dialog open={cpDialog} onOpenChange={setCpDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Add Counterparty</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Company Name *</Label>
+              <Input value={cpForm.company_name} onChange={e => setCpForm(f => ({...f, company_name: e.target.value}))} className="mt-1" placeholder="Buyer / Debtor company name" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Registration Number</Label>
+                <Input value={cpForm.registration_number} onChange={e => setCpForm(f => ({...f, registration_number: e.target.value}))} className="mt-1" placeholder="e.g. 12345678" />
+              </div>
+              <div>
+                <Label className="text-xs">Country</Label>
+                <Input value={cpForm.country} onChange={e => setCpForm(f => ({...f, country: e.target.value}))} className="mt-1" placeholder="United Kingdom" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Contact Name</Label>
+              <Input value={cpForm.contact_name} onChange={e => setCpForm(f => ({...f, contact_name: e.target.value}))} className="mt-1" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Contact Email *</Label>
+                <Input type="email" value={cpForm.contact_email} onChange={e => setCpForm(f => ({...f, contact_email: e.target.value}))} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">Contact Phone</Label>
+                <Input type="tel" value={cpForm.contact_phone} onChange={e => setCpForm(f => ({...f, contact_phone: e.target.value}))} className="mt-1" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCpDialog(false)}>Cancel</Button>
+            <Button disabled={cpSaving || !cpForm.company_name || !cpForm.contact_email} onClick={async () => {
+              setCpSaving(true);
+              const orgId = profile?.organization_id;
+              if (!orgId) { toast.error("No organization"); setCpSaving(false); return; }
+              // Upsert counterparty
+              const { data: existing } = await supabase.from("counterparties").select("id")
+                .eq("organization_id", orgId).eq("contact_email", cpForm.contact_email).maybeSingle();
+              let cpId = existing?.id;
+              if (!cpId) {
+                const { data: created, error: cpErr } = await supabase.from("counterparties").insert({ ...cpForm, organization_id: orgId }).select("id").single();
+                if (cpErr) { toast.error(cpErr.message); setCpSaving(false); return; }
+                cpId = created.id;
+              }
+              // Link to borrower
+              const { error: linkErr } = await supabase.from("borrower_counterparties").upsert({ borrower_id: id!, counterparty_id: cpId, organization_id: orgId }, { onConflict: "borrower_id,counterparty_id" });
+              if (linkErr) { toast.error(linkErr.message); } else { toast.success("Counterparty added"); setCpDialog(false); setCpForm({ company_name: "", contact_email: "", contact_name: "", contact_phone: "", registration_number: "", country: "" }); loadAll(); }
+              setCpSaving(false);
+            }}>
+              {cpSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+              Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Status Change Dialog */}
       <Dialog open={statusDialog} onOpenChange={setStatusDialog}>
