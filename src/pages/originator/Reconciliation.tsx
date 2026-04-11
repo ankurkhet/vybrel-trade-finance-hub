@@ -114,7 +114,7 @@ export default function Reconciliation() {
         .upload(filePath, file);
       if (uploadErr) throw uploadErr;
 
-      const { data: uploadRow, error: insertErr } = await supabase
+      const { data: uploadRow, error: insertErr } = await (supabase as any)
         .from("bank_statement_uploads")
         .insert({
           file_path: filePath,
@@ -160,7 +160,7 @@ export default function Reconciliation() {
 
   // ── Manual match for an unmatched line ───────────────────────────────────
   const handleManualMatch = async (matchId: string, paymentInstructionId: string) => {
-    await supabase
+    await (supabase as any)
       .from("reconciliation_matches")
       .update({
         match_type: "manually_matched",
