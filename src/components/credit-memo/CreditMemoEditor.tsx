@@ -131,7 +131,6 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
         borrowerId,
         organizationId,
         transactionType: "trade_finance",
-        facilityRequestId: selectedFacilityId || undefined,
       });
       await fetchMemos();
       toast.success(isNew ? "New credit memo created" : "Credit memo generated successfully");

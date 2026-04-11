@@ -143,13 +143,12 @@ export default function Invoices() {
       shipping_validation_status: "verified",
     } as any).eq("id", invoiceId);
     await supabase.from("audit_logs").insert({
-      organization_id: profile?.organization_id,
       user_id: profile?.user_id,
       action: "goods_verified",
-      table_name: "invoices",
-      record_id: invoiceId,
-      new_values: { goods_verified_at: new Date().toISOString() },
-    });
+      resource_type: "invoice",
+      resource_id: invoiceId,
+      details: { goods_verified_at: new Date().toISOString() },
+    } as any);
     toast.success("Goods verified");
     setReviewInvoice(null);
     fetchInvoices();

@@ -44,7 +44,7 @@ export default function Brokers() {
   const fetchBrokers = async () => {
     if (!profile?.organization_id) return;
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("brokers")
       .select("*")
       .eq("organization_id", profile.organization_id)
@@ -58,7 +58,7 @@ export default function Brokers() {
   const handleAdd = async () => {
     if (!profile?.organization_id) return;
     setSaving(true);
-    const { error } = await supabase.from("brokers").insert({
+    const { error } = await (supabase as any).from("brokers").insert({
       organization_id: profile.organization_id,
       company_name: form.company_name,
       trading_name: form.trading_name || null,
@@ -77,7 +77,7 @@ export default function Brokers() {
 
   const updateKybStatus = async (id: string, status: string) => {
     const user = (await supabase.auth.getUser()).data.user;
-    const { error } = await supabase.from("brokers").update({
+    const { error } = await (supabase as any).from("brokers").update({
       kyb_status: status,
       kyb_reviewed_at: new Date().toISOString(),
       kyb_reviewed_by: user?.id,

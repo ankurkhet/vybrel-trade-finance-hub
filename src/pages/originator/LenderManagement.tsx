@@ -432,6 +432,11 @@ export default function LenderManagement() {
                                   margin_reverse_factoring: terms ? String(terms.margin_reverse_factoring) : "0.50",
                                   margin_payable_finance: terms ? String(terms.margin_payable_finance) : "0.50",
                                   effective_date: new Date().toISOString().split('T')[0],
+                                  scope: terms?.scope || "all_borrowers",
+                                  interoperability_allowed: terms?.interoperability_allowed ?? false,
+                                  interoperability_max_pct: terms?.interoperability_max_pct ? String(terms.interoperability_max_pct) : "0",
+                                  requires_funder_approval: terms?.requires_funder_approval ?? false,
+                                  max_allocation_per_borrower: terms?.max_allocation_per_borrower ? String(terms.max_allocation_per_borrower) : "100",
                                 });
                                 setFunderDialog(f);
                               }}>

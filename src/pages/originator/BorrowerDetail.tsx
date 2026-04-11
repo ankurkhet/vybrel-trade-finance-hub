@@ -161,7 +161,7 @@ export default function BorrowerDetail() {
 
       // 4. Upsert document_acceptances for the borrower's user if known
       if (borrower?.user_id) {
-        await supabase.from("document_acceptances").upsert({
+        await (supabase as any).from("document_acceptances").upsert({
           user_id: borrower.user_id,
           document_type: "nda",
           accepted_at: new Date().toISOString(),

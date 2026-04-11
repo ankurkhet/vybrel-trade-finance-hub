@@ -499,8 +499,8 @@ export default function RegistryApis() {
                 const unknown   = items.filter(a => a.health_status === "unknown" && a.is_active);
 
                 // Auto-expand all sections by default; only collapse fully-inactive sections
-                const defaultOpen = !allInactive || unhealthy.length > 0;
                 const allInactive = items.every(a => !a.is_active);
+                const defaultOpen = !allInactive || unhealthy.length > 0;
 
                 return (
                   <PlatformApiSection

@@ -63,12 +63,12 @@ export default function Reconciliation() {
 
   const fetchUploads = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("bank_statement_uploads")
       .select("*")
       .is("disbursement_advice_id", null)   // only general recon uploads, not advice-specific
       .order("created_at", { ascending: false });
-    setUploads((data || []) as UploadRow[]);
+    setUploads(((data || []) as any) as UploadRow[]);
     setLoading(false);
   }, []);
 
@@ -89,12 +89,12 @@ export default function Reconciliation() {
 
   const fetchMatches = async (uploadId: string) => {
     setMatchesLoading(true);
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("reconciliation_matches")
       .select("*")
       .eq("bank_statement_upload_id", uploadId)
       .order("statement_line_index");
-    setMatches((data || []) as MatchRow[]);
+    setMatches(((data || []) as any) as MatchRow[]);
     setMatchesLoading(false);
   };
 
