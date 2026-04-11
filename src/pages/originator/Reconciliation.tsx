@@ -133,7 +133,7 @@ export default function Reconciliation() {
       toast.success("File uploaded. Running reconciliation...");
 
       const { error: fnErr } = await supabase.functions.invoke("reconcile-bank-statement", {
-        body: { bank_statement_upload_id: uploadRow.id },
+        body: { bank_statement_upload_id: (uploadRow as any).id },
       });
 
       if (fnErr) {
