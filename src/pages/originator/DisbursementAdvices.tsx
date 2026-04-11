@@ -61,7 +61,7 @@ export function DisbursementAdvicesContent() {
 
   const fetchAdvices = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("disbursement_advices")
       .select(`
         *,
@@ -99,7 +99,7 @@ export function DisbursementAdvicesContent() {
       if (uploadErr) throw uploadErr;
 
       // Insert bank_statement_uploads row and link to advice
-      const { data: upload, error: insertErr } = await supabase
+      const { data: upload, error: insertErr } = await (supabase as any)
         .from("bank_statement_uploads")
         .insert({
           organization_id: selectedAdvice.disbursement_memos?.invoices ? undefined : undefined,
@@ -115,7 +115,7 @@ export function DisbursementAdvicesContent() {
       if (insertErr) throw insertErr;
 
       // Update advice with statement path
-      await supabase
+      await (supabase as any)
         .from("disbursement_advices")
         .update({
           bank_statement_path: filePath,
@@ -131,7 +131,7 @@ export function DisbursementAdvicesContent() {
       const { error: reconErr } = await supabase.functions.invoke("reconcile-bank-statement", {
         body: {
           bank_statement_upload_id: upload.id,
-          disbursement_advice_id: selectedAdvice.id,
+          disbursement_advice_id: (selectedAdvice as any).id,
           disbursement_amount: selectedAdvice.disbursement_memos?.disbursement_amount,
         },
       });
@@ -144,7 +144,7 @@ export function DisbursementAdvicesContent() {
 
       await fetchAdvices();
       // Refresh selected advice
-      const { data: refreshed } = await supabase
+      const { data: refreshed } = await (supabase as any)
         .from("disbursement_advices")
         .select(`*, disbursement_memos(*, invoices(*))`)
         .eq("id", selectedAdvice.id)
@@ -166,7 +166,7 @@ export function DisbursementAdvicesContent() {
         `MANUAL-${Date.now()}`;
 
       // Mark advice completed
-      await supabase
+      await (supabase as any)
         .from("disbursement_advices")
         .update({
           status: "completed",
@@ -193,7 +193,7 @@ export function DisbursementAdvicesContent() {
         const amount = Number(selectedAdvice.disbursement_memos?.disbursement_amount || 0);
         const currency = selectedAdvice.disbursement_memos?.currency || "GBP";
 
-        const { error: journalErr } = await supabase.rpc("post_journal_batch", {
+        const { error: journalErr } = await (supabase as any).rpc("post_journal_batch", {
           entries: [
             {
               organization_id: null, // service role resolves from memo
@@ -223,9 +223,9 @@ export function DisbursementAdvicesContent() {
         if (journalErr) {
           toast.error(`Journals failed: ${journalErr.message}`);
         } else {
-          await supabase
+          await (supabase as any)
             .from("disbursement_memos")
-            .update({ journals_posted: true })
+            .update({ journals_posted: true } as any)
             .eq("id", memoId);
         }
       }

@@ -35,7 +35,7 @@ function ProductsTab() {
   useEffect(() => {
     if (!profile?.organization_id) return;
     setLoading(true);
-    supabase
+    (supabase as any)
       .from("org_active_products")
       .select("*")
       .eq("organization_id", profile.organization_id)
@@ -46,7 +46,7 @@ function ProductsTab() {
   const toggleProduct = async (product: any) => {
     setSaving(product.id);
     const newActive = !product.is_active;
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("org_active_products")
       .update({
         is_active: newActive,
@@ -126,7 +126,7 @@ function BankAccountsTab() {
   const fetchAccounts = async () => {
     if (!profile?.organization_id) return;
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("bank_accounts")
       .select("*")
       .eq("organization_id", profile.organization_id)
@@ -152,7 +152,7 @@ function BankAccountsTab() {
   const handleAdd = async () => {
     if (!profile?.organization_id) return;
     setSaving(true);
-    const { error } = await supabase.from("bank_accounts").insert({
+    const { error } = await (supabase as any).from("bank_accounts").insert({
       organization_id: profile.organization_id,
       actor_type: "originator",
       actor_id: profile.organization_id,
@@ -165,7 +165,7 @@ function BankAccountsTab() {
 
   const handleVerify = async (id: string) => {
     const user = (await supabase.auth.getUser()).data.user;
-    const { error } = await supabase.from("bank_accounts").update({
+    const { error } = await (supabase as any).from("bank_accounts").update({
       verification_status: "verified",
       verified_at: new Date().toISOString(),
       verified_by: user?.id,

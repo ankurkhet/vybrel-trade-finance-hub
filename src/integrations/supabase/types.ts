@@ -1,4 +1,3 @@
-Initialising login role...
 export type Json =
   | string
   | number
@@ -12,31 +11,6 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.4"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
   }
   public: {
     Tables: {
@@ -140,7 +114,6 @@ export type Database = {
           details: Json | null
           id: string
           ip_address: string | null
-          organization_id: string | null
           resource_id: string | null
           resource_type: string
           user_agent: string | null
@@ -153,7 +126,6 @@ export type Database = {
           details?: Json | null
           id?: string
           ip_address?: string | null
-          organization_id?: string | null
           resource_id?: string | null
           resource_type: string
           user_agent?: string | null
@@ -166,236 +138,13 @@ export type Database = {
           details?: Json | null
           id?: string
           ip_address?: string | null
-          organization_id?: string | null
           resource_id?: string | null
           resource_type?: string
           user_agent?: string | null
           user_email?: string | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "audit_logs_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      bank_accounts: {
-        Row: {
-          account_name: string
-          account_number: string | null
-          actor_id: string
-          actor_type: string
-          bank_name: string | null
-          bic_swift: string | null
-          created_at: string
-          currency: string
-          fee_wallet: string | null
-          iban: string | null
-          id: string
-          is_active: boolean
-          is_primary: boolean
-          organization_id: string
-          sort_code: string | null
-          truelayer_result: Json | null
-          updated_at: string
-          verification_method: string | null
-          verification_notes: string | null
-          verification_status: string
-          verified_at: string | null
-          verified_by: string | null
-        }
-        Insert: {
-          account_name: string
-          account_number?: string | null
-          actor_id: string
-          actor_type: string
-          bank_name?: string | null
-          bic_swift?: string | null
-          created_at?: string
-          currency?: string
-          fee_wallet?: string | null
-          iban?: string | null
-          id?: string
-          is_active?: boolean
-          is_primary?: boolean
-          organization_id: string
-          sort_code?: string | null
-          truelayer_result?: Json | null
-          updated_at?: string
-          verification_method?: string | null
-          verification_notes?: string | null
-          verification_status?: string
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Update: {
-          account_name?: string
-          account_number?: string | null
-          actor_id?: string
-          actor_type?: string
-          bank_name?: string | null
-          bic_swift?: string | null
-          created_at?: string
-          currency?: string
-          fee_wallet?: string | null
-          iban?: string | null
-          id?: string
-          is_active?: boolean
-          is_primary?: boolean
-          organization_id?: string
-          sort_code?: string | null
-          truelayer_result?: Json | null
-          updated_at?: string
-          verification_method?: string | null
-          verification_notes?: string | null
-          verification_status?: string
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bank_accounts_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      bank_statement_uploads: {
-        Row: {
-          created_at: string
-          disbursement_advice_id: string | null
-          error_message: string | null
-          exception_lines: number | null
-          file_name: string
-          file_path: string
-          file_type: string
-          id: string
-          matched_lines: number | null
-          organization_id: string
-          parsed_lines: Json | null
-          processed_at: string | null
-          statement_from_date: string | null
-          statement_to_date: string | null
-          status: string
-          total_lines: number | null
-          unmatched_lines: number | null
-          upload_date: string
-          uploaded_by: string | null
-        }
-        Insert: {
-          created_at?: string
-          disbursement_advice_id?: string | null
-          error_message?: string | null
-          exception_lines?: number | null
-          file_name: string
-          file_path: string
-          file_type: string
-          id?: string
-          matched_lines?: number | null
-          organization_id: string
-          parsed_lines?: Json | null
-          processed_at?: string | null
-          statement_from_date?: string | null
-          statement_to_date?: string | null
-          status?: string
-          total_lines?: number | null
-          unmatched_lines?: number | null
-          upload_date?: string
-          uploaded_by?: string | null
-        }
-        Update: {
-          created_at?: string
-          disbursement_advice_id?: string | null
-          error_message?: string | null
-          exception_lines?: number | null
-          file_name?: string
-          file_path?: string
-          file_type?: string
-          id?: string
-          matched_lines?: number | null
-          organization_id?: string
-          parsed_lines?: Json | null
-          processed_at?: string | null
-          statement_from_date?: string | null
-          statement_to_date?: string | null
-          status?: string
-          total_lines?: number | null
-          unmatched_lines?: number | null
-          upload_date?: string
-          uploaded_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bank_statement_uploads_disbursement_advice_id_fkey"
-            columns: ["disbursement_advice_id"]
-            isOneToOne: false
-            referencedRelation: "disbursement_advices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bank_statement_uploads_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      bank_statement_verifications: {
-        Row: {
-          assigned_to_role: string | null
-          created_at: string | null
-          id: string
-          notes: string | null
-          organization_id: string
-          reference_id: string | null
-          statement_file_url: string | null
-          status: string | null
-          task_type: string
-          verified_at: string | null
-          verified_by: string | null
-        }
-        Insert: {
-          assigned_to_role?: string | null
-          created_at?: string | null
-          id?: string
-          notes?: string | null
-          organization_id: string
-          reference_id?: string | null
-          statement_file_url?: string | null
-          status?: string | null
-          task_type: string
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Update: {
-          assigned_to_role?: string | null
-          created_at?: string | null
-          id?: string
-          notes?: string | null
-          organization_id?: string
-          reference_id?: string | null
-          statement_file_url?: string | null
-          status?: string | null
-          task_type?: string
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bank_statement_verifications_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       borrower_counterparties: {
         Row: {
@@ -587,9 +336,7 @@ export type Database = {
           contact_phone: string | null
           country: string | null
           created_at: string
-          created_by: string | null
           credit_limit: number | null
-          deleted_at: string | null
           funding_status: string | null
           has_credit_facilities: boolean | null
           id: string
@@ -636,9 +383,7 @@ export type Database = {
           contact_phone?: string | null
           country?: string | null
           created_at?: string
-          created_by?: string | null
           credit_limit?: number | null
-          deleted_at?: string | null
           funding_status?: string | null
           has_credit_facilities?: boolean | null
           id?: string
@@ -685,9 +430,7 @@ export type Database = {
           contact_phone?: string | null
           country?: string | null
           created_at?: string
-          created_by?: string | null
           credit_limit?: number | null
-          deleted_at?: string | null
           funding_status?: string | null
           has_credit_facilities?: boolean | null
           id?: string
@@ -798,104 +541,15 @@ export type Database = {
           },
         ]
       }
-      brokers: {
-        Row: {
-          company_name: string
-          contact_email: string
-          contact_name: string | null
-          contact_phone: string | null
-          country: string | null
-          created_at: string
-          fee_currency: string | null
-          fee_pct: number
-          id: string
-          industry: string | null
-          kyb_notes: string | null
-          kyb_reviewed_at: string | null
-          kyb_reviewed_by: string | null
-          kyb_status: string
-          metadata: Json | null
-          nda_accepted: boolean
-          nda_accepted_at: string | null
-          organization_id: string
-          registration_number: string | null
-          scope: string
-          trading_name: string | null
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          company_name: string
-          contact_email: string
-          contact_name?: string | null
-          contact_phone?: string | null
-          country?: string | null
-          created_at?: string
-          fee_currency?: string | null
-          fee_pct?: number
-          id?: string
-          industry?: string | null
-          kyb_notes?: string | null
-          kyb_reviewed_at?: string | null
-          kyb_reviewed_by?: string | null
-          kyb_status?: string
-          metadata?: Json | null
-          nda_accepted?: boolean
-          nda_accepted_at?: string | null
-          organization_id: string
-          registration_number?: string | null
-          scope?: string
-          trading_name?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          company_name?: string
-          contact_email?: string
-          contact_name?: string | null
-          contact_phone?: string | null
-          country?: string | null
-          created_at?: string
-          fee_currency?: string | null
-          fee_pct?: number
-          id?: string
-          industry?: string | null
-          kyb_notes?: string | null
-          kyb_reviewed_at?: string | null
-          kyb_reviewed_by?: string | null
-          kyb_status?: string
-          metadata?: Json | null
-          nda_accepted?: boolean
-          nda_accepted_at?: string | null
-          organization_id?: string
-          registration_number?: string | null
-          scope?: string
-          trading_name?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "brokers_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       collections: {
         Row: {
           collected_amount: number
           collection_date: string
-          collection_number: string | null
           confirmed_at: string | null
           confirmed_by: string | null
           created_at: string
-          created_by: string | null
           currency: string
           debtor_name: string | null
-          deleted_at: string | null
           id: string
           invoice_id: string
           metadata: Json | null
@@ -908,14 +562,11 @@ export type Database = {
         Insert: {
           collected_amount: number
           collection_date?: string
-          collection_number?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
-          created_by?: string | null
           currency?: string
           debtor_name?: string | null
-          deleted_at?: string | null
           id?: string
           invoice_id: string
           metadata?: Json | null
@@ -928,14 +579,11 @@ export type Database = {
         Update: {
           collected_amount?: number
           collection_date?: string
-          collection_number?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
-          created_by?: string | null
           currency?: string
           debtor_name?: string | null
-          deleted_at?: string | null
           id?: string
           invoice_id?: string
           metadata?: Json | null
@@ -977,7 +625,6 @@ export type Database = {
           risk_flags: Json | null
           start_date: string | null
           status: string
-          template_id: string | null
           terms_summary: Json | null
           title: string
           updated_at: string
@@ -996,7 +643,6 @@ export type Database = {
           risk_flags?: Json | null
           start_date?: string | null
           status?: string
-          template_id?: string | null
           terms_summary?: Json | null
           title: string
           updated_at?: string
@@ -1015,7 +661,6 @@ export type Database = {
           risk_flags?: Json | null
           start_date?: string | null
           status?: string
-          template_id?: string | null
           terms_summary?: Json | null
           title?: string
           updated_at?: string
@@ -1040,13 +685,6 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contracts_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "document_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -1098,96 +736,13 @@ export type Database = {
           },
         ]
       }
-      counterparty_sub_limits: {
-        Row: {
-          advance_rate_override: number | null
-          counterparty_id: string
-          counterparty_name: string | null
-          created_at: string
-          currency: string
-          facility_funder_allocation_id: string | null
-          facility_id: string
-          id: string
-          max_invoice_amount: number | null
-          organization_id: string
-          status: string
-          sub_limit_amount: number
-          updated_at: string
-        }
-        Insert: {
-          advance_rate_override?: number | null
-          counterparty_id: string
-          counterparty_name?: string | null
-          created_at?: string
-          currency?: string
-          facility_funder_allocation_id?: string | null
-          facility_id: string
-          id?: string
-          max_invoice_amount?: number | null
-          organization_id: string
-          status?: string
-          sub_limit_amount: number
-          updated_at?: string
-        }
-        Update: {
-          advance_rate_override?: number | null
-          counterparty_id?: string
-          counterparty_name?: string | null
-          created_at?: string
-          currency?: string
-          facility_funder_allocation_id?: string | null
-          facility_id?: string
-          id?: string
-          max_invoice_amount?: number | null
-          organization_id?: string
-          status?: string
-          sub_limit_amount?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "counterparty_sub_limits_facility_funder_allocation_id_fkey"
-            columns: ["facility_funder_allocation_id"]
-            isOneToOne: false
-            referencedRelation: "facility_funder_allocations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "counterparty_sub_limits_facility_funder_allocation_id_fkey"
-            columns: ["facility_funder_allocation_id"]
-            isOneToOne: false
-            referencedRelation: "funder_allocation_utilisation"
-            referencedColumns: ["allocation_id"]
-          },
-          {
-            foreignKeyName: "counterparty_sub_limits_facility_id_fkey"
-            columns: ["facility_id"]
-            isOneToOne: false
-            referencedRelation: "facilities"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "counterparty_sub_limits_facility_id_fkey"
-            columns: ["facility_id"]
-            isOneToOne: false
-            referencedRelation: "facility_utilisation"
-            referencedColumns: ["facility_id"]
-          },
-          {
-            foreignKeyName: "counterparty_sub_limits_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       credit_committee_applications: {
         Row: {
           application_number: string | null
           borrower_id: string | null
           created_at: string
           created_by: string | null
+          credit_memo_id: string | null
           debtor_name: string | null
           decision: string | null
           decision_notes: string | null
@@ -1199,6 +754,7 @@ export type Database = {
           status: string
           submitted_at: string | null
           type: string
+          type_enum: Database["public"]["Enums"]["application_type"] | null
           updated_at: string
         }
         Insert: {
@@ -1206,6 +762,7 @@ export type Database = {
           borrower_id?: string | null
           created_at?: string
           created_by?: string | null
+          credit_memo_id?: string | null
           debtor_name?: string | null
           decision?: string | null
           decision_notes?: string | null
@@ -1217,6 +774,7 @@ export type Database = {
           status?: string
           submitted_at?: string | null
           type: string
+          type_enum?: Database["public"]["Enums"]["application_type"] | null
           updated_at?: string
         }
         Update: {
@@ -1224,6 +782,7 @@ export type Database = {
           borrower_id?: string | null
           created_at?: string
           created_by?: string | null
+          credit_memo_id?: string | null
           debtor_name?: string | null
           decision?: string | null
           decision_notes?: string | null
@@ -1235,6 +794,7 @@ export type Database = {
           status?: string
           submitted_at?: string | null
           type?: string
+          type_enum?: Database["public"]["Enums"]["application_type"] | null
           updated_at?: string
         }
         Relationships: [
@@ -1243,6 +803,13 @@ export type Database = {
             columns: ["borrower_id"]
             isOneToOne: false
             referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_committee_applications_credit_memo_id_fkey"
+            columns: ["credit_memo_id"]
+            isOneToOne: false
+            referencedRelation: "credit_memos"
             referencedColumns: ["id"]
           },
           {
@@ -1416,6 +983,132 @@ export type Database = {
           },
         ]
       }
+      credit_committee_votes: {
+        Row: {
+          application_id: string
+          conditions_text: string | null
+          created_at: string
+          id: string
+          product_limits: Json | null
+          user_id: string
+          vote: Database["public"]["Enums"]["cc_vote_type"]
+          voted_at: string
+        }
+        Insert: {
+          application_id: string
+          conditions_text?: string | null
+          created_at?: string
+          id?: string
+          product_limits?: Json | null
+          user_id: string
+          vote: Database["public"]["Enums"]["cc_vote_type"]
+          voted_at?: string
+        }
+        Update: {
+          application_id?: string
+          conditions_text?: string | null
+          created_at?: string
+          id?: string
+          product_limits?: Json | null
+          user_id?: string
+          vote?: Database["public"]["Enums"]["cc_vote_type"]
+          voted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_committee_votes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "credit_committee_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_limit_recommendations: {
+        Row: {
+          application_id: string
+          borrower_id: string
+          counterparty_limits: Json | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          limit_payables_finance: number | null
+          limit_receivables_purchase: number | null
+          limit_reverse_factoring: number | null
+          organization_id: string
+          recommended_overall_limit: number
+          recommended_rate: number | null
+          risk_grade: string | null
+          status: Database["public"]["Enums"]["recommendation_status"]
+          updated_at: string
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          application_id: string
+          borrower_id: string
+          counterparty_limits?: Json | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          limit_payables_finance?: number | null
+          limit_receivables_purchase?: number | null
+          limit_reverse_factoring?: number | null
+          organization_id: string
+          recommended_overall_limit?: number
+          recommended_rate?: number | null
+          risk_grade?: string | null
+          status?: Database["public"]["Enums"]["recommendation_status"]
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          application_id?: string
+          borrower_id?: string
+          counterparty_limits?: Json | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          limit_payables_finance?: number | null
+          limit_receivables_purchase?: number | null
+          limit_reverse_factoring?: number | null
+          organization_id?: string
+          recommended_overall_limit?: number
+          recommended_rate?: number | null
+          risk_grade?: string | null
+          status?: Database["public"]["Enums"]["recommendation_status"]
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_limit_recommendations_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "credit_committee_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_limit_recommendations_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "borrowers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_limit_recommendations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       credit_memos: {
         Row: {
           ai_analysis_id: string | null
@@ -1430,6 +1123,7 @@ export type Database = {
           id: string
           memo_number: string | null
           organization_id: string
+          product_limits: Json | null
           recommended_limit: number | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -1451,6 +1145,7 @@ export type Database = {
           id?: string
           memo_number?: string | null
           organization_id: string
+          product_limits?: Json | null
           recommended_limit?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -1472,6 +1167,7 @@ export type Database = {
           id?: string
           memo_number?: string | null
           organization_id?: string
+          product_limits?: Json | null
           recommended_limit?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -1528,75 +1224,6 @@ export type Database = {
         }
         Relationships: []
       }
-      disbursement_advices: {
-        Row: {
-          advice_number: string
-          ai_match_result: Json | null
-          bank_statement_path: string | null
-          bank_statement_uploaded_at: string | null
-          bank_statement_uploaded_by: string | null
-          completed_at: string | null
-          completed_by: string | null
-          created_at: string
-          disbursement_memo_id: string
-          id: string
-          notes: string | null
-          organization_id: string
-          payment_reference: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          advice_number: string
-          ai_match_result?: Json | null
-          bank_statement_path?: string | null
-          bank_statement_uploaded_at?: string | null
-          bank_statement_uploaded_by?: string | null
-          completed_at?: string | null
-          completed_by?: string | null
-          created_at?: string
-          disbursement_memo_id: string
-          id?: string
-          notes?: string | null
-          organization_id: string
-          payment_reference?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          advice_number?: string
-          ai_match_result?: Json | null
-          bank_statement_path?: string | null
-          bank_statement_uploaded_at?: string | null
-          bank_statement_uploaded_by?: string | null
-          completed_at?: string | null
-          completed_by?: string | null
-          created_at?: string
-          disbursement_memo_id?: string
-          id?: string
-          notes?: string | null
-          organization_id?: string
-          payment_reference?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "disbursement_advices_disbursement_memo_id_fkey"
-            columns: ["disbursement_memo_id"]
-            isOneToOne: false
-            referencedRelation: "disbursement_memos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "disbursement_advices_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       disbursement_memos: {
         Row: {
           advance_amount: number
@@ -1604,35 +1231,28 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           borrower_id: string
-          borrower_requested_amount: number | null
           counterparty_name: string | null
           created_at: string
-          created_by: string | null
-          deleted_at: string | null
           disbursed_at: string | null
           disbursement_amount: number
-          disbursement_mode: string
           facility_request_id: string | null
           funder_fee: number | null
-          funder_limit_id: string | null
           funder_name: string | null
-          funder_user_id: string | null
           id: string
           invoice_date: string | null
           invoice_due_date: string | null
           invoice_id: string
           invoice_number: string | null
           invoice_value: number
-          journals_posted: boolean
           memo_number: string | null
           metadata: Json | null
           organization_id: string
           originator_fee: number | null
           payment_date: string | null
           payment_reference: string | null
-          psp_payment_instruction_id: string | null
           retained_amount: number
           status: string
+          status_enum: Database["public"]["Enums"]["disbursement_status"] | null
           total_fee: number | null
           updated_at: string
         }
@@ -1642,35 +1262,30 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           borrower_id: string
-          borrower_requested_amount?: number | null
           counterparty_name?: string | null
           created_at?: string
-          created_by?: string | null
-          deleted_at?: string | null
           disbursed_at?: string | null
           disbursement_amount: number
-          disbursement_mode?: string
           facility_request_id?: string | null
           funder_fee?: number | null
-          funder_limit_id?: string | null
           funder_name?: string | null
-          funder_user_id?: string | null
           id?: string
           invoice_date?: string | null
           invoice_due_date?: string | null
           invoice_id: string
           invoice_number?: string | null
           invoice_value: number
-          journals_posted?: boolean
           memo_number?: string | null
           metadata?: Json | null
           organization_id: string
           originator_fee?: number | null
           payment_date?: string | null
           payment_reference?: string | null
-          psp_payment_instruction_id?: string | null
           retained_amount: number
           status?: string
+          status_enum?:
+            | Database["public"]["Enums"]["disbursement_status"]
+            | null
           total_fee?: number | null
           updated_at?: string
         }
@@ -1680,35 +1295,30 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           borrower_id?: string
-          borrower_requested_amount?: number | null
           counterparty_name?: string | null
           created_at?: string
-          created_by?: string | null
-          deleted_at?: string | null
           disbursed_at?: string | null
           disbursement_amount?: number
-          disbursement_mode?: string
           facility_request_id?: string | null
           funder_fee?: number | null
-          funder_limit_id?: string | null
           funder_name?: string | null
-          funder_user_id?: string | null
           id?: string
           invoice_date?: string | null
           invoice_due_date?: string | null
           invoice_id?: string
           invoice_number?: string | null
           invoice_value?: number
-          journals_posted?: boolean
           memo_number?: string | null
           metadata?: Json | null
           organization_id?: string
           originator_fee?: number | null
           payment_date?: string | null
           payment_reference?: string | null
-          psp_payment_instruction_id?: string | null
           retained_amount?: number
           status?: string
+          status_enum?:
+            | Database["public"]["Enums"]["disbursement_status"]
+            | null
           total_fee?: number | null
           updated_at?: string
         }
@@ -1728,13 +1338,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "disbursement_memos_funder_limit_id_fkey"
-            columns: ["funder_limit_id"]
-            isOneToOne: false
-            referencedRelation: "funder_limits"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "disbursement_memos_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
@@ -1748,116 +1351,44 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "disbursement_memos_psp_payment_instruction_id_fkey"
-            columns: ["psp_payment_instruction_id"]
-            isOneToOne: false
-            referencedRelation: "payment_instructions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      document_acceptances: {
-        Row: {
-          acceptance_method: string
-          accepted_at: string
-          actor_email: string | null
-          actor_id: string
-          actor_type: string
-          document_hash: string | null
-          document_template_id: string | null
-          document_type: string
-          document_version: string
-          id: string
-          ip_address: string | null
-          organization_id: string | null
-          revoked_at: string | null
-          revoked_by: string | null
-          revoked_reason: string | null
-          user_agent: string | null
-          user_id: string | null
-        }
-        Insert: {
-          acceptance_method?: string
-          accepted_at?: string
-          actor_email?: string | null
-          actor_id: string
-          actor_type: string
-          document_hash?: string | null
-          document_template_id?: string | null
-          document_type: string
-          document_version?: string
-          id?: string
-          ip_address?: string | null
-          organization_id?: string | null
-          revoked_at?: string | null
-          revoked_by?: string | null
-          revoked_reason?: string | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          acceptance_method?: string
-          accepted_at?: string
-          actor_email?: string | null
-          actor_id?: string
-          actor_type?: string
-          document_hash?: string | null
-          document_template_id?: string | null
-          document_type?: string
-          document_version?: string
-          id?: string
-          ip_address?: string | null
-          organization_id?: string | null
-          revoked_at?: string | null
-          revoked_by?: string | null
-          revoked_reason?: string | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "document_acceptances_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
         ]
       }
       document_templates: {
         Row: {
-          created_at: string | null
-          file_path: string
+          content: string | null
+          created_at: string
+          created_by: string | null
+          file_path: string | null
           id: string
-          is_active: boolean | null
+          is_active: boolean
+          name: string
           organization_id: string
-          template_name: string
           template_type: string
-          updated_at: string | null
-          uploaded_by: string | null
+          updated_at: string
         }
         Insert: {
-          created_at?: string | null
-          file_path: string
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          file_path?: string | null
           id?: string
-          is_active?: boolean | null
+          is_active?: boolean
+          name: string
           organization_id: string
-          template_name: string
-          template_type: string
-          updated_at?: string | null
-          uploaded_by?: string | null
+          template_type?: string
+          updated_at?: string
         }
         Update: {
-          created_at?: string | null
-          file_path?: string
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          file_path?: string | null
           id?: string
-          is_active?: boolean | null
+          is_active?: boolean
+          name?: string
           organization_id?: string
-          template_name?: string
           template_type?: string
-          updated_at?: string | null
-          uploaded_by?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1966,277 +1497,25 @@ export type Database = {
           },
         ]
       }
-      facilities: {
-        Row: {
-          advance_rate: number | null
-          borrower_id: string
-          created_at: string | null
-          currency: string | null
-          final_advance_rate: number | null
-          final_discounting_rate: number | null
-          id: string
-          interoperability_allowed: boolean
-          interoperability_max_pct: number | null
-          max_invoice_amount: number | null
-          offer_letter_id: string | null
-          organization_id: string
-          overall_limit: number | null
-          overdue_fee_pct: number | null
-          platform_fee_pct: number | null
-          product_type: string | null
-          settlement_type: string | null
-          status: string | null
-          updated_at: string | null
-          valid_from: string | null
-          valid_to: string | null
-        }
-        Insert: {
-          advance_rate?: number | null
-          borrower_id: string
-          created_at?: string | null
-          currency?: string | null
-          final_advance_rate?: number | null
-          final_discounting_rate?: number | null
-          id?: string
-          interoperability_allowed?: boolean
-          interoperability_max_pct?: number | null
-          max_invoice_amount?: number | null
-          offer_letter_id?: string | null
-          organization_id: string
-          overall_limit?: number | null
-          overdue_fee_pct?: number | null
-          platform_fee_pct?: number | null
-          product_type?: string | null
-          settlement_type?: string | null
-          status?: string | null
-          updated_at?: string | null
-          valid_from?: string | null
-          valid_to?: string | null
-        }
-        Update: {
-          advance_rate?: number | null
-          borrower_id?: string
-          created_at?: string | null
-          currency?: string | null
-          final_advance_rate?: number | null
-          final_discounting_rate?: number | null
-          id?: string
-          interoperability_allowed?: boolean
-          interoperability_max_pct?: number | null
-          max_invoice_amount?: number | null
-          offer_letter_id?: string | null
-          organization_id?: string
-          overall_limit?: number | null
-          overdue_fee_pct?: number | null
-          platform_fee_pct?: number | null
-          product_type?: string | null
-          settlement_type?: string | null
-          status?: string | null
-          updated_at?: string | null
-          valid_from?: string | null
-          valid_to?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "facilities_offer_letter_id_fkey"
-            columns: ["offer_letter_id"]
-            isOneToOne: false
-            referencedRelation: "offer_letters"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "facilities_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      facility_funder_allocations: {
-        Row: {
-          advance_rate: number | null
-          allocated_limit: number
-          base_rate_type: string
-          base_rate_value: number
-          broker_margin: number
-          counterparty_id: string | null
-          created_at: string
-          currency: string
-          facility_id: string
-          final_discounting_rate: number | null
-          funder_approved_at: string | null
-          funder_approved_by: string | null
-          funder_margin: number
-          funder_user_id: string
-          id: string
-          organization_id: string
-          originator_margin: number
-          overdue_fee_pct: number | null
-          requires_funder_approval: boolean
-          scope: string
-          status: string
-          updated_at: string
-          valid_from: string | null
-          valid_to: string | null
-        }
-        Insert: {
-          advance_rate?: number | null
-          allocated_limit: number
-          base_rate_type?: string
-          base_rate_value?: number
-          broker_margin?: number
-          counterparty_id?: string | null
-          created_at?: string
-          currency?: string
-          facility_id: string
-          final_discounting_rate?: number | null
-          funder_approved_at?: string | null
-          funder_approved_by?: string | null
-          funder_margin?: number
-          funder_user_id: string
-          id?: string
-          organization_id: string
-          originator_margin?: number
-          overdue_fee_pct?: number | null
-          requires_funder_approval?: boolean
-          scope?: string
-          status?: string
-          updated_at?: string
-          valid_from?: string | null
-          valid_to?: string | null
-        }
-        Update: {
-          advance_rate?: number | null
-          allocated_limit?: number
-          base_rate_type?: string
-          base_rate_value?: number
-          broker_margin?: number
-          counterparty_id?: string | null
-          created_at?: string
-          currency?: string
-          facility_id?: string
-          final_discounting_rate?: number | null
-          funder_approved_at?: string | null
-          funder_approved_by?: string | null
-          funder_margin?: number
-          funder_user_id?: string
-          id?: string
-          organization_id?: string
-          originator_margin?: number
-          overdue_fee_pct?: number | null
-          requires_funder_approval?: boolean
-          scope?: string
-          status?: string
-          updated_at?: string
-          valid_from?: string | null
-          valid_to?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "facility_funder_allocations_facility_id_fkey"
-            columns: ["facility_id"]
-            isOneToOne: false
-            referencedRelation: "facilities"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "facility_funder_allocations_facility_id_fkey"
-            columns: ["facility_id"]
-            isOneToOne: false
-            referencedRelation: "facility_utilisation"
-            referencedColumns: ["facility_id"]
-          },
-          {
-            foreignKeyName: "facility_funder_allocations_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      facility_funder_pricing: {
-        Row: {
-          broker_margin: number | null
-          facility_id: string
-          final_discounting_rate: number | null
-          funder_base_rate: number | null
-          funder_margin: number | null
-          funder_user_id: string
-          id: string
-          originator_margin: number | null
-          valid_from: string | null
-          valid_to: string | null
-        }
-        Insert: {
-          broker_margin?: number | null
-          facility_id: string
-          final_discounting_rate?: number | null
-          funder_base_rate?: number | null
-          funder_margin?: number | null
-          funder_user_id: string
-          id?: string
-          originator_margin?: number | null
-          valid_from?: string | null
-          valid_to?: string | null
-        }
-        Update: {
-          broker_margin?: number | null
-          facility_id?: string
-          final_discounting_rate?: number | null
-          funder_base_rate?: number | null
-          funder_margin?: number | null
-          funder_user_id?: string
-          id?: string
-          originator_margin?: number | null
-          valid_from?: string | null
-          valid_to?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "facility_funder_pricing_facility_id_fkey"
-            columns: ["facility_id"]
-            isOneToOne: false
-            referencedRelation: "facilities"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "facility_funder_pricing_facility_id_fkey"
-            columns: ["facility_id"]
-            isOneToOne: false
-            referencedRelation: "facility_utilisation"
-            referencedColumns: ["facility_id"]
-          },
-        ]
-      }
       facility_requests: {
         Row: {
+          advance_rate: number | null
           amount_requested: number | null
           approved_amount: number | null
           approved_at: string | null
           approved_by: string | null
           approved_tenor_months: number | null
           borrower_id: string
-          contract_id: string | null
           created_at: string
-          created_by: string | null
           currency: string
-          deleted_at: string | null
           facility_type: string
-          final_advance_rate: number | null
           final_discounting_rate: number | null
-          funder_advance_rate: number | null
-          funder_base_rate_type: string | null
-          funder_base_rate_value: number | null
-          funder_discounting_rate: number | null
-          funder_margin_pct: number | null
+          funder_base_rate: number | null
+          funder_margin: number | null
           id: string
           metadata: Json | null
           organization_id: string
-          originator_fixed_comparison_rate: number | null
-          originator_margin_pct: number | null
-          originator_recommended_rate: number | null
+          originator_margin: number | null
           overdue_fee_pct: number | null
           pricing_notes: string | null
           rejection_reason: string | null
@@ -2245,31 +1524,23 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          advance_rate?: number | null
           amount_requested?: number | null
           approved_amount?: number | null
           approved_at?: string | null
           approved_by?: string | null
           approved_tenor_months?: number | null
           borrower_id: string
-          contract_id?: string | null
           created_at?: string
-          created_by?: string | null
           currency?: string
-          deleted_at?: string | null
           facility_type: string
-          final_advance_rate?: number | null
           final_discounting_rate?: number | null
-          funder_advance_rate?: number | null
-          funder_base_rate_type?: string | null
-          funder_base_rate_value?: number | null
-          funder_discounting_rate?: number | null
-          funder_margin_pct?: number | null
+          funder_base_rate?: number | null
+          funder_margin?: number | null
           id?: string
           metadata?: Json | null
           organization_id: string
-          originator_fixed_comparison_rate?: number | null
-          originator_margin_pct?: number | null
-          originator_recommended_rate?: number | null
+          originator_margin?: number | null
           overdue_fee_pct?: number | null
           pricing_notes?: string | null
           rejection_reason?: string | null
@@ -2278,31 +1549,23 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          advance_rate?: number | null
           amount_requested?: number | null
           approved_amount?: number | null
           approved_at?: string | null
           approved_by?: string | null
           approved_tenor_months?: number | null
           borrower_id?: string
-          contract_id?: string | null
           created_at?: string
-          created_by?: string | null
           currency?: string
-          deleted_at?: string | null
           facility_type?: string
-          final_advance_rate?: number | null
           final_discounting_rate?: number | null
-          funder_advance_rate?: number | null
-          funder_base_rate_type?: string | null
-          funder_base_rate_value?: number | null
-          funder_discounting_rate?: number | null
-          funder_margin_pct?: number | null
+          funder_base_rate?: number | null
+          funder_margin?: number | null
           id?: string
           metadata?: Json | null
           organization_id?: string
-          originator_fixed_comparison_rate?: number | null
-          originator_margin_pct?: number | null
-          originator_recommended_rate?: number | null
+          originator_margin?: number | null
           overdue_fee_pct?: number | null
           pricing_notes?: string | null
           rejection_reason?: string | null
@@ -2319,109 +1582,7 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "facility_requests_contract_id_fkey"
-            columns: ["contract_id"]
-            isOneToOne: false
-            referencedRelation: "contracts"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "facility_requests_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fee_resolution_tasks: {
-        Row: {
-          borrower_id: string | null
-          collection_amount: number | null
-          collection_id: string
-          created_at: string
-          currency: string | null
-          failure_reason: string | null
-          id: string
-          invoice_id: string | null
-          organization_id: string
-          override_broker_fee_pct: number | null
-          override_discount_rate: number | null
-          override_originator_fee_pct: number | null
-          override_platform_fee_pct: number | null
-          product_type: string | null
-          resolution_type: string | null
-          resolved_at: string | null
-          resolved_by: string | null
-          settlement_advice_id: string | null
-          status: string
-        }
-        Insert: {
-          borrower_id?: string | null
-          collection_amount?: number | null
-          collection_id: string
-          created_at?: string
-          currency?: string | null
-          failure_reason?: string | null
-          id?: string
-          invoice_id?: string | null
-          organization_id: string
-          override_broker_fee_pct?: number | null
-          override_discount_rate?: number | null
-          override_originator_fee_pct?: number | null
-          override_platform_fee_pct?: number | null
-          product_type?: string | null
-          resolution_type?: string | null
-          resolved_at?: string | null
-          resolved_by?: string | null
-          settlement_advice_id?: string | null
-          status?: string
-        }
-        Update: {
-          borrower_id?: string | null
-          collection_amount?: number | null
-          collection_id?: string
-          created_at?: string
-          currency?: string | null
-          failure_reason?: string | null
-          id?: string
-          invoice_id?: string | null
-          organization_id?: string
-          override_broker_fee_pct?: number | null
-          override_discount_rate?: number | null
-          override_originator_fee_pct?: number | null
-          override_platform_fee_pct?: number | null
-          product_type?: string | null
-          resolution_type?: string | null
-          resolved_at?: string | null
-          resolved_by?: string | null
-          settlement_advice_id?: string | null
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fee_resolution_tasks_borrower_id_fkey"
-            columns: ["borrower_id"]
-            isOneToOne: false
-            referencedRelation: "borrowers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fee_resolution_tasks_collection_id_fkey"
-            columns: ["collection_id"]
-            isOneToOne: false
-            referencedRelation: "collections"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fee_resolution_tasks_invoice_id_fkey"
-            columns: ["invoice_id"]
-            isOneToOne: false
-            referencedRelation: "invoices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fee_resolution_tasks_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -2442,7 +1603,7 @@ export type Database = {
           contact_name: string | null
           contact_phone: string | null
           country_of_incorporation: string | null
-          created_at: string | null
+          created_at: string
           entity_name: string
           entity_type: string
           id: string
@@ -2454,12 +1615,9 @@ export type Database = {
           registration_number: string | null
           regulator_name: string | null
           regulatory_status: string | null
-          review_notes: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
           sanctions_screening_confirmed: boolean | null
           status: string
-          updated_at: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
@@ -2474,39 +1632,7 @@ export type Database = {
           contact_name?: string | null
           contact_phone?: string | null
           country_of_incorporation?: string | null
-          created_at?: string | null
-          entity_name: string
-          entity_type: string
-          id?: string
-          licence_number?: string | null
-          notes?: string | null
-          organization_id?: string | null
-          pep_screening_confirmed?: boolean | null
-          registered_address?: string | null
-          registration_number?: string | null
-          regulator_name?: string | null
-          regulatory_status?: string | null
-          review_notes?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          sanctions_screening_confirmed?: boolean | null
-          status?: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          aml_policy_confirmed?: boolean | null
-          bank_account_name?: string | null
-          bank_account_number?: string | null
-          bank_iban?: string | null
-          bank_name?: string | null
-          bank_sort_code?: string | null
-          bank_swift?: string | null
-          contact_email?: string | null
-          contact_name?: string | null
-          contact_phone?: string | null
-          country_of_incorporation?: string | null
-          created_at?: string | null
+          created_at?: string
           entity_name?: string
           entity_type?: string
           id?: string
@@ -2518,75 +1644,126 @@ export type Database = {
           registration_number?: string | null
           regulator_name?: string | null
           regulatory_status?: string | null
-          review_notes?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
           sanctions_screening_confirmed?: boolean | null
           status?: string
-          updated_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aml_policy_confirmed?: boolean | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_sort_code?: string | null
+          bank_swift?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          country_of_incorporation?: string | null
+          created_at?: string
+          entity_name?: string
+          entity_type?: string
+          id?: string
+          licence_number?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          pep_screening_confirmed?: boolean | null
+          registered_address?: string | null
+          registration_number?: string | null
+          regulator_name?: string | null
+          regulatory_status?: string | null
+          sanctions_screening_confirmed?: boolean | null
+          status?: string
+          updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "funder_kyc_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       funder_limits: {
         Row: {
+          approval_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
           base_rate_type: string | null
           base_rate_value: number | null
           borrower_id: string
+          counterparty_id: string | null
           counterparty_name: string | null
           created_at: string
-          currency: string | null
+          currency: string
+          funder_approved_amount: number | null
           funder_user_id: string
           id: string
           limit_amount: number
-          limit_number: string | null
+          limit_payable_finance: number | null
+          limit_receivables_purchase: number | null
+          limit_reverse_factoring: number | null
           margin_pct: number | null
           organization_id: string
-          originator_margin_pct: number | null
+          overall_limit: number | null
+          referral_id: string | null
+          scope: string | null
           status: string
           updated_at: string
+          valid_from: string | null
+          valid_to: string | null
         }
         Insert: {
+          approval_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           base_rate_type?: string | null
           base_rate_value?: number | null
           borrower_id: string
+          counterparty_id?: string | null
           counterparty_name?: string | null
           created_at?: string
-          currency?: string | null
+          currency?: string
+          funder_approved_amount?: number | null
           funder_user_id: string
           id?: string
-          limit_amount: number
-          limit_number?: string | null
+          limit_amount?: number
+          limit_payable_finance?: number | null
+          limit_receivables_purchase?: number | null
+          limit_reverse_factoring?: number | null
           margin_pct?: number | null
           organization_id: string
-          originator_margin_pct?: number | null
+          overall_limit?: number | null
+          referral_id?: string | null
+          scope?: string | null
           status?: string
           updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
         }
         Update: {
+          approval_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           base_rate_type?: string | null
           base_rate_value?: number | null
           borrower_id?: string
+          counterparty_id?: string | null
           counterparty_name?: string | null
           created_at?: string
-          currency?: string | null
+          currency?: string
+          funder_approved_amount?: number | null
           funder_user_id?: string
           id?: string
           limit_amount?: number
-          limit_number?: string | null
+          limit_payable_finance?: number | null
+          limit_receivables_purchase?: number | null
+          limit_reverse_factoring?: number | null
           margin_pct?: number | null
           organization_id?: string
-          originator_margin_pct?: number | null
+          overall_limit?: number | null
+          referral_id?: string | null
+          scope?: string | null
           status?: string
           updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
         }
         Relationships: [
           {
@@ -2597,98 +1774,153 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "funder_limits_counterparty_id_fkey"
+            columns: ["counterparty_id"]
+            isOneToOne: false
+            referencedRelation: "counterparties"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "funder_limits_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "funder_limits_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "funder_referrals"
+            referencedColumns: ["id"]
+          },
         ]
       }
-      funder_relationships: {
+      funder_referrals: {
         Row: {
-          agreement_document_path: string | null
-          agreement_status: string
-          base_rate_type: string | null
-          borrower_id: string | null
-          counterparty_id: string | null
+          counterparty_scope: string | null
           created_at: string
-          default_advance_rate: number | null
-          effective_date: string
+          created_by: string | null
+          funder_approved_amount: number | null
+          funder_notes: string | null
           funder_user_id: string
           id: string
-          interoperability_allowed: boolean
-          interoperability_max_pct: number | null
-          margin_payable_finance: number | null
-          margin_receivable_purchase: number | null
-          margin_reverse_factoring: number | null
-          master_base_rate_type: string
-          master_base_rate_value: number | null
-          master_margin_pct: number | null
-          max_allocation_per_borrower: number | null
           organization_id: string
-          requires_funder_approval: boolean
-          scope: string
+          recommendation_id: string
+          referred_at: string
+          referred_limit_amount: number
+          referred_limit_pf: number | null
+          referred_limit_rf: number | null
+          referred_limit_rp: number | null
+          referred_rate: number | null
+          responded_at: string | null
+          status: Database["public"]["Enums"]["referral_status"]
           updated_at: string
         }
         Insert: {
-          agreement_document_path?: string | null
-          agreement_status?: string
-          base_rate_type?: string | null
-          borrower_id?: string | null
-          counterparty_id?: string | null
+          counterparty_scope?: string | null
           created_at?: string
-          default_advance_rate?: number | null
-          effective_date?: string
+          created_by?: string | null
+          funder_approved_amount?: number | null
+          funder_notes?: string | null
           funder_user_id: string
           id?: string
-          interoperability_allowed?: boolean
-          interoperability_max_pct?: number | null
-          margin_payable_finance?: number | null
-          margin_receivable_purchase?: number | null
-          margin_reverse_factoring?: number | null
-          master_base_rate_type?: string
-          master_base_rate_value?: number | null
-          master_margin_pct?: number | null
-          max_allocation_per_borrower?: number | null
           organization_id: string
-          requires_funder_approval?: boolean
-          scope?: string
+          recommendation_id: string
+          referred_at?: string
+          referred_limit_amount?: number
+          referred_limit_pf?: number | null
+          referred_limit_rf?: number | null
+          referred_limit_rp?: number | null
+          referred_rate?: number | null
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["referral_status"]
           updated_at?: string
         }
         Update: {
-          agreement_document_path?: string | null
-          agreement_status?: string
-          base_rate_type?: string | null
-          borrower_id?: string | null
-          counterparty_id?: string | null
+          counterparty_scope?: string | null
           created_at?: string
-          default_advance_rate?: number | null
-          effective_date?: string
+          created_by?: string | null
+          funder_approved_amount?: number | null
+          funder_notes?: string | null
           funder_user_id?: string
           id?: string
-          interoperability_allowed?: boolean
-          interoperability_max_pct?: number | null
-          margin_payable_finance?: number | null
-          margin_receivable_purchase?: number | null
-          margin_reverse_factoring?: number | null
-          master_base_rate_type?: string
-          master_base_rate_value?: number | null
-          master_margin_pct?: number | null
-          max_allocation_per_borrower?: number | null
           organization_id?: string
-          requires_funder_approval?: boolean
-          scope?: string
+          recommendation_id?: string
+          referred_at?: string
+          referred_limit_amount?: number
+          referred_limit_pf?: number | null
+          referred_limit_rf?: number | null
+          referred_limit_rp?: number | null
+          referred_rate?: number | null
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["referral_status"]
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "funder_relationships_borrower_id_fkey"
-            columns: ["borrower_id"]
+            foreignKeyName: "funder_referrals_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: "borrowers"
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "funder_referrals_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "credit_limit_recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      funder_relationships: {
+        Row: {
+          agreement_status: string
+          base_rate_type: string | null
+          created_at: string
+          funder_user_id: string
+          id: string
+          margin_payable_finance: number | null
+          margin_receivable_purchase: number | null
+          margin_reverse_factoring: number | null
+          master_base_rate_type: string | null
+          master_base_rate_value: number | null
+          master_margin_pct: number | null
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          agreement_status?: string
+          base_rate_type?: string | null
+          created_at?: string
+          funder_user_id: string
+          id?: string
+          margin_payable_finance?: number | null
+          margin_receivable_purchase?: number | null
+          margin_reverse_factoring?: number | null
+          master_base_rate_type?: string | null
+          master_base_rate_value?: number | null
+          master_margin_pct?: number | null
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          agreement_status?: string
+          base_rate_type?: string | null
+          created_at?: string
+          funder_user_id?: string
+          id?: string
+          margin_payable_finance?: number | null
+          margin_receivable_purchase?: number | null
+          margin_reverse_factoring?: number | null
+          master_base_rate_type?: string | null
+          master_base_rate_value?: number | null
+          master_margin_pct?: number | null
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
           {
             foreignKeyName: "funder_relationships_organization_id_fkey"
             columns: ["organization_id"]
@@ -2758,36 +1990,6 @@ export type Database = {
           },
         ]
       }
-      fx_rates: {
-        Row: {
-          created_at: string
-          from_currency: string
-          id: string
-          rate: number
-          rate_date: string
-          source: string | null
-          to_currency: string
-        }
-        Insert: {
-          created_at?: string
-          from_currency: string
-          id?: string
-          rate: number
-          rate_date?: string
-          source?: string | null
-          to_currency: string
-        }
-        Update: {
-          created_at?: string
-          from_currency?: string
-          id?: string
-          rate?: number
-          rate_date?: string
-          source?: string | null
-          to_currency?: string
-        }
-        Relationships: []
-      }
       invitations: {
         Row: {
           accepted_at: string | null
@@ -2796,9 +1998,7 @@ export type Database = {
           expires_at: string
           id: string
           invited_by: string | null
-          last_resent_at: string | null
           organization_id: string
-          resent_count: number
           role: Database["public"]["Enums"]["app_role"]
           token: string
         }
@@ -2809,9 +2009,7 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string | null
-          last_resent_at?: string | null
           organization_id: string
-          resent_count?: number
           role: Database["public"]["Enums"]["app_role"]
           token?: string
         }
@@ -2822,9 +2020,7 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string | null
-          last_resent_at?: string | null
           organization_id?: string
-          resent_count?: number
           role?: Database["public"]["Enums"]["app_role"]
           token?: string
         }
@@ -2902,6 +2098,78 @@ export type Database = {
           },
         ]
       }
+      invoice_fraud_checks: {
+        Row: {
+          ai_signals: Json | null
+          checked_at: string
+          checked_by: string | null
+          created_at: string
+          duplicate_matches: Json | null
+          external_results: Json | null
+          fraud_score: number
+          id: string
+          invoice_id: string
+          organization_id: string
+          override_at: string | null
+          override_by: string | null
+          override_reason: string | null
+          reasons: string[] | null
+          rule_results: Json | null
+          status: Database["public"]["Enums"]["fraud_check_status"]
+        }
+        Insert: {
+          ai_signals?: Json | null
+          checked_at?: string
+          checked_by?: string | null
+          created_at?: string
+          duplicate_matches?: Json | null
+          external_results?: Json | null
+          fraud_score?: number
+          id?: string
+          invoice_id: string
+          organization_id: string
+          override_at?: string | null
+          override_by?: string | null
+          override_reason?: string | null
+          reasons?: string[] | null
+          rule_results?: Json | null
+          status?: Database["public"]["Enums"]["fraud_check_status"]
+        }
+        Update: {
+          ai_signals?: Json | null
+          checked_at?: string
+          checked_by?: string | null
+          created_at?: string
+          duplicate_matches?: Json | null
+          external_results?: Json | null
+          fraud_score?: number
+          id?: string
+          invoice_id?: string
+          organization_id?: string
+          override_at?: string | null
+          override_by?: string | null
+          override_reason?: string | null
+          reasons?: string[] | null
+          rule_results?: Json | null
+          status?: Database["public"]["Enums"]["fraud_check_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_fraud_checks_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_fraud_checks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_submission_documents: {
         Row: {
           ai_confidence: number | null
@@ -2911,7 +2179,6 @@ export type Database = {
           created_at: string
           document_id: string
           id: string
-          is_shipping_doc: boolean
           submission_id: string
         }
         Insert: {
@@ -2922,7 +2189,6 @@ export type Database = {
           created_at?: string
           document_id: string
           id?: string
-          is_shipping_doc?: boolean
           submission_id: string
         }
         Update: {
@@ -2933,7 +2199,6 @@ export type Database = {
           created_at?: string
           document_id?: string
           id?: string
-          is_shipping_doc?: boolean
           submission_id?: string
         }
         Relationships: [
@@ -3048,14 +2313,14 @@ export type Database = {
           counterparty_email: string | null
           counterparty_name: string | null
           created_at: string
-          created_by: string | null
           currency: string | null
           debtor_name: string
-          deleted_at: string | null
           document_id: string | null
           due_date: string
-          goods_verified_at: string | null
-          goods_verified_by: string | null
+          dunning_stage: Database["public"]["Enums"]["dunning_stage"] | null
+          facility_request_id: string | null
+          fraud_score: number | null
+          fraud_status: string | null
           id: string
           invoice_number: string
           issue_date: string
@@ -3064,11 +2329,7 @@ export type Database = {
           match_score: number | null
           organization_id: string
           product_type: Database["public"]["Enums"]["product_type"] | null
-          requested_funding_amount: number | null
-          requested_funding_currency: string | null
           requires_counterparty_acceptance: boolean | null
-          shipping_ai_result: Json | null
-          shipping_validation_status: string | null
           status: string
           updated_at: string
         }
@@ -3084,14 +2345,14 @@ export type Database = {
           counterparty_email?: string | null
           counterparty_name?: string | null
           created_at?: string
-          created_by?: string | null
           currency?: string | null
           debtor_name: string
-          deleted_at?: string | null
           document_id?: string | null
           due_date: string
-          goods_verified_at?: string | null
-          goods_verified_by?: string | null
+          dunning_stage?: Database["public"]["Enums"]["dunning_stage"] | null
+          facility_request_id?: string | null
+          fraud_score?: number | null
+          fraud_status?: string | null
           id?: string
           invoice_number: string
           issue_date: string
@@ -3100,11 +2361,7 @@ export type Database = {
           match_score?: number | null
           organization_id: string
           product_type?: Database["public"]["Enums"]["product_type"] | null
-          requested_funding_amount?: number | null
-          requested_funding_currency?: string | null
           requires_counterparty_acceptance?: boolean | null
-          shipping_ai_result?: Json | null
-          shipping_validation_status?: string | null
           status?: string
           updated_at?: string
         }
@@ -3120,14 +2377,14 @@ export type Database = {
           counterparty_email?: string | null
           counterparty_name?: string | null
           created_at?: string
-          created_by?: string | null
           currency?: string | null
           debtor_name?: string
-          deleted_at?: string | null
           document_id?: string | null
           due_date?: string
-          goods_verified_at?: string | null
-          goods_verified_by?: string | null
+          dunning_stage?: Database["public"]["Enums"]["dunning_stage"] | null
+          facility_request_id?: string | null
+          fraud_score?: number | null
+          fraud_status?: string | null
           id?: string
           invoice_number?: string
           issue_date?: string
@@ -3136,11 +2393,7 @@ export type Database = {
           match_score?: number | null
           organization_id?: string
           product_type?: Database["public"]["Enums"]["product_type"] | null
-          requested_funding_amount?: number | null
-          requested_funding_currency?: string | null
           requires_counterparty_acceptance?: boolean | null
-          shipping_ai_result?: Json | null
-          shipping_validation_status?: string | null
           status?: string
           updated_at?: string
         }
@@ -3167,66 +2420,14 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "invoices_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: "invoices_facility_request_id_fkey"
+            columns: ["facility_request_id"]
             isOneToOne: false
-            referencedRelation: "organizations"
+            referencedRelation: "facility_requests"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      journals: {
-        Row: {
-          account_id: string | null
-          amount: number
-          batch_ref: string | null
-          created_at: string | null
-          created_by: string | null
-          currency: string
-          description: string | null
-          direction: string | null
-          id: string
-          journal_type: string
-          organization_id: string
-          reference_id: string | null
-          system_account: string | null
-          transaction_date: string | null
-        }
-        Insert: {
-          account_id?: string | null
-          amount: number
-          batch_ref?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          currency?: string
-          description?: string | null
-          direction?: string | null
-          id?: string
-          journal_type: string
-          organization_id: string
-          reference_id?: string | null
-          system_account?: string | null
-          transaction_date?: string | null
-        }
-        Update: {
-          account_id?: string | null
-          amount?: number
-          batch_ref?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          currency?: string
-          description?: string | null
-          direction?: string | null
-          id?: string
-          journal_type?: string
-          organization_id?: string
-          reference_id?: string | null
-          system_account?: string | null
-          transaction_date?: string | null
-        }
-        Relationships: [
           {
-            foreignKeyName: "journals_organization_id_fkey"
+            foreignKeyName: "invoices_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -3238,35 +2439,47 @@ export type Database = {
         Row: {
           body: string
           created_at: string
-          email_sent: boolean
           id: string
           is_read: boolean
-          organization_id: string
+          message_type: string
+          organization_id: string | null
+          parent_message_id: string | null
           recipient_id: string
+          related_entity_id: string | null
+          related_entity_type: string | null
           sender_id: string
-          thread_id: string
+          subject: string
+          updated_at: string
         }
         Insert: {
           body: string
           created_at?: string
-          email_sent?: boolean
           id?: string
           is_read?: boolean
-          organization_id: string
+          message_type?: string
+          organization_id?: string | null
+          parent_message_id?: string | null
           recipient_id: string
+          related_entity_id?: string | null
+          related_entity_type?: string | null
           sender_id: string
-          thread_id: string
+          subject: string
+          updated_at?: string
         }
         Update: {
           body?: string
           created_at?: string
-          email_sent?: boolean
           id?: string
           is_read?: boolean
-          organization_id?: string
+          message_type?: string
+          organization_id?: string | null
+          parent_message_id?: string | null
           recipient_id?: string
+          related_entity_id?: string | null
+          related_entity_type?: string | null
           sender_id?: string
-          thread_id?: string
+          subject?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -3276,210 +2489,47 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "messages_parent_message_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
         ]
       }
       notifications: {
         Row: {
-          action_url: string | null
-          created_at: string | null
+          created_at: string
           id: string
-          message: string
-          organization_id: string | null
-          read_at: string | null
+          is_read: boolean
+          link: string | null
+          message: string | null
           title: string
-          type: string | null
+          type: string
           user_id: string
         }
         Insert: {
-          action_url?: string | null
-          created_at?: string | null
+          created_at?: string
           id?: string
-          message: string
-          organization_id?: string | null
-          read_at?: string | null
+          is_read?: boolean
+          link?: string | null
+          message?: string | null
           title: string
-          type?: string | null
+          type?: string
           user_id: string
         }
         Update: {
-          action_url?: string | null
-          created_at?: string | null
+          created_at?: string
           id?: string
-          message?: string
-          organization_id?: string | null
-          read_at?: string | null
+          is_read?: boolean
+          link?: string | null
+          message?: string | null
           title?: string
-          type?: string | null
+          type?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "notifications_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      offer_letters: {
-        Row: {
-          accepted_at: string | null
-          accepted_by: string | null
-          borrower_id: string
-          cancellation_reason: string | null
-          cancelled_at: string | null
-          cancelled_by: string | null
-          created_at: string
-          facility_request_id: string | null
-          fee_valid_from: string | null
-          fee_valid_to: string | null
-          id: string
-          issued_at: string | null
-          issued_by: string | null
-          max_invoice_amount: number | null
-          notes: string | null
-          offer_number: string
-          organization_id: string
-          overdue_fee_pct: number | null
-          platform_fee_pct: number | null
-          product_type: string
-          settlement_type: string | null
-          status: string
-          updated_at: string
-          valid_from: string | null
-          valid_to: string | null
-        }
-        Insert: {
-          accepted_at?: string | null
-          accepted_by?: string | null
-          borrower_id: string
-          cancellation_reason?: string | null
-          cancelled_at?: string | null
-          cancelled_by?: string | null
-          created_at?: string
-          facility_request_id?: string | null
-          fee_valid_from?: string | null
-          fee_valid_to?: string | null
-          id?: string
-          issued_at?: string | null
-          issued_by?: string | null
-          max_invoice_amount?: number | null
-          notes?: string | null
-          offer_number: string
-          organization_id: string
-          overdue_fee_pct?: number | null
-          platform_fee_pct?: number | null
-          product_type: string
-          settlement_type?: string | null
-          status?: string
-          updated_at?: string
-          valid_from?: string | null
-          valid_to?: string | null
-        }
-        Update: {
-          accepted_at?: string | null
-          accepted_by?: string | null
-          borrower_id?: string
-          cancellation_reason?: string | null
-          cancelled_at?: string | null
-          cancelled_by?: string | null
-          created_at?: string
-          facility_request_id?: string | null
-          fee_valid_from?: string | null
-          fee_valid_to?: string | null
-          id?: string
-          issued_at?: string | null
-          issued_by?: string | null
-          max_invoice_amount?: number | null
-          notes?: string | null
-          offer_number?: string
-          organization_id?: string
-          overdue_fee_pct?: number | null
-          platform_fee_pct?: number | null
-          product_type?: string
-          settlement_type?: string | null
-          status?: string
-          updated_at?: string
-          valid_from?: string | null
-          valid_to?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "offer_letters_borrower_id_fkey"
-            columns: ["borrower_id"]
-            isOneToOne: false
-            referencedRelation: "borrowers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "offer_letters_facility_request_id_fkey"
-            columns: ["facility_request_id"]
-            isOneToOne: false
-            referencedRelation: "facility_requests"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "offer_letters_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      org_active_products: {
-        Row: {
-          activated_at: string | null
-          activated_by: string | null
-          created_at: string
-          deactivated_at: string | null
-          deactivated_by: string | null
-          description: string | null
-          display_name: string | null
-          id: string
-          is_active: boolean
-          organization_id: string
-          product_type: string
-          updated_at: string
-        }
-        Insert: {
-          activated_at?: string | null
-          activated_by?: string | null
-          created_at?: string
-          deactivated_at?: string | null
-          deactivated_by?: string | null
-          description?: string | null
-          display_name?: string | null
-          id?: string
-          is_active?: boolean
-          organization_id: string
-          product_type: string
-          updated_at?: string
-        }
-        Update: {
-          activated_at?: string | null
-          activated_by?: string | null
-          created_at?: string
-          deactivated_at?: string | null
-          deactivated_by?: string | null
-          description?: string | null
-          display_name?: string | null
-          id?: string
-          is_active?: boolean
-          organization_id?: string
-          product_type?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "org_active_products_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       org_contacts: {
         Row: {
@@ -3617,6 +2667,8 @@ export type Database = {
           auto_approve_below: number | null
           created_at: string
           default_credit_limit: number | null
+          fraud_providers_enabled: Json | null
+          fraud_threshold: number | null
           id: string
           max_credit_limit: number | null
           notes: string | null
@@ -3629,6 +2681,8 @@ export type Database = {
           auto_approve_below?: number | null
           created_at?: string
           default_credit_limit?: number | null
+          fraud_providers_enabled?: Json | null
+          fraud_threshold?: number | null
           id?: string
           max_credit_limit?: number | null
           notes?: string | null
@@ -3641,6 +2695,8 @@ export type Database = {
           auto_approve_below?: number | null
           created_at?: string
           default_credit_limit?: number | null
+          fraud_providers_enabled?: Json | null
+          fraud_threshold?: number | null
           id?: string
           max_credit_limit?: number | null
           notes?: string | null
@@ -3664,7 +2720,6 @@ export type Database = {
           branding: Json | null
           created_at: string
           custom_domain: string | null
-          deleted_at: string | null
           id: string
           is_active: boolean
           labelling_mode: Database["public"]["Enums"]["labelling_mode"]
@@ -3677,7 +2732,6 @@ export type Database = {
           branding?: Json | null
           created_at?: string
           custom_domain?: string | null
-          deleted_at?: string | null
           id?: string
           is_active?: boolean
           labelling_mode?: Database["public"]["Enums"]["labelling_mode"]
@@ -3690,7 +2744,6 @@ export type Database = {
           branding?: Json | null
           created_at?: string
           custom_domain?: string | null
-          deleted_at?: string | null
           id?: string
           is_active?: boolean
           labelling_mode?: Database["public"]["Enums"]["labelling_mode"]
@@ -3701,135 +2754,9 @@ export type Database = {
         }
         Relationships: []
       }
-      payment_instructions: {
-        Row: {
-          amount: number
-          created_at: string
-          created_by: string | null
-          currency: string
-          failure_reason: string | null
-          id: string
-          organization_id: string
-          payee_psp_account_id: string | null
-          payer_psp_account_id: string | null
-          psp_confirmed_at: string | null
-          psp_reference: string | null
-          settlement_advice_id: string | null
-          status: string
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          created_by?: string | null
-          currency?: string
-          failure_reason?: string | null
-          id?: string
-          organization_id: string
-          payee_psp_account_id?: string | null
-          payer_psp_account_id?: string | null
-          psp_confirmed_at?: string | null
-          psp_reference?: string | null
-          settlement_advice_id?: string | null
-          status?: string
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          created_by?: string | null
-          currency?: string
-          failure_reason?: string | null
-          id?: string
-          organization_id?: string
-          payee_psp_account_id?: string | null
-          payer_psp_account_id?: string | null
-          psp_confirmed_at?: string | null
-          psp_reference?: string | null
-          settlement_advice_id?: string | null
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_instructions_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_instructions_payee_psp_account_id_fkey"
-            columns: ["payee_psp_account_id"]
-            isOneToOne: false
-            referencedRelation: "psp_virtual_accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_instructions_payer_psp_account_id_fkey"
-            columns: ["payer_psp_account_id"]
-            isOneToOne: false
-            referencedRelation: "psp_virtual_accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_instructions_settlement_advice_id_fkey"
-            columns: ["settlement_advice_id"]
-            isOneToOne: false
-            referencedRelation: "settlement_advices"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      platform_api_configs: {
-        Row: {
-          api_name: string
-          category: string
-          created_at: string | null
-          cron_schedule: string | null
-          description: string | null
-          display_name: string
-          health_message: string | null
-          health_status: string | null
-          id: string
-          is_active: boolean | null
-          last_invoked_at: string | null
-          requires_secrets: string[] | null
-          verify_jwt: boolean | null
-        }
-        Insert: {
-          api_name: string
-          category: string
-          created_at?: string | null
-          cron_schedule?: string | null
-          description?: string | null
-          display_name: string
-          health_message?: string | null
-          health_status?: string | null
-          id?: string
-          is_active?: boolean | null
-          last_invoked_at?: string | null
-          requires_secrets?: string[] | null
-          verify_jwt?: boolean | null
-        }
-        Update: {
-          api_name?: string
-          category?: string
-          created_at?: string | null
-          cron_schedule?: string | null
-          description?: string | null
-          display_name?: string
-          health_message?: string | null
-          health_status?: string | null
-          id?: string
-          is_active?: boolean | null
-          last_invoked_at?: string | null
-          requires_secrets?: string[] | null
-          verify_jwt?: boolean | null
-        }
-        Relationships: []
-      }
       product_fee_configs: {
         Row: {
           broker_fee_pct: number | null
-          broker_name: string | null
           created_at: string
           default_discount_rate: number
           id: string
@@ -3845,7 +2772,6 @@ export type Database = {
         }
         Insert: {
           broker_fee_pct?: number | null
-          broker_name?: string | null
           created_at?: string
           default_discount_rate?: number
           id?: string
@@ -3861,7 +2787,6 @@ export type Database = {
         }
         Update: {
           broker_fee_pct?: number | null
-          broker_name?: string | null
           created_at?: string
           default_discount_rate?: number
           id?: string
@@ -3896,17 +2821,19 @@ export type Database = {
           organization_id: string | null
           phone: string | null
           updated_at: string
+          user_id: string
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
-          id: string
+          id?: string
           is_active?: boolean
           organization_id?: string | null
           phone?: string | null
           updated_at?: string
+          user_id: string
         }
         Update: {
           avatar_url?: string | null
@@ -3918,6 +2845,7 @@ export type Database = {
           organization_id?: string | null
           phone?: string | null
           updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -3929,250 +2857,27 @@ export type Database = {
           },
         ]
       }
-      psp_accounts: {
-        Row: {
-          actor_id: string
-          created_at: string | null
-          id: string
-          organization_id: string
-          psp_reference: string
-          status: string | null
-        }
-        Insert: {
-          actor_id: string
-          created_at?: string | null
-          id?: string
-          organization_id: string
-          psp_reference: string
-          status?: string | null
-        }
-        Update: {
-          actor_id?: string
-          created_at?: string | null
-          id?: string
-          organization_id?: string
-          psp_reference?: string
-          status?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "psp_accounts_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      psp_configs: {
-        Row: {
-          api_base_url: string | null
-          created_at: string
-          credentials_vault_key: string | null
-          id: string
-          is_active: boolean
-          organization_id: string
-          psp_provider: string
-          updated_at: string
-        }
-        Insert: {
-          api_base_url?: string | null
-          created_at?: string
-          credentials_vault_key?: string | null
-          id?: string
-          is_active?: boolean
-          organization_id: string
-          psp_provider: string
-          updated_at?: string
-        }
-        Update: {
-          api_base_url?: string | null
-          created_at?: string
-          credentials_vault_key?: string | null
-          id?: string
-          is_active?: boolean
-          organization_id?: string
-          psp_provider?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "psp_configs_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: true
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      psp_virtual_accounts: {
-        Row: {
-          actor_id: string
-          actor_type: string
-          created_at: string
-          currency: string
-          id: string
-          organization_id: string
-          psp_account_ref: string | null
-          psp_provider: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          actor_id: string
-          actor_type: string
-          created_at?: string
-          currency?: string
-          id?: string
-          organization_id: string
-          psp_account_ref?: string | null
-          psp_provider?: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          actor_id?: string
-          actor_type?: string
-          created_at?: string
-          currency?: string
-          id?: string
-          organization_id?: string
-          psp_account_ref?: string | null
-          psp_provider?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "psp_virtual_accounts_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      reconciliation_matches: {
-        Row: {
-          bank_statement_upload_id: string
-          created_at: string
-          id: string
-          journal_id: string | null
-          match_confidence: number | null
-          match_notes: string | null
-          match_type: string
-          matched_at: string | null
-          matched_by: string | null
-          organization_id: string
-          payment_instruction_id: string | null
-          statement_amount: number | null
-          statement_date: string | null
-          statement_description: string | null
-          statement_line_index: number
-          statement_reference: string | null
-        }
-        Insert: {
-          bank_statement_upload_id: string
-          created_at?: string
-          id?: string
-          journal_id?: string | null
-          match_confidence?: number | null
-          match_notes?: string | null
-          match_type?: string
-          matched_at?: string | null
-          matched_by?: string | null
-          organization_id: string
-          payment_instruction_id?: string | null
-          statement_amount?: number | null
-          statement_date?: string | null
-          statement_description?: string | null
-          statement_line_index: number
-          statement_reference?: string | null
-        }
-        Update: {
-          bank_statement_upload_id?: string
-          created_at?: string
-          id?: string
-          journal_id?: string | null
-          match_confidence?: number | null
-          match_notes?: string | null
-          match_type?: string
-          matched_at?: string | null
-          matched_by?: string | null
-          organization_id?: string
-          payment_instruction_id?: string | null
-          statement_amount?: number | null
-          statement_date?: string | null
-          statement_description?: string | null
-          statement_line_index?: number
-          statement_reference?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reconciliation_matches_bank_statement_upload_id_fkey"
-            columns: ["bank_statement_upload_id"]
-            isOneToOne: false
-            referencedRelation: "bank_statement_uploads"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reconciliation_matches_bank_statement_upload_id_fkey"
-            columns: ["bank_statement_upload_id"]
-            isOneToOne: false
-            referencedRelation: "reconciliation_summary"
-            referencedColumns: ["upload_id"]
-          },
-          {
-            foreignKeyName: "reconciliation_matches_journal_id_fkey"
-            columns: ["journal_id"]
-            isOneToOne: false
-            referencedRelation: "journals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reconciliation_matches_journal_id_fkey"
-            columns: ["journal_id"]
-            isOneToOne: false
-            referencedRelation: "wallet_transactions"
-            referencedColumns: ["journal_id"]
-          },
-          {
-            foreignKeyName: "reconciliation_matches_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reconciliation_matches_payment_instruction_id_fkey"
-            columns: ["payment_instruction_id"]
-            isOneToOne: false
-            referencedRelation: "payment_instructions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       reference_rates: {
         Row: {
-          as_of_date: string | null
           created_at: string | null
           id: string
+          last_updated: string | null
           rate_name: string
           rate_value: number
           source: string | null
         }
         Insert: {
-          as_of_date?: string | null
           created_at?: string | null
           id?: string
+          last_updated?: string | null
           rate_name: string
           rate_value: number
           source?: string | null
         }
         Update: {
-          as_of_date?: string | null
           created_at?: string | null
           id?: string
+          last_updated?: string | null
           rate_name?: string
           rate_value?: number
           source?: string | null
@@ -4317,8 +3022,6 @@ export type Database = {
           borrower_id: string
           counterparty_name: string | null
           created_at: string
-          created_by: string | null
-          deleted_at: string | null
           disbursement_amount: number
           disbursement_memo_id: string
           funder_fee: number | null
@@ -4351,8 +3054,6 @@ export type Database = {
           borrower_id: string
           counterparty_name?: string | null
           created_at?: string
-          created_by?: string | null
-          deleted_at?: string | null
           disbursement_amount: number
           disbursement_memo_id: string
           funder_fee?: number | null
@@ -4385,8 +3086,6 @@ export type Database = {
           borrower_id?: string
           counterparty_name?: string | null
           created_at?: string
-          created_by?: string | null
-          deleted_at?: string | null
           disbursement_amount?: number
           disbursement_memo_id?: string
           funder_fee?: number | null
@@ -4443,76 +3142,23 @@ export type Database = {
           },
         ]
       }
-      sanctions_check_queue: {
-        Row: {
-          borrower_id: string
-          checked_at: string | null
-          checked_by: string | null
-          created_at: string | null
-          director_id: string
-          director_name: string | null
-          id: string
-          organization_id: string
-          result: Json | null
-          status: string | null
-        }
-        Insert: {
-          borrower_id: string
-          checked_at?: string | null
-          checked_by?: string | null
-          created_at?: string | null
-          director_id: string
-          director_name?: string | null
-          id?: string
-          organization_id: string
-          result?: Json | null
-          status?: string | null
-        }
-        Update: {
-          borrower_id?: string
-          checked_at?: string | null
-          checked_by?: string | null
-          created_at?: string | null
-          director_id?: string
-          director_name?: string | null
-          id?: string
-          organization_id?: string
-          result?: Json | null
-          status?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sanctions_check_queue_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       settlement_advices: {
         Row: {
           acknowledged_at: string | null
-          advance_paid: number | null
           advice_number: string
           advice_type: Database["public"]["Enums"]["settlement_advice_type"]
           collection_id: string
           created_at: string
           currency: string
-          disbursement_memo_id: string | null
           discount_amount: number
           fee_breakdown: Json | null
-          fee_resolution_source: string | null
           from_party_name: string
           gross_amount: number
           id: string
           invoice_id: string | null
           issued_at: string | null
           metadata: Json | null
-          negative_margin: boolean | null
           net_amount: number
-          net_margin_amount: number | null
-          net_margin_pct: number | null
           notes: string | null
           organization_id: string
           originator_fee: number
@@ -4522,9 +3168,6 @@ export type Database = {
           pdf_path: string | null
           platform_fee: number
           product_type: Database["public"]["Enums"]["product_type"] | null
-          remaining_balance: number | null
-          settlement_number: string | null
-          settlement_type: string | null
           status: Database["public"]["Enums"]["settlement_advice_status"]
           to_borrower_id: string | null
           to_funder_user_id: string | null
@@ -4534,26 +3177,20 @@ export type Database = {
         }
         Insert: {
           acknowledged_at?: string | null
-          advance_paid?: number | null
           advice_number: string
           advice_type: Database["public"]["Enums"]["settlement_advice_type"]
           collection_id: string
           created_at?: string
           currency?: string
-          disbursement_memo_id?: string | null
           discount_amount?: number
           fee_breakdown?: Json | null
-          fee_resolution_source?: string | null
           from_party_name: string
           gross_amount: number
           id?: string
           invoice_id?: string | null
           issued_at?: string | null
           metadata?: Json | null
-          negative_margin?: boolean | null
           net_amount: number
-          net_margin_amount?: number | null
-          net_margin_pct?: number | null
           notes?: string | null
           organization_id: string
           originator_fee?: number
@@ -4563,9 +3200,6 @@ export type Database = {
           pdf_path?: string | null
           platform_fee?: number
           product_type?: Database["public"]["Enums"]["product_type"] | null
-          remaining_balance?: number | null
-          settlement_number?: string | null
-          settlement_type?: string | null
           status?: Database["public"]["Enums"]["settlement_advice_status"]
           to_borrower_id?: string | null
           to_funder_user_id?: string | null
@@ -4575,26 +3209,20 @@ export type Database = {
         }
         Update: {
           acknowledged_at?: string | null
-          advance_paid?: number | null
           advice_number?: string
           advice_type?: Database["public"]["Enums"]["settlement_advice_type"]
           collection_id?: string
           created_at?: string
           currency?: string
-          disbursement_memo_id?: string | null
           discount_amount?: number
           fee_breakdown?: Json | null
-          fee_resolution_source?: string | null
           from_party_name?: string
           gross_amount?: number
           id?: string
           invoice_id?: string | null
           issued_at?: string | null
           metadata?: Json | null
-          negative_margin?: boolean | null
           net_amount?: number
-          net_margin_amount?: number | null
-          net_margin_pct?: number | null
           notes?: string | null
           organization_id?: string
           originator_fee?: number
@@ -4604,9 +3232,6 @@ export type Database = {
           pdf_path?: string | null
           platform_fee?: number
           product_type?: Database["public"]["Enums"]["product_type"] | null
-          remaining_balance?: number | null
-          settlement_number?: string | null
-          settlement_type?: string | null
           status?: Database["public"]["Enums"]["settlement_advice_status"]
           to_borrower_id?: string | null
           to_funder_user_id?: string | null
@@ -4620,13 +3245,6 @@ export type Database = {
             columns: ["collection_id"]
             isOneToOne: false
             referencedRelation: "collections"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "settlement_advices_disbursement_memo_id_fkey"
-            columns: ["disbursement_memo_id"]
-            isOneToOne: false
-            referencedRelation: "disbursement_memos"
             referencedColumns: ["id"]
           },
           {
@@ -4697,53 +3315,6 @@ export type Database = {
         }
         Relationships: []
       }
-      transaction_links: {
-        Row: {
-          created_at: string
-          id: string
-          link_type: string
-          organization_id: string
-          source_id: string
-          source_ref: string
-          source_type: string
-          target_id: string
-          target_ref: string
-          target_type: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          link_type: string
-          organization_id: string
-          source_id: string
-          source_ref: string
-          source_type: string
-          target_id: string
-          target_ref: string
-          target_type: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          link_type?: string
-          organization_id?: string
-          source_id?: string
-          source_ref?: string
-          source_type?: string
-          target_id?: string
-          target_ref?: string
-          target_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "transaction_links_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_roles: {
         Row: {
           id: string
@@ -4761,53 +3332,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      workflow_event_queue: {
-        Row: {
-          created_at: string | null
-          event_type: string
-          id: string
-          new_status: string | null
-          old_status: string | null
-          organization_id: string
-          processed: boolean | null
-          processed_at: string | null
-          record_id: string
-          table_name: string
-        }
-        Insert: {
-          created_at?: string | null
-          event_type: string
-          id?: string
-          new_status?: string | null
-          old_status?: string | null
-          organization_id: string
-          processed?: boolean | null
-          processed_at?: string | null
-          record_id: string
-          table_name: string
-        }
-        Update: {
-          created_at?: string | null
-          event_type?: string
-          id?: string
-          new_status?: string | null
-          old_status?: string | null
-          organization_id?: string
-          processed?: boolean | null
-          processed_at?: string | null
-          record_id?: string
-          table_name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workflow_event_queue_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       workflow_versions: {
         Row: {
@@ -4914,228 +3438,7 @@ export type Database = {
       }
     }
     Views: {
-      counterparty_sub_limit_utilisation: {
-        Row: {
-          advance_rate_override: number | null
-          available_headroom: number | null
-          counterparty_id: string | null
-          counterparty_name: string | null
-          currency: string | null
-          facility_id: string | null
-          max_invoice_amount: number | null
-          organization_id: string | null
-          status: string | null
-          sub_limit_amount: number | null
-          sub_limit_id: string | null
-          utilised_amount: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "counterparty_sub_limits_facility_id_fkey"
-            columns: ["facility_id"]
-            isOneToOne: false
-            referencedRelation: "facilities"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "counterparty_sub_limits_facility_id_fkey"
-            columns: ["facility_id"]
-            isOneToOne: false
-            referencedRelation: "facility_utilisation"
-            referencedColumns: ["facility_id"]
-          },
-          {
-            foreignKeyName: "counterparty_sub_limits_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      facility_utilisation: {
-        Row: {
-          available_headroom: number | null
-          borrower_id: string | null
-          currency: string | null
-          facility_id: string | null
-          final_advance_rate: number | null
-          interoperability_allowed: boolean | null
-          interoperability_max_pct: number | null
-          max_invoice_amount: number | null
-          organization_id: string | null
-          overall_limit: number | null
-          product_type: string | null
-          utilised_amount: number | null
-          valid_from: string | null
-          valid_to: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "facilities_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      funder_allocation_utilisation: {
-        Row: {
-          advance_rate: number | null
-          allocated_limit: number | null
-          allocation_id: string | null
-          available_headroom: number | null
-          currency: string | null
-          facility_id: string | null
-          final_discounting_rate: number | null
-          funder_user_id: string | null
-          organization_id: string | null
-          scope: string | null
-          status: string | null
-          utilised_amount: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "facility_funder_allocations_facility_id_fkey"
-            columns: ["facility_id"]
-            isOneToOne: false
-            referencedRelation: "facilities"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "facility_funder_allocations_facility_id_fkey"
-            columns: ["facility_id"]
-            isOneToOne: false
-            referencedRelation: "facility_utilisation"
-            referencedColumns: ["facility_id"]
-          },
-          {
-            foreignKeyName: "facility_funder_allocations_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      reconciliation_summary: {
-        Row: {
-          auto_matched: number | null
-          created_at: string | null
-          exception_lines: number | null
-          exceptions: number | null
-          file_name: string | null
-          manually_matched: number | null
-          matched_lines: number | null
-          organization_id: string | null
-          statement_from_date: string | null
-          statement_to_date: string | null
-          status: string | null
-          total_lines: number | null
-          unmatched: number | null
-          unmatched_lines: number | null
-          upload_date: string | null
-          upload_id: string | null
-          uploaded_by: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bank_statement_uploads_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      wallet_transactions: {
-        Row: {
-          actor_id: string | null
-          amount: number | null
-          currency: string | null
-          description: string | null
-          direction: string | null
-          journal_id: string | null
-          journal_type: string | null
-          organization_id: string | null
-          reference_id: string | null
-          system_account: string | null
-          transaction_date: string | null
-        }
-        Insert: {
-          actor_id?: never
-          amount?: number | null
-          currency?: string | null
-          description?: string | null
-          direction?: string | null
-          journal_id?: string | null
-          journal_type?: string | null
-          organization_id?: string | null
-          reference_id?: string | null
-          system_account?: string | null
-          transaction_date?: string | null
-        }
-        Update: {
-          actor_id?: never
-          amount?: number | null
-          currency?: string | null
-          description?: string | null
-          direction?: string | null
-          journal_id?: string | null
-          journal_type?: string | null
-          organization_id?: string | null
-          reference_id?: string | null
-          system_account?: string | null
-          transaction_date?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "journals_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      wallets: {
-        Row: {
-          actor_id: string | null
-          balance: number | null
-          currency: string | null
-          last_updated_at: string | null
-          organization_id: string | null
-          system_account: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "journals_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      wallets_gbp_summary: {
-        Row: {
-          actor_id: string | null
-          balance_gbp: number | null
-          last_updated_at: string | null
-          organization_id: string | null
-          system_account: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "journals_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       accept_invoice_by_token: {
@@ -5148,10 +3451,45 @@ export type Database = {
         Returns: boolean
       }
       accrue_daily_interest: { Args: never; Returns: undefined }
-      borrower_id_from_facility: { Args: { fac_id: string }; Returns: string }
-      get_fx_rate: { Args: { p_from: string; p_to: string }; Returns: number }
-      get_org_from_jwt: { Args: never; Returns: string }
-      get_user_org_id: { Args: never; Returns: string }
+      check_funder_eligibility: {
+        Args: {
+          _borrower_id: string
+          _counterparty_id?: string
+          _funder_user_id: string
+          _invoice_amount: number
+          _organization_id: string
+          _product_type?: string
+        }
+        Returns: {
+          available_limit: number
+          eligible: boolean
+          message: string
+        }[]
+      }
+      compute_facility_rate: {
+        Args: {
+          _funder_base_rate: number
+          _funder_margin: number
+          _originator_margin: number
+        }
+        Returns: number
+      }
+      expire_stale_recommendations: { Args: never; Returns: number }
+      get_borrower_exposure: {
+        Args: { _borrower_id: string; _organization_id: string }
+        Returns: {
+          total_collected: number
+          total_funded: number
+          total_invoices: number
+        }[]
+      }
+      get_org_funder_profiles: {
+        Args: { _org_id: string }
+        Returns: {
+          full_name: string
+          user_id: string
+        }[]
+      }
       get_user_organization_id: { Args: { _user_id: string }; Returns: string }
       get_user_roles: {
         Args: { _user_id: string }
@@ -5164,34 +3502,16 @@ export type Database = {
         }
         Returns: boolean
       }
-      invoke_fetch_market_rates: { Args: never; Returns: undefined }
-      invoke_weekly_reconciliation_reminder: { Args: never; Returns: undefined }
-      link_transactions: {
+      log_eligibility_check: {
         Args: {
-          p_link_type: string
-          p_org_id: string
-          p_source_id: string
-          p_source_ref: string
-          p_source_type: string
-          p_target_id: string
-          p_target_ref: string
-          p_target_type: string
+          _amount: number
+          _borrower_id: string
+          _eligible: boolean
+          _funder_user_id: string
+          _message: string
+          _user_id: string
         }
         Returns: undefined
-      }
-      post_journal_batch: { Args: { entries: Json }; Returns: string }
-      to_gbp_equivalent: {
-        Args: { p_amount: number; p_currency: string }
-        Returns: number
-      }
-      validate_disbursement: {
-        Args: {
-          p_amount: number
-          p_currency: string
-          p_facility_id: string
-          p_invoice_id: string
-        }
-        Returns: Json
       }
     }
     Enums: {
@@ -5217,8 +3537,14 @@ export type Database = {
         | "broker_admin"
         | "credit_committee_member"
         | "account_manager"
-        | "super_admin"
         | "operations_manager"
+      application_type:
+        | "new_facility"
+        | "limit_increase"
+        | "limit_renewal"
+        | "counterparty_limit"
+        | "facility_addition"
+      cc_vote_type: "approve" | "reject" | "abstain" | "approve_with_conditions"
       collection_status: "received" | "confirmed" | "disputed" | "reversed"
       credit_memo_status:
         | "draft"
@@ -5227,6 +3553,12 @@ export type Database = {
         | "approved"
         | "rejected"
         | "submitted_to_committee"
+      disbursement_status:
+        | "draft"
+        | "pending_approval"
+        | "approved"
+        | "disbursed"
+        | "cancelled"
       document_type:
         | "kyc"
         | "financial_statement"
@@ -5236,6 +3568,8 @@ export type Database = {
         | "credit_memo"
         | "nda"
         | "other"
+      dunning_stage: "none" | "reminder" | "warning" | "escalated" | "legal"
+      fraud_check_status: "passed" | "flagged" | "blocked"
       labelling_mode: "white_label" | "joint_label" | "platform_label"
       onboarding_status:
         | "invited"
@@ -5259,6 +3593,13 @@ export type Database = {
         | "receivables_purchase"
         | "reverse_factoring"
         | "payables_finance"
+      recommendation_status: "draft" | "active" | "expired" | "superseded"
+      referral_status:
+        | "referred"
+        | "under_review"
+        | "approved"
+        | "rejected"
+        | "counter_offered"
       settlement_advice_status: "draft" | "issued" | "acknowledged" | "paid"
       settlement_advice_type: "borrower_settlement" | "funder_settlement"
       settlement_timing: "advance" | "arrears"
@@ -5387,9 +3728,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       acceptance_method: ["direct_counterparty", "document_upload"],
@@ -5416,9 +3754,16 @@ export const Constants = {
         "broker_admin",
         "credit_committee_member",
         "account_manager",
-        "super_admin",
         "operations_manager",
       ],
+      application_type: [
+        "new_facility",
+        "limit_increase",
+        "limit_renewal",
+        "counterparty_limit",
+        "facility_addition",
+      ],
+      cc_vote_type: ["approve", "reject", "abstain", "approve_with_conditions"],
       collection_status: ["received", "confirmed", "disputed", "reversed"],
       credit_memo_status: [
         "draft",
@@ -5427,6 +3772,13 @@ export const Constants = {
         "approved",
         "rejected",
         "submitted_to_committee",
+      ],
+      disbursement_status: [
+        "draft",
+        "pending_approval",
+        "approved",
+        "disbursed",
+        "cancelled",
       ],
       document_type: [
         "kyc",
@@ -5438,6 +3790,8 @@ export const Constants = {
         "nda",
         "other",
       ],
+      dunning_stage: ["none", "reminder", "warning", "escalated", "legal"],
+      fraud_check_status: ["passed", "flagged", "blocked"],
       labelling_mode: ["white_label", "joint_label", "platform_label"],
       onboarding_status: [
         "invited",
@@ -5463,6 +3817,14 @@ export const Constants = {
         "receivables_purchase",
         "reverse_factoring",
         "payables_finance",
+      ],
+      recommendation_status: ["draft", "active", "expired", "superseded"],
+      referral_status: [
+        "referred",
+        "under_review",
+        "approved",
+        "rejected",
+        "counter_offered",
       ],
       settlement_advice_status: ["draft", "issued", "acknowledged", "paid"],
       settlement_advice_type: ["borrower_settlement", "funder_settlement"],

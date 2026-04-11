@@ -119,7 +119,7 @@ export function SignatoryInfoStep({ data, onChange, disabled }: SignatoryInfoSte
             ) : (
               <Checkbox
                 id="nda-accept"
-                checked={data.nda_status === "signed"}
+                checked={(data.nda_status as string) === "signed"}
                 onCheckedChange={(checked) => update("nda_status", checked ? "signed" : "pending")}
                 disabled={disabled}
                 className="mt-0.5"

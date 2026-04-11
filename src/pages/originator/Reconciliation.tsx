@@ -63,12 +63,12 @@ export default function Reconciliation() {
 
   const fetchUploads = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("bank_statement_uploads")
       .select("*")
       .is("disbursement_advice_id", null)   // only general recon uploads, not advice-specific
       .order("created_at", { ascending: false });
-    setUploads((data || []) as UploadRow[]);
+    setUploads(((data || []) as any) as UploadRow[]);
     setLoading(false);
   }, []);
 
@@ -89,12 +89,12 @@ export default function Reconciliation() {
 
   const fetchMatches = async (uploadId: string) => {
     setMatchesLoading(true);
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("reconciliation_matches")
       .select("*")
       .eq("bank_statement_upload_id", uploadId)
       .order("statement_line_index");
-    setMatches((data || []) as MatchRow[]);
+    setMatches(((data || []) as any) as MatchRow[]);
     setMatchesLoading(false);
   };
 
@@ -114,7 +114,7 @@ export default function Reconciliation() {
         .upload(filePath, file);
       if (uploadErr) throw uploadErr;
 
-      const { data: uploadRow, error: insertErr } = await supabase
+      const { data: uploadRow, error: insertErr } = await (supabase as any)
         .from("bank_statement_uploads")
         .insert({
           file_path: filePath,
@@ -133,7 +133,7 @@ export default function Reconciliation() {
       toast.success("File uploaded. Running reconciliation...");
 
       const { error: fnErr } = await supabase.functions.invoke("reconcile-bank-statement", {
-        body: { bank_statement_upload_id: uploadRow.id },
+        body: { bank_statement_upload_id: (uploadRow as any).id },
       });
 
       if (fnErr) {
@@ -160,7 +160,7 @@ export default function Reconciliation() {
 
   // ── Manual match for an unmatched line ───────────────────────────────────
   const handleManualMatch = async (matchId: string, paymentInstructionId: string) => {
-    await supabase
+    await (supabase as any)
       .from("reconciliation_matches")
       .update({
         match_type: "manually_matched",

@@ -48,7 +48,7 @@ function SettlementTable({ adviceType }: { adviceType: "borrower_settlement" | "
   const loadChain = async (settlementId: string, settlementRef: string) => {
     setChainOpen(settlementId);
     setChainLoading(true);
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("transaction_links")
       .select("*")
       .or(`source_id.eq.${settlementId},target_id.eq.${settlementId}`)

@@ -124,7 +124,7 @@ function calculateFunderReturn(
  * All amounts must sum to zero (debits = credits) within one currency.
  */
 async function postJournalBatch(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   entries: object[]
 ): Promise<void> {
   const { error } = await supabase.rpc("post_journal_batch", { entries });
