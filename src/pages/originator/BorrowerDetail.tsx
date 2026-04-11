@@ -27,6 +27,8 @@ import CreditMemoDetail from "./CreditMemoDetail";
 import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
 import { SignatoryInfoStep } from "@/components/onboarding/SignatoryInfoStep";
 import { DirectorsStep } from "@/components/onboarding/DirectorsStep";
+import { BankDetailsForm, emptyBankDetails } from "@/components/onboarding/BankDetailsForm";
+import type { BankDetails } from "@/components/onboarding/BankDetailsForm";
 import { FunderLimitsTab } from "./FunderLimitsTab";
 import { RegistryVerificationTab } from "@/components/kyb/RegistryVerificationTab";
 import { ValidationResultsPanel } from "@/components/kyb/ValidationResultsPanel";
@@ -89,7 +91,11 @@ export default function BorrowerDetail() {
   const [docRejectionReason, setDocRejectionReason] = useState("");
   const [uploadDocType, setUploadDocType] = useState("");
   const [docUploading, setDocUploading] = useState(false);
+  const [ndaUploading, setNdaUploading] = useState(false);
+  const [bankDetails, setBankDetails] = useState<BankDetails>({ ...emptyBankDetails });
+  const [savingBank, setSavingBank] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const ndaFileRef = useRef<HTMLInputElement>(null);
   const { preview, openPreview, closePreview } = useDocumentPreview();
 
   // Request Update dialog
@@ -122,6 +128,55 @@ export default function BorrowerDetail() {
     setUploadDocType("");
     if (fileInputRef.current) fileInputRef.current.value = "";
     loadAll();
+  };
+
+  const handleNdaUploadOnBehalf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile?.organization_id || !id) return;
+    setNdaUploading(true);
+    try {
+      // 1. Upload file to storage
+      const filePath = `${profile.organization_id}/${id}/nda_${Date.now()}_${file.name}`;
+      const { error: uploadErr } = await supabase.storage.from("documents").upload(filePath, file);
+      if (uploadErr) throw uploadErr;
+
+      // 2. Insert document record
+      await supabase.from("documents").insert({
+        organization_id: profile.organization_id,
+        borrower_id: id,
+        document_type: "nda" as any,
+        file_name: file.name,
+        file_path: filePath,
+        file_size: file.size,
+        mime_type: file.type,
+        uploaded_by: user?.id || null,
+        status: "approved",
+      });
+
+      // 3. Mark NDA on borrowers record
+      await supabase.from("borrowers").update({
+        nda_signed: true,
+        nda_signed_at: new Date().toISOString(),
+      } as any).eq("id", id);
+
+      // 4. Upsert document_acceptances for the borrower's user if known
+      if (borrower?.user_id) {
+        await supabase.from("document_acceptances").upsert({
+          user_id: borrower.user_id,
+          document_type: "nda",
+          accepted_at: new Date().toISOString(),
+          accepted_by_proxy: user?.id,
+          ip_address: "originator_upload",
+        } as any, { onConflict: "user_id,document_type" });
+      }
+
+      toast.success("NDA uploaded and recorded on behalf of borrower");
+      loadAll();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to upload NDA");
+    }
+    setNdaUploading(false);
+    if (ndaFileRef.current) ndaFileRef.current.value = "";
   };
 
   useEffect(() => {
@@ -191,6 +246,11 @@ export default function BorrowerDetail() {
         other_invoice_facilities: (b as any).other_invoice_facilities || "",
         turnover_currency: "GBP",
       });
+      // Load bank details
+      const bd = (b as any).bank_details;
+      if (bd && typeof bd === "object") {
+        setBankDetails({ ...emptyBankDetails, ...bd });
+      }
     }
 
     if (dirs) {
@@ -252,6 +312,16 @@ export default function BorrowerDetail() {
     }
     setSaving(false);
     loadAll();
+  };
+
+  const handleSaveBankDetails = async () => {
+    setSavingBank(true);
+    const { error } = await supabase.from("borrowers").update({
+      bank_details: bankDetails as any,
+    }).eq("id", id!);
+    if (error) toast.error(error.message);
+    else toast.success("Bank details saved");
+    setSavingBank(false);
   };
 
   // Valid status transitions
@@ -493,6 +563,7 @@ export default function BorrowerDetail() {
             <TabsTrigger value="credit-memo" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Credit Memo</TabsTrigger>
             <TabsTrigger value="contracts" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Contracts</TabsTrigger>
             <TabsTrigger value="offer_letters" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Offer Letters</TabsTrigger>
+            <TabsTrigger value="bank_details" className="gap-1.5 text-xs"><Landmark className="h-3.5 w-3.5" /> Bank Details</TabsTrigger>
             <TabsTrigger value="counterparties" className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" /> Counterparties</TabsTrigger>
           </TabsList>
 
@@ -528,9 +599,27 @@ export default function BorrowerDetail() {
                       </>
                     )}
                   </div>
-                  {borrower.nda_signed && (
-                    <Badge className="mt-4">NDA Signed {borrower.nda_signed_at ? `on ${new Date(borrower.nda_signed_at).toLocaleDateString()}` : ""}</Badge>
-                  )}
+                  <div className="mt-4 flex items-center gap-3">
+                    {borrower.nda_signed ? (
+                      <Badge className="gap-1.5"><CheckCircle2 className="h-3.5 w-3.5" /> NDA Signed {borrower.nda_signed_at ? `on ${new Date(borrower.nda_signed_at).toLocaleDateString()}` : ""}</Badge>
+                    ) : (
+                      <Badge variant="destructive" className="gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> NDA Not Signed</Badge>
+                    )}
+                    {/* Originator/Admin can upload NDA on behalf of borrower */}
+                    <div className="flex items-center gap-2">
+                      <input ref={ndaFileRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleNdaUploadOnBehalf} />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={ndaUploading}
+                        onClick={() => ndaFileRef.current?.click()}
+                        className="gap-1.5"
+                      >
+                        {ndaUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                        {borrower.nda_signed ? "Re-upload NDA" : "Upload NDA on Behalf"}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Authorized Signatories from Directors list */}
@@ -900,6 +989,19 @@ export default function BorrowerDetail() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Bank Details Tab */}
+          <TabsContent value="bank_details" className="mt-6">
+            <div className="space-y-4">
+              <BankDetailsForm value={bankDetails} onChange={setBankDetails} />
+              <div className="flex justify-end">
+                <Button onClick={handleSaveBankDetails} disabled={savingBank}>
+                  {savingBank ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save Bank Details
+                </Button>
+              </div>
+            </div>
           </TabsContent>
 
           {/* Counterparties Tab */}

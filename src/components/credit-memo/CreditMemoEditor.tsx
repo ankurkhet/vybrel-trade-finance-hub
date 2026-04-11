@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Sparkles, Save, Send, FileText, AlertTriangle, CheckCircle2, RotateCcw, Clock } from "lucide-react";
 import { toast } from "sonner";
@@ -34,6 +35,8 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
     receivables_purchase: "", reverse_factoring: "", payables_finance: "",
   });
   const [funderLimits, setFunderLimits] = useState<any[]>([]);
+  const [facilities, setFacilities] = useState<any[]>([]);
+  const [selectedFacilityId, setSelectedFacilityId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -44,7 +47,17 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
     fetchMemos();
     checkDocsVerified();
     fetchBorrowerInvoiceIds();
+    fetchFacilities();
   }, [borrowerId]);
+
+  const fetchFacilities = async () => {
+    const { data } = await supabase
+      .from("facility_requests")
+      .select("id, facility_type, currency, requested_amount, status")
+      .eq("borrower_id", borrowerId)
+      .order("created_at", { ascending: false });
+    setFacilities(data || []);
+  };
 
   const fetchBorrowerInvoiceIds = async () => {
     const { data } = await supabase
@@ -92,10 +105,16 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
     setFunderLimits(fl || []);
     setMemos(data || []);
     if (data && data.length > 0) {
-      setActiveMemo(data[0]);
-      setEditedText(data[0].analyst_edits || data[0].ai_draft || "");
-      setProposedLimit(data[0].recommended_limit?.toString() || "");
-      const pl = (data[0] as any).product_limits || {} as any;
+      // Prefer the most recent non-finalized memo; fall back to latest
+      const preferred = data.find((m: any) => !["submitted_to_committee", "approved"].includes(m.status)) || data[0];
+      setActiveMemo((prev: any) => {
+        // If user already selected a memo, keep it unless the list shrank
+        if (prev && data.find((m: any) => m.id === prev.id)) return prev;
+        return preferred;
+      });
+      setEditedText(preferred.analyst_edits || preferred.ai_draft || "");
+      setProposedLimit(preferred.recommended_limit?.toString() || "");
+      const pl = (preferred as any).product_limits || {} as any;
       setProductLimits({
         receivables_purchase: (pl as any).receivables_purchase?.toString() || "",
         reverse_factoring: (pl as any).reverse_factoring?.toString() || "",
@@ -105,16 +124,17 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
     setLoading(false);
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (isNew = false) => {
     setGenerating(true);
     try {
-      const result = await generateCreditMemo({
+      await generateCreditMemo({
         borrowerId,
         organizationId,
         transactionType: "trade_finance",
+        facilityRequestId: selectedFacilityId || undefined,
       });
       await fetchMemos();
-      toast.success("Credit memo generated successfully");
+      toast.success(isNew ? "New credit memo created" : "Credit memo generated successfully");
     } catch (err: any) {
       toast.error(err.message || "Failed to generate credit memo");
     }
@@ -235,29 +255,89 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
   return (
     <div className="space-y-6">
       {/* Header with Generate Button */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-foreground">Credit Memo</h3>
+          <h3 className="text-lg font-semibold text-foreground">Credit Memos</h3>
           <p className="text-sm text-muted-foreground">
-            AI-generated credit analysis for {borrowerName}
+            AI-generated credit analyses for {borrowerName}
           </p>
         </div>
-        <div className="flex gap-2">
-          {/* Block regeneration when submitted to committee or approved */}
-          {!activeMemo || !["submitted_to_committee", "approved"].includes(activeMemo?.status) ? (
-            <Button onClick={handleGenerate} disabled={generating || docsNotVerified} variant={memos.length > 0 ? "outline" : "default"}>
-              {generating ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : memos.length > 0 ? (
-                <RotateCcw className="mr-2 h-4 w-4" />
-              ) : (
-                <Sparkles className="mr-2 h-4 w-4" />
-              )}
-              {memos.length > 0 ? "Regenerate" : "Generate Credit Memo"}
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* Facility selector for new memo */}
+          {facilities.length > 0 && (
+            <Select value={selectedFacilityId} onValueChange={setSelectedFacilityId}>
+              <SelectTrigger className="w-52 h-8 text-xs">
+                <SelectValue placeholder="Link to facility (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No specific facility</SelectItem>
+                {facilities.map((f: any) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.facility_type?.replace(/_/g, ' ')} — {f.currency} {f.requested_amount?.toLocaleString()} ({f.status})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {/* Always show "New Credit Memo" when there are existing memos */}
+          {memos.length > 0 && (
+            <Button
+              onClick={() => handleGenerate(true)}
+              disabled={generating || docsNotVerified}
+              variant="default"
+              size="sm"
+            >
+              {generating ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-2 h-3.5 w-3.5" />}
+              New Credit Memo
             </Button>
-          ) : null}
+          )}
+          {/* Regenerate only when active memo is draft/ai_generated/under_review */}
+          {activeMemo && !["submitted_to_committee", "approved"].includes(activeMemo?.status) && (
+            <Button onClick={() => handleGenerate(false)} disabled={generating || docsNotVerified} variant="outline" size="sm">
+              {generating ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="mr-2 h-3.5 w-3.5" />}
+              Regenerate
+            </Button>
+          )}
+          {/* First memo */}
+          {!activeMemo && (
+            <Button onClick={() => handleGenerate(false)} disabled={generating || docsNotVerified}>
+              {generating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+              Generate Credit Memo
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* Memo Selector — shown when more than one memo exists */}
+      {memos.length > 1 && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-xs font-semibold text-muted-foreground uppercase">Memos ({memos.length})</span>
+          {memos.map((m: any, i: number) => (
+            <button
+              key={m.id}
+              onClick={() => {
+                setActiveMemo(m);
+                setEditedText(m.analyst_edits || m.ai_draft || "");
+                setProposedLimit(m.recommended_limit?.toString() || "");
+                const pl = m.product_limits || {};
+                setProductLimits({
+                  receivables_purchase: pl.receivables_purchase?.toString() || "",
+                  reverse_factoring: pl.reverse_factoring?.toString() || "",
+                  payables_finance: pl.payables_finance?.toString() || "",
+                });
+              }}
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                activeMemo?.id === m.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-muted/40 border-border hover:bg-muted text-foreground"
+              }`}
+            >
+              #{i + 1} — {m.memo_number || new Date(m.created_at).toLocaleDateString()} &nbsp;
+              <span className="capitalize opacity-70">{m.status?.replace(/_/g, ' ')}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {docsNotVerified && (
         <Card>

@@ -66,22 +66,33 @@ export default function LenderManagement() {
   const { data: funders = [], isLoading, refetch } = useQuery({
     queryKey: ['org-funders', orgId],
     queryFn: async () => {
+      // Get funders linked to this org via funder_relationships (any status)
+      const { data: rels, error: relsError } = await (supabase as any)
+        .from('funder_relationships')
+        .select('funder_user_id')
+        .eq('organization_id', orgId);
+      if (relsError) throw relsError;
+
+      const linkedFunderUserIds = [...new Set((rels || []).map((r: any) => r.funder_user_id))] as string[];
+
+      // Also fetch ALL funder-role users so unlinked funders appear in the list too
       const { data: roleRecords, error: roleError } = await supabase
         .from('user_roles')
         .select('user_id')
         .eq('role', 'funder');
       if (roleError) throw roleError;
-      
-      const funderUserIds = roleRecords.map((r: any) => r.user_id);
 
+      const allFunderUserIds = roleRecords.map((r: any) => r.user_id) as string[];
+      const combinedIds = [...new Set([...linkedFunderUserIds, ...allFunderUserIds])];
+
+      // Fetch profiles WITHOUT org_id filter — funders belong to their own org
       const { data: profiles, error: pError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('organization_id', orgId)
-        .in('id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
+        .in('id', combinedIds.length ? combinedIds : ['00000000-0000-0000-0000-000000000000']);
       if (pError) throw pError;
 
-      const { data: rels, error: rError } = await (supabase as any)
+      const { data: allRels, error: rError } = await (supabase as any)
         .from('funder_relationships')
         .select('*')
         .eq('organization_id', orgId)
@@ -89,7 +100,7 @@ export default function LenderManagement() {
       if (rError) throw rError;
 
       return profiles.map(f => {
-        const history = rels.filter(r => r.funder_user_id === f.id);
+        const history = (allRels || []).filter((r: any) => r.funder_user_id === f.id);
         const activeRel = history[0]; 
         return {
           ...f,
