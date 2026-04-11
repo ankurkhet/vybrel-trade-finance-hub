@@ -498,8 +498,8 @@ export default function RegistryApis() {
                 const healthy   = items.filter(a => a.health_status === "healthy" && a.is_active);
                 const unknown   = items.filter(a => a.health_status === "unknown" && a.is_active);
 
-                // Auto-expand if any API in this section is unhealthy; collapse otherwise
-                const defaultOpen = unhealthy.length > 0;
+                // Auto-expand all sections by default; only collapse fully-inactive sections
+                const defaultOpen = !allInactive || unhealthy.length > 0;
                 const allInactive = items.every(a => !a.is_active);
 
                 return (

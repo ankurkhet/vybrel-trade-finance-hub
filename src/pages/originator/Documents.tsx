@@ -135,8 +135,8 @@ export default function OriginatorDocuments() {
     queryFn: async () => {
       const { data: roleRecords } = await supabase.from('user_roles').select('user_id').eq('role', 'funder');
       const funderUserIds = roleRecords?.map((r: any) => r.user_id) || [];
-      const { data: profiles } = await supabase.from('profiles').select('*').eq('organization_id', profile?.organization_id).in('id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
-      const validFunderIds = profiles?.map((p: any) => p.id) || [];
+      const { data: profiles } = await supabase.from('profiles').select('*').eq('organization_id', profile?.organization_id).in('user_id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
+      const validFunderIds = profiles?.map((p: any) => p.user_id) || [];
       const funderKycQuery = supabase.from('funder_kyc' as any).select('*');
       const funderKycFiltered = validFunderIds.length
         ? funderKycQuery.in('funder_user_id', validFunderIds)

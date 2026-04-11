@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { SubmissionCommentsTimeline } from "@/components/invoice-submission/SubmissionCommentsTimeline";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,11 +38,23 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [docsNotVerified, setDocsNotVerified] = useState(false);
+  const [borrowerInvoiceIds, setBorrowerInvoiceIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchMemos();
     checkDocsVerified();
+    fetchBorrowerInvoiceIds();
   }, [borrowerId]);
+
+  const fetchBorrowerInvoiceIds = async () => {
+    const { data } = await supabase
+      .from("invoices")
+      .select("id")
+      .eq("borrower_id", borrowerId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setBorrowerInvoiceIds((data || []).map((r: any) => r.id));
+  };
 
   const checkDocsVerified = async () => {
     // Check if all KYC/KYB documents are uploaded and verified
@@ -401,6 +414,7 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
               {activeMemo.ai_draft && activeMemo.analyst_edits && (
                 <TabsTrigger value="original">AI Original</TabsTrigger>
               )}
+              <TabsTrigger value="borrower-notes">Borrower Notes</TabsTrigger>
             </TabsList>
 
             <TabsContent value="edit" className="mt-4">
@@ -431,6 +445,22 @@ export function CreditMemoEditor({ borrowerId, organizationId, borrowerName }: C
                       return <p key={i} className="text-sm text-foreground leading-relaxed">{line}</p>;
                     })}
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="borrower-notes" className="mt-4">
+              <Card>
+                <CardContent className="pt-4">
+                  {borrowerInvoiceIds.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center">No invoices found for this borrower.</p>
+                  ) : (
+                    <div className="space-y-6">
+                      {borrowerInvoiceIds.map(invId => (
+                        <SubmissionCommentsTimeline key={invId} invoiceId={invId} />
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

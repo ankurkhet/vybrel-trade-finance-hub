@@ -27,6 +27,12 @@ export default function LenderManagement() {
     margin_reverse_factoring: "0.50",
     margin_payable_finance: "0.50",
     effective_date: new Date().toISOString().split('T')[0],
+    // PRD Section 8: scope & interoperability
+    scope: "all_borrowers",
+    interoperability_allowed: false,
+    interoperability_max_pct: "0",
+    requires_funder_approval: false,
+    max_allocation_per_borrower: "",
   });
   const [applyToExisting, setApplyToExisting] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -156,7 +162,14 @@ export default function LenderManagement() {
           margin_receivable_purchase: Number(formData.margin_receivable_purchase),
           margin_reverse_factoring: Number(formData.margin_reverse_factoring),
           margin_payable_finance: Number(formData.margin_payable_finance),
-          agreement_status: 'active'
+          agreement_status: 'active',
+          // PRD Section 8 contract terms
+          scope: formData.scope,
+          interoperability_allowed: formData.interoperability_allowed,
+          interoperability_max_pct: Number(formData.interoperability_max_pct) || 0,
+          requires_funder_approval: formData.requires_funder_approval,
+          max_allocation_per_borrower: formData.max_allocation_per_borrower
+            ? Number(formData.max_allocation_per_borrower) : null,
         });
 
       if (insertError) throw insertError;
@@ -614,12 +627,69 @@ export default function LenderManagement() {
               </div>
             </div>
 
+            {/* PRD Section 8: Scope & Interoperability */}
+            <div className="space-y-3 border rounded-lg p-4">
+              <Label className="text-sm font-bold">4. Scope & Interoperability</Label>
+              <div className="space-y-2">
+                <Label className="text-xs">Funder Scope</Label>
+                <select
+                  className="w-full h-9 rounded-md border bg-background px-3 py-1 text-sm"
+                  value={formData.scope}
+                  onChange={e => setFormData(p => ({ ...p, scope: e.target.value }))}
+                >
+                  <option value="all_borrowers">All Borrowers</option>
+                  <option value="specific_borrower">Specific Borrower Only</option>
+                  <option value="borrower_and_counterparty">Specific Borrower + Counterparty</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="interop"
+                  checked={formData.interoperability_allowed}
+                  onCheckedChange={c => setFormData(p => ({ ...p, interoperability_allowed: !!c }))}
+                />
+                <Label htmlFor="interop" className="text-xs cursor-pointer">Allow cross-currency funding (interoperability)</Label>
+              </div>
+              {formData.interoperability_allowed && (
+                <div className="pl-7 space-y-1">
+                  <Label className="text-xs">Max cross-currency % of invoice value</Label>
+                  <Input
+                    type="number"
+                    className="h-8 w-32 text-sm"
+                    value={formData.interoperability_max_pct}
+                    onChange={e => setFormData(p => ({ ...p, interoperability_max_pct: e.target.value }))}
+                    min={0} max={100}
+                  />
+                </div>
+              )}
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="funder_approval"
+                  checked={formData.requires_funder_approval}
+                  onCheckedChange={c => setFormData(p => ({ ...p, requires_funder_approval: !!c }))}
+                />
+                <Label htmlFor="funder_approval" className="text-xs cursor-pointer">
+                  Require funder approval on each facility allocation
+                </Label>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Max allocation per borrower (optional cap)</Label>
+                <Input
+                  type="number"
+                  className="h-8 text-sm"
+                  placeholder="e.g. 2000000"
+                  value={formData.max_allocation_per_borrower}
+                  onChange={e => setFormData(p => ({ ...p, max_allocation_per_borrower: e.target.value }))}
+                />
+              </div>
+            </div>
+
             <div className="bg-muted/50 p-4 rounded-lg border flex gap-3 items-start">
-              <Checkbox 
-                id="cascade" 
-                className="mt-1" 
-                checked={applyToExisting} 
-                onCheckedChange={(c) => setApplyToExisting(!!c)} 
+              <Checkbox
+                id="cascade"
+                className="mt-1"
+                checked={applyToExisting}
+                onCheckedChange={(c) => setApplyToExisting(!!c)}
               />
               <div>
                 <Label htmlFor="cascade" className="text-sm font-semibold cursor-pointer tracking-tight">Cascade Update to Active facilities</Label>

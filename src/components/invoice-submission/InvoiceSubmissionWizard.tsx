@@ -105,6 +105,13 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
   // Requested funding amount (Gap D)
   const [requestedFundingAmount, setRequestedFundingAmount] = useState("");
 
+  // Shipping document validation (optional)
+  const [shippingDocFile, setShippingDocFile] = useState<File | null>(null);
+  const [shippingDocTag, setShippingDocTag] = useState<"bill_of_lading" | "packaging_slip" | "customs_declaration">("bill_of_lading");
+  const [shippingAnalyzing, setShippingAnalyzing] = useState(false);
+  const [shippingResult, setShippingResult] = useState<{ matched: boolean; confidence: number; mismatches: string[] } | null>(null);
+  const [shippingValidationStatus, setShippingValidationStatus] = useState<"not_required" | "pending" | "ai_flagged" | "verified">("not_required");
+
   // Fraud check state
   const [fraudResult, setFraudResult] = useState<any>(null);
   const [fraudChecking, setFraudChecking] = useState(false);
@@ -387,6 +394,8 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
         facility_request_id: selectedFacilityId || null,
         requested_funding_amount: requestedFundingAmount ? parseFloat(requestedFundingAmount) : null,
         requested_funding_currency: requestedFundingAmount ? currency : null,
+        shipping_validation_status: shippingValidationStatus,
+        shipping_ai_result: shippingResult || null,
       } as any).select("id").single();
 
       if (invErr) throw new Error(invErr.message);
@@ -932,6 +941,124 @@ export function InvoiceSubmissionWizard({ open, onOpenChange, borrower, userId, 
                   placeholder="Any additional notes or context for this invoice submission..."
                   className="min-h-[80px]"
                 />
+              </div>
+
+              {/* Shipping / Goods Validation (Optional) */}
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <PackageCheck className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-sm font-medium">Shipping Documents (Optional)</Label>
+                  <Badge variant="outline" className="text-[10px]">Optional</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Upload a bill of lading, packing list, or customs declaration to automatically verify goods against this invoice.
+                  If omitted, an account manager will confirm goods separately.
+                </p>
+
+                {!shippingDocFile ? (
+                  <label className="flex items-center gap-3 rounded-lg border border-dashed p-3 cursor-pointer hover:border-primary/50 transition-colors text-sm">
+                    <Upload className="h-5 w-5 text-muted-foreground shrink-0" />
+                    <div className="flex-1">
+                      <span className="text-muted-foreground">Click to upload shipping document</span>
+                      <span className="text-xs text-muted-foreground block">PDF, JPG, PNG</span>
+                    </div>
+                    <Select value={shippingDocTag} onValueChange={v => setShippingDocTag(v as any)}>
+                      <SelectTrigger className="w-44 h-7 text-xs" onClick={e => e.preventDefault()}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bill_of_lading">Bill of Lading</SelectItem>
+                        <SelectItem value="packaging_slip">Packing List</SelectItem>
+                        <SelectItem value="customs_declaration">Customs Declaration</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setShippingDocFile(file);
+                        setShippingAnalyzing(true);
+                        setShippingValidationStatus("pending");
+                        try {
+                          // Upload to storage
+                          const path = `shipping-docs/${Date.now()}-${file.name}`;
+                          await supabase.storage.from("documents").upload(path, file);
+                          // Call AI analysis
+                          const { data: aiResult } = await supabase.functions.invoke("ai-analyze-document", {
+                            body: { file_path: path, document_type: shippingDocTag },
+                          });
+                          if (aiResult?.extracted_fields) {
+                            const extracted = aiResult.extracted_fields;
+                            const mismatches: string[] = [];
+                            // Compare total value
+                            const extractedTotal = parseFloat(extracted.total_value || extracted.amount || "0");
+                            const invoiceTotal = parseFloat(totalAmount);
+                            if (extractedTotal > 0 && Math.abs(extractedTotal - invoiceTotal) / invoiceTotal > 0.05) {
+                              mismatches.push(`Total value mismatch: invoice £${invoiceTotal.toLocaleString()} vs doc £${extractedTotal.toLocaleString()}`);
+                            }
+                            const matched = mismatches.length === 0;
+                            const result = { matched, confidence: matched ? 90 : 50, mismatches };
+                            setShippingResult(result);
+                            setShippingValidationStatus(matched ? "verified" : "ai_flagged");
+                          } else {
+                            setShippingResult({ matched: false, confidence: 0, mismatches: ["AI could not extract goods data from document"] });
+                            setShippingValidationStatus("ai_flagged");
+                          }
+                        } catch {
+                          setShippingResult(null);
+                          setShippingValidationStatus("not_required");
+                          toast.warning("Shipping doc AI analysis failed — goods will be verified manually");
+                        }
+                        setShippingAnalyzing(false);
+                      }}
+                    />
+                  </label>
+                ) : (
+                  <div className="rounded-lg border p-3 space-y-2">
+                    <div className="flex items-center gap-2 justify-between">
+                      <div className="flex items-center gap-2 text-sm">
+                        <FileText className="h-4 w-4 text-primary" />
+                        <span className="font-medium truncate max-w-[200px]">{shippingDocFile.name}</span>
+                        <Badge variant="secondary" className="text-[10px] capitalize">{shippingDocTag.replace(/_/g, " ")}</Badge>
+                      </div>
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => {
+                        setShippingDocFile(null);
+                        setShippingResult(null);
+                        setShippingValidationStatus("not_required");
+                      }}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+
+                    {shippingAnalyzing && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Running AI goods verification...
+                      </div>
+                    )}
+                    {shippingResult && !shippingAnalyzing && (
+                      shippingResult.matched ? (
+                        <div className="flex items-center gap-2 text-xs text-emerald-600">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Goods verified ({shippingResult.confidence}% confidence)
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-xs text-amber-600">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            Mismatch detected — submission not blocked, account manager will review
+                          </div>
+                          {shippingResult.mismatches.map((m, i) => (
+                            <p key={i} className="text-[10px] text-muted-foreground pl-5">• {m}</p>
+                          ))}
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}

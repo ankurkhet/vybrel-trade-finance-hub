@@ -20,6 +20,7 @@ import {
   TrendingUp,
   MessageSquare,
   Banknote,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import CreditMemoDetail from "./CreditMemoDetail";
@@ -31,6 +32,7 @@ import { RegistryVerificationTab } from "@/components/kyb/RegistryVerificationTa
 import { ValidationResultsPanel } from "@/components/kyb/ValidationResultsPanel";
 import { CreditMemoEditor } from "@/components/credit-memo/CreditMemoEditor";
 import { DocumentPreviewModal, useDocumentPreview } from "@/components/ui/document-preview-modal";
+import { OfferLetterWizard } from "@/components/offer-letters/OfferLetterWizard";
 import { emptyCompanyForm, COUNTRIES, FACILITY_TYPES, ONBOARDING_STATUSES } from "@/lib/onboarding-types";
 import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 import { ChangeTracker } from "@/components/onboarding/ChangeTracker";
@@ -48,6 +50,8 @@ export default function BorrowerDetail() {
   const [ccApps, setCcApps] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
   const [feeConfigs, setFeeConfigs] = useState<any[]>([]);
+  const [offerLetters, setOfferLetters] = useState<any[]>([]);
+  const [offerLetterWizardOpen, setOfferLetterWizardOpen] = useState(false);
   const [msaSigned, setMsaSigned] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -132,6 +136,14 @@ export default function BorrowerDetail() {
       supabase.from("contracts").select("id, title, counterparty").eq("borrower_id", id!).eq("status", "active"),
       supabase.from("product_fee_configs").select("*").eq("organization_id", profile!.organization_id!)
     ]);
+
+    // Fetch offer letters for this borrower
+    const { data: ols } = await (supabase as any)
+      .from("offer_letters")
+      .select("*, facilities(id, currency, overall_limit, final_advance_rate, status)")
+      .eq("borrower_id", id!)
+      .order("created_at", { ascending: false });
+    setOfferLetters(ols || []);
 
     if (b) {
       setBorrower(b);
@@ -469,6 +481,7 @@ export default function BorrowerDetail() {
             <TabsTrigger value="validation" className="gap-1.5 text-xs"><ShieldCheck className="h-3.5 w-3.5" /> Validation</TabsTrigger>
             <TabsTrigger value="credit-memo" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Credit Memo</TabsTrigger>
             <TabsTrigger value="contracts" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Contracts</TabsTrigger>
+            <TabsTrigger value="offer_letters" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Offer Letters</TabsTrigger>
           </TabsList>
 
           {/* Company Tab */}
@@ -795,6 +808,83 @@ export default function BorrowerDetail() {
                       </div>
                     ))}
                   </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Offer Letters & Facilities Tab */}
+          <TabsContent value="offer_letters" className="mt-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary" /> Offer Letters & Facilities
+                    </CardTitle>
+                    <CardDescription>
+                      Facility offers issued to this borrower. Each spawns currency-specific facility records.
+                    </CardDescription>
+                  </div>
+                  <Button size="sm" onClick={() => setOfferLetterWizardOpen(true)}>
+                    <Plus className="mr-2 h-3.5 w-3.5" /> New Offer Letter
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {offerLetters.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-8 text-center bg-muted/20">
+                    <p className="text-sm font-medium">No offer letters yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Create an offer letter to issue a facility to this borrower.</p>
+                  </div>
+                ) : (
+                  offerLetters.map((ol: any) => (
+                    <div key={ol.id} className="rounded-lg border p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm font-semibold">{ol.offer_number}</span>
+                          <Badge variant={
+                            ol.status === "active" ? "default" :
+                            ol.status === "cancelled" || ol.status === "expired" ? "destructive" : "outline"
+                          }>
+                            {ol.status.replace(/_/g, " ")}
+                          </Badge>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(ol.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{ol.product_type?.replace(/_/g, " ")}</p>
+                      {ol.facilities && ol.facilities.length > 0 && (
+                        <div className="space-y-2">
+                          {ol.facilities.map((f: any) => {
+                            // Utilisation bar — if no overall_limit set, show as unlimited
+                            const pct = f.overall_limit ? Math.min((0 / f.overall_limit) * 100, 100) : 0;
+                            return (
+                              <div key={f.id} className="space-y-1">
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="font-medium">{f.currency}</span>
+                                  <span className="text-muted-foreground">
+                                    {f.overall_limit
+                                      ? `Limit: ${f.currency} ${Number(f.overall_limit).toLocaleString()}`
+                                      : "No overall limit set"}
+                                  </span>
+                                </div>
+                                {f.overall_limit && (
+                                  <div className="h-1.5 w-full rounded-full bg-muted">
+                                    <div
+                                      className="h-1.5 rounded-full bg-primary transition-all"
+                                      style={{ width: `${pct}%` }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))
                 )}
               </CardContent>
             </Card>
@@ -1128,6 +1218,13 @@ export default function BorrowerDetail() {
           mimeType={preview.mimeType}
         />
       )}
+
+      <OfferLetterWizard
+        open={offerLetterWizardOpen}
+        onClose={() => setOfferLetterWizardOpen(false)}
+        onCreated={loadAll}
+        prefillBorrowerId={id}
+      />
 
       <KycApprovalDialog
         open={kycDialog}

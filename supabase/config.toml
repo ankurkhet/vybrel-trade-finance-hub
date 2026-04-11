@@ -47,6 +47,12 @@ verify_jwt = false
 [functions.workflow-engine]
 verify_jwt = false
 
+[functions.process-disbursement]
+verify_jwt = false
+
+[functions.reconcile-bank-statement]
+verify_jwt = false
+
 [functions.registry-lookup]
 verify_jwt = false
 

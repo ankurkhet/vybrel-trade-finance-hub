@@ -214,6 +214,14 @@ CREATE POLICY "Collections updatable by org members" ON public.collections
 -- ============================================================
 -- audit_logs table
 -- ============================================================
+-- Ensure organization_id exists on audit_logs
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_logs' AND column_name = 'organization_id') THEN
+    ALTER TABLE public.audit_logs ADD COLUMN organization_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
 DROP POLICY IF EXISTS "Audit logs viewable by org members" ON public.audit_logs;
 DROP POLICY IF EXISTS "Org members can view audit_logs" ON public.audit_logs;
 CREATE POLICY "Audit logs viewable by org members" ON public.audit_logs

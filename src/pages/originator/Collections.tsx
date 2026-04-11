@@ -12,11 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import {
   Loader2, Plus, Banknote, FileText, CheckCircle2, Clock,
-  Download, ArrowRight, Receipt, AlertTriangle
+  Download, ArrowRight, Receipt, AlertTriangle, RefreshCw,
+  ExternalLink, ShieldAlert,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { RepaymentsContent } from "./Repayments";
+import { useNavigate } from "react-router-dom";
 
 const PRODUCT_LABELS: Record<string, string> = {
   receivables_purchase: "Receivables Purchase",
@@ -26,11 +29,13 @@ const PRODUCT_LABELS: Record<string, string> = {
 
 export default function Collections() {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const [collections, setCollections] = useState<any[]>([]);
   const [settlements, setSettlements] = useState<any[]>([]);
   const [fundedInvoices, setFundedInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("collections");
+  const [feeAlertCount, setFeeAlertCount] = useState(0);
 
   // Record collection dialog
   const [collectDialogOpen, setCollectDialogOpen] = useState(false);
@@ -74,6 +79,15 @@ export default function Collections() {
     setCollections(colRes.data || []);
     setSettlements(settRes.data || []);
     setFundedInvoices(invRes.data || []);
+
+    // Count pending fee resolution tasks
+    const { count } = await supabase
+      .from("fee_resolution_tasks" as any)
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId)
+      .eq("status", "pending");
+    setFeeAlertCount(count || 0);
+
     setLoading(false);
   };
 
@@ -215,6 +229,11 @@ export default function Collections() {
                     <TabsTrigger value="settlements">Settlement Advices</TabsTrigger>
                     <TabsTrigger value="waterfall">Waterfall</TabsTrigger>
                     <TabsTrigger value="awaiting">Awaiting Collection ({fundedInvoices.length})</TabsTrigger>
+                    <TabsTrigger value="repayments">Repayments</TabsTrigger>
+                    <TabsTrigger value="fee-alerts" className={feeAlertCount > 0 ? "text-destructive data-[state=active]:text-destructive" : ""}>
+                      <ShieldAlert className="h-3.5 w-3.5 mr-1" />
+                      Fee Alerts{feeAlertCount > 0 && <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] h-4 min-w-4 px-1">{feeAlertCount}</span>}
+                    </TabsTrigger>
                   </TabsList>
                 </div>
 
@@ -460,6 +479,20 @@ export default function Collections() {
                     </Table>
                   )}
                 </TabsContent>
+
+                {/* Repayments Tab */}
+                <TabsContent value="repayments" className="m-0 p-4">
+                  <RepaymentsContent />
+                </TabsContent>
+
+                {/* Fee Alerts Tab */}
+                <TabsContent value="fee-alerts" className="m-0 p-4">
+                  <FeeResolutionPanel
+                    orgId={profile!.organization_id!}
+                    onResolved={() => { fetchData(); setActiveTab("settlements"); }}
+                    navigate={navigate}
+                  />
+                </TabsContent>
               </Tabs>
             )}
           </CardContent>
@@ -638,5 +671,352 @@ export default function Collections() {
         </DialogContent>
       </Dialog>
     </DashboardLayout>
+  );
+}
+
+// ─── Fee Resolution Panel ─────────────────────────────────────────────────────
+
+function FeeResolutionPanel({
+  orgId,
+  onResolved,
+  navigate,
+}: {
+  orgId: string;
+  onResolved: () => void;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [resolveOpen, setResolveOpen] = useState<any>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [rates, setRates] = useState({
+    originator_fee_pct: "2.00",
+    discount_rate: "5.00",
+    platform_fee_pct: "0.50",
+    broker_fee_pct: "0.00",
+  });
+
+  const fetchTasks = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("fee_resolution_tasks" as any)
+      .select(`
+        *,
+        invoices(invoice_number, amount, currency, product_type),
+        borrowers(company_name)
+      `)
+      .eq("organization_id", orgId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+    setTasks(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchTasks(); }, [orgId]);
+
+  const openResolve = (task: any) => {
+    setRates({
+      originator_fee_pct: "2.00",
+      discount_rate: "5.00",
+      platform_fee_pct: "0.50",
+      broker_fee_pct: "0.00",
+    });
+    setResolveOpen(task);
+  };
+
+  const handleManualOverride = async () => {
+    if (!resolveOpen) return;
+    const origFee = parseFloat(rates.originator_fee_pct);
+    const discRate = parseFloat(rates.discount_rate);
+    if (isNaN(origFee) || isNaN(discRate) || origFee < 0 || discRate < 0) {
+      toast.error("Please enter valid fee rates (must be ≥ 0)");
+      return;
+    }
+    setSubmitting(true);
+    const { data, error } = await supabase.functions.invoke("generate-settlement", {
+      body: {
+        collection_id: resolveOpen.collection_id,
+        resolve_task_id: resolveOpen.id,
+        fee_override: {
+          originator_fee_pct: origFee,
+          discount_rate: discRate,
+          platform_fee_pct: parseFloat(rates.platform_fee_pct) || 0.5,
+          broker_fee_pct: parseFloat(rates.broker_fee_pct) || 0,
+        },
+      },
+    });
+    setSubmitting(false);
+
+    if (error || data?.error) {
+      toast.error(`Settlement failed: ${data?.message || error?.message || "Unknown error"}`);
+    } else {
+      toast.success("Settlement advice created using manual rate override");
+      setResolveOpen(null);
+      onResolved();
+    }
+  };
+
+  const handleDismiss = async (task: any) => {
+    await supabase
+      .from("fee_resolution_tasks" as any)
+      .update({ status: "dismissed", resolution_type: "dismissed", resolved_at: new Date().toISOString() })
+      .eq("id", task.id);
+    toast.info("Task dismissed");
+    fetchTasks();
+    onResolved();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-16 gap-3">
+        <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+        <p className="text-sm font-medium">No pending fee resolution tasks</p>
+        <p className="text-xs text-muted-foreground">All settlement fees have been resolved.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
+        <ShieldAlert className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-destructive">Fee Resolution Required</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            The following collections could not generate settlement advices because no valid fee configuration was found.
+            You can enter rates manually to proceed immediately, or update the borrower's facility / offer letter and retry.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {tasks.map((task) => (
+          <div key={task.id} className="rounded-lg border p-4 space-y-3">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-sm">
+                    {task.invoices?.invoice_number || "Invoice"} — {task.borrowers?.company_name || "Borrower"}
+                  </p>
+                  <Badge variant="destructive" className="text-[10px]">Fee Missing</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Product: {task.product_type?.replace(/_/g, " ")} &middot; Collection:{" "}
+                  <span className="font-mono font-medium text-foreground">
+                    {task.currency} {Number(task.collection_amount || 0).toLocaleString("en-GB", { minimumFractionDigits: 2 })}
+                  </span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Raised: {new Date(task.created_at).toLocaleString()}
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 text-xs"
+                  onClick={() => navigate(`/originator/borrowers/${task.borrower_id}`)}
+                >
+                  <ExternalLink className="h-3 w-3" />Update Facility
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 text-xs"
+                  onClick={() => {
+                    // Retry without override — lets the chain re-run after facility update
+                    setSubmitting(true);
+                    supabase.functions.invoke("generate-settlement", {
+                      body: { collection_id: task.collection_id, resolve_task_id: task.id },
+                    }).then(({ data, error }) => {
+                      setSubmitting(false);
+                      if (error || data?.error) {
+                        toast.error(data?.failure_reason || data?.message || "Retry failed — fee still not found");
+                      } else {
+                        toast.success("Settlement created on retry");
+                        onResolved();
+                      }
+                    });
+                  }}
+                  disabled={submitting}
+                >
+                  <RefreshCw className="h-3 w-3" />Retry
+                </Button>
+                <Button size="sm" onClick={() => openResolve(task)} className="gap-1 text-xs">
+                  Enter Rates
+                </Button>
+              </div>
+            </div>
+
+            {task.failure_reason && (
+              <div className="rounded-md bg-muted/50 border border-muted px-3 py-2">
+                <p className="text-[11px] text-muted-foreground leading-relaxed">{task.failure_reason}</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Manual Rate Override Dialog */}
+      <Dialog open={!!resolveOpen} onOpenChange={(o) => !o && setResolveOpen(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-destructive" />
+              Manual Fee Override
+            </DialogTitle>
+            <DialogDescription>
+              Enter the rates to apply to this settlement. These will be recorded as a manual override
+              for audit purposes and the settlement advice will be created immediately.
+            </DialogDescription>
+          </DialogHeader>
+
+          {resolveOpen && (
+            <div className="space-y-4">
+              {/* Context */}
+              <div className="rounded-lg bg-muted/40 border px-3 py-2 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Invoice</span>
+                  <span className="font-medium">{resolveOpen.invoices?.invoice_number}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Borrower</span>
+                  <span className="font-medium">{resolveOpen.borrowers?.company_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Collection</span>
+                  <span className="font-mono font-medium">
+                    {resolveOpen.currency} {Number(resolveOpen.collection_amount || 0).toLocaleString("en-GB", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Product</span>
+                  <span>{resolveOpen.product_type?.replace(/_/g, " ")}</span>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Rate fields */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">
+                    Discount Rate % <span className="text-destructive">*</span>
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground mb-1">Annual rate applied to collection</p>
+                  <Input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    max="100"
+                    value={rates.discount_rate}
+                    onChange={(e) => setRates((r) => ({ ...r, discount_rate: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">
+                    Originator Fee % <span className="text-destructive">*</span>
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground mb-1">Platform originator margin</p>
+                  <Input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    max="100"
+                    value={rates.originator_fee_pct}
+                    onChange={(e) => setRates((r) => ({ ...r, originator_fee_pct: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Platform Fee %</Label>
+                  <p className="text-[10px] text-muted-foreground mb-1">Vybrel platform fee</p>
+                  <Input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={rates.platform_fee_pct}
+                    onChange={(e) => setRates((r) => ({ ...r, platform_fee_pct: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Broker Fee %</Label>
+                  <p className="text-[10px] text-muted-foreground mb-1">0 if no broker involved</p>
+                  <Input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={rates.broker_fee_pct}
+                    onChange={(e) => setRates((r) => ({ ...r, broker_fee_pct: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              {/* Live preview */}
+              {(() => {
+                const gross = Number(resolveOpen.collection_amount || 0);
+                const disc = (gross * (parseFloat(rates.discount_rate) || 0)) / 100;
+                const origFee = (gross * (parseFloat(rates.originator_fee_pct) || 0)) / 100;
+                const platFee = (gross * (parseFloat(rates.platform_fee_pct) || 0)) / 100;
+                const brokFee = (gross * (parseFloat(rates.broker_fee_pct) || 0)) / 100;
+                const net = gross - disc - origFee - platFee - brokFee;
+                const fmt = (n: number) =>
+                  `${resolveOpen.currency} ${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                return (
+                  <div className="rounded-lg border divide-y text-sm mt-1">
+                    <div className="flex justify-between px-3 py-1.5 text-muted-foreground text-xs">
+                      <span>Gross Collection</span><span className="font-mono">{fmt(gross)}</span>
+                    </div>
+                    <div className="flex justify-between px-3 py-1.5 text-muted-foreground text-xs">
+                      <span>Discount ({rates.discount_rate}%)</span><span className="font-mono">−{fmt(disc)}</span>
+                    </div>
+                    <div className="flex justify-between px-3 py-1.5 text-muted-foreground text-xs">
+                      <span>Originator Fee ({rates.originator_fee_pct}%)</span><span className="font-mono">−{fmt(origFee)}</span>
+                    </div>
+                    <div className="flex justify-between px-3 py-1.5 text-muted-foreground text-xs">
+                      <span>Platform Fee ({rates.platform_fee_pct}%)</span><span className="font-mono">−{fmt(platFee)}</span>
+                    </div>
+                    {brokFee > 0 && (
+                      <div className="flex justify-between px-3 py-1.5 text-muted-foreground text-xs">
+                        <span>Broker Fee ({rates.broker_fee_pct}%)</span><span className="font-mono">−{fmt(brokFee)}</span>
+                      </div>
+                    )}
+                    <div className={`flex justify-between px-3 py-2 font-semibold text-xs ${net < 0 ? "text-destructive bg-destructive/5" : "text-foreground bg-muted/30"}`}>
+                      <span>Net to Borrower</span><span className="font-mono">{fmt(net)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="rounded-md border border-amber-200 bg-amber-50/50 px-3 py-2 text-[11px] text-amber-700">
+                This override will be recorded in the audit log as a manual rate entry by you. Ensure these rates have been authorised by a credit manager before proceeding.
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" size="sm" onClick={() => resolveOpen && handleDismiss(resolveOpen)}>
+              Dismiss Task
+            </Button>
+            <Button variant="outline" onClick={() => setResolveOpen(null)}>Cancel</Button>
+            <Button onClick={handleManualOverride} disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Create Settlement
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

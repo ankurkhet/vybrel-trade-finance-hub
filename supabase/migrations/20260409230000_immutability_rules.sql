@@ -8,9 +8,13 @@
 CREATE RULE no_update_audit_logs AS ON UPDATE TO public.audit_logs DO INSTEAD NOTHING;
 CREATE RULE no_delete_audit_logs AS ON DELETE TO public.audit_logs DO INSTEAD NOTHING;
 
--- cc_votes: votes cast are permanent — integrity of credit committee decisions
-CREATE RULE no_update_cc_votes AS ON UPDATE TO public.cc_votes DO INSTEAD NOTHING;
-CREATE RULE no_delete_cc_votes AS ON DELETE TO public.cc_votes DO INSTEAD NOTHING;
+-- credit_committee_votes: votes cast are permanent — integrity of credit committee decisions
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'credit_committee_votes') THEN
+    CREATE RULE no_update_cc_votes AS ON UPDATE TO public.credit_committee_votes DO INSTEAD NOTHING;
+    CREATE RULE no_delete_cc_votes AS ON DELETE TO public.credit_committee_votes DO INSTEAD NOTHING;
+  END IF;
+END $$;
 
 -- workflow_event_queue: events are immutable once enqueued
 -- (processed flag is updated by the workflow engine service role, not users)

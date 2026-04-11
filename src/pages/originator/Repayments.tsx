@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-export default function Repayments() {
+export function RepaymentsContent() {
   const { profile } = useAuth();
   const [memos, setMemos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,13 +168,8 @@ export default function Repayments() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Repayment Memos</h1>
-            <p className="text-sm text-muted-foreground">Create and manage repayment confirmations</p>
-          </div>
+      <div className="space-y-4">
+        <div className="flex justify-end">
           <Button onClick={openCreateDialog}><Plus className="mr-2 h-4 w-4" /> Create Repayment</Button>
         </div>
 
@@ -239,7 +234,6 @@ export default function Repayments() {
             )}
           </CardContent>
         </Card>
-      </div>
 
       {/* Detail */}
       <Dialog open={!!detailMemo} onOpenChange={() => setDetailMemo(null)}>
@@ -336,6 +330,20 @@ export default function Repayments() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
+  );
+}
+
+export default function Repayments() {
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Repayments</h1>
+          <p className="text-sm text-muted-foreground">Create and manage repayment confirmations</p>
+        </div>
+        <RepaymentsContent />
+      </div>
     </DashboardLayout>
   );
 }

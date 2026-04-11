@@ -22,11 +22,6 @@ import {
   Shield,
   LogOut,
   Menu,
-  X,
-  CreditCard,
-  Upload,
-  Brain,
-  Palette,
   Hexagon,
   Package,
   Banknote,
@@ -34,12 +29,15 @@ import {
   FileCheck,
   Receipt,
   ArrowDownUp,
-  UserPlus,
   MessageSquare,
   Handshake,
   HelpCircle,
+  Layers,
+  UserCog,
+  TrendingUp,
+  Landmark,
 } from "lucide-react";
-import { Gavel, Workflow, Globe } from "lucide-react";
+import { Gavel, Workflow, Globe, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
@@ -96,11 +94,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   type NavItem = { icon: any; label: string; path: string; show: boolean; section?: string };
 
+  const isOriginator = ["originator_admin", "account_manager", "operations_manager", "credit_committee_member", "originator_user"].includes(activeRole);
+
   const navItems: NavItem[] = [
-    // Common top
+    // ── Common top ────────────────────────────────────────────────
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", show: true, section: "Main" },
     { icon: MessageSquare, label: "Messages", path: "/messages", show: true },
-    // Admin
+
+    // ── Vybrel Admin ─────────────────────────────────────────────
     { icon: Building2, label: "Originators", path: "/admin/organizations", show: activeRole === "admin", section: "Platform Admin" },
     { icon: Users, label: "All Users", path: "/admin/users", show: activeRole === "admin" },
     { icon: BarChart3, label: "Platform Reports", path: "/admin/reports", show: activeRole === "admin" },
@@ -108,50 +109,48 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Shield, label: "Audit Logs", path: "/admin/audit-logs", show: activeRole === "admin" },
     { icon: Workflow, label: "Workflow Studio", path: "/admin/workflow-studio", show: activeRole === "admin" },
     { icon: Globe, label: "Registry APIs", path: "/admin/registry-apis", show: activeRole === "admin" },
-    // Originator & Sub-roles
-    { icon: Users, label: "Borrowers", path: "/originator/borrowers", show: ["originator_admin", "account_manager"].includes(activeRole), section: "Originator" },
-    { icon: FileText, label: "Contracts", path: "/originator/contracts", show: ["originator_admin", "account_manager"].includes(activeRole) },
-    { icon: CreditCard, label: "Invoices", path: "/originator/invoices", show: ["originator_admin", "account_manager"].includes(activeRole) },
-    { icon: Brain, label: "AI Insights", path: "/originator/ai-insights", show: activeRole === "originator_admin" },
-    { icon: Upload, label: "KYC/KYB Docs", path: "/originator/documents", show: ["originator_admin", "account_manager"].includes(activeRole) },
-    { icon: FileCheck, label: "Templates", path: "/originator/document-templates", show: activeRole === "originator_admin" },
-    { icon: Receipt, label: "Collections", path: "/originator/collections", show: ["originator_admin", "operations_manager"].includes(activeRole) },
-    { icon: ArrowDownUp, label: "Fee Config", path: "/originator/fee-config", show: activeRole === "originator_admin" },
-    { icon: Users, label: "Counterparties", path: "/originator/counterparties", show: activeRole === "originator_admin" },
-    { icon: UserPlus, label: "Invite Users", path: "/originator/invite", show: activeRole === "originator_admin" },
-    { icon: BarChart3, label: "Reports", path: "/originator/reports", show: activeRole === "originator_admin" },
-    { icon: Palette, label: "Branding", path: "/originator/branding-profiles", show: activeRole === "originator_admin" },
-    { icon: FileText, label: "Credit Memos", path: "/originator/credit-memos", show: activeRole === "originator_admin" },
-    { icon: Gavel, label: "Credit Committee", path: "/originator/credit-committee", show: ["originator_admin", "credit_committee_member"].includes(activeRole) },
-    { icon: Banknote, label: "Disbursements", path: "/originator/disbursements", show: ["originator_admin", "operations_manager"].includes(activeRole) },
-    { icon: ArrowDownUp, label: "Repayments", path: "/originator/repayments", show: ["originator_admin", "operations_manager"].includes(activeRole) },
-    { icon: Handshake, label: "Lender Management", path: "/originator/lender-management", show: activeRole === "originator_admin" },
-    // Broker
-    { icon: Users, label: "Borrowers", path: "/broker/borrowers", show: activeRole === "broker_admin", section: "Broker" },
-    { icon: FileText, label: "Contracts", path: "/broker/contracts", show: activeRole === "broker_admin" },
-    { icon: CreditCard, label: "Invoices", path: "/broker/invoices", show: activeRole === "broker_admin" },
-    { icon: Receipt, label: "Collections", path: "/broker/collections", show: activeRole === "broker_admin" },
-    { icon: ArrowDownUp, label: "Fee Config", path: "/broker/fee-config", show: activeRole === "broker_admin" },
-    { icon: Upload, label: "KYC/KYB Docs", path: "/broker/documents", show: activeRole === "broker_admin" },
-    { icon: BarChart3, label: "Reports", path: "/broker/reports", show: activeRole === "broker_admin" },
-    { icon: Palette, label: "Branding", path: "/broker/branding", show: activeRole === "broker_admin" },
-    // Borrower
-    { icon: Building2, label: "My Profile", path: "/borrower/profile", show: activeRole === "borrower", section: "Borrower" },
-    { icon: FileCheck, label: "Onboarding", path: "/borrower/onboarding", show: activeRole === "borrower" },
-    { icon: Upload, label: "My Documents", path: "/borrower/documents", show: activeRole === "borrower" },
-    { icon: CreditCard, label: "My Invoices", path: "/borrower/invoices", show: activeRole === "borrower" },
-    { icon: FileCheck, label: "Verify Invoices", path: "/counterparty/dashboard", show: activeRole === "borrower" },
-    { icon: Receipt, label: "Settlements", path: "/borrower/settlements", show: activeRole === "borrower" },
-    { icon: BarChart3, label: "My Reports", path: "/borrower/reports", show: activeRole === "borrower" },
-    // Funder
-    { icon: Shield, label: "Onboarding & KYC", path: "/funder/onboarding", show: activeRole === "funder", section: "Funder" },
-    { icon: Banknote, label: "Marketplace", path: "/funder/marketplace", show: activeRole === "funder" },
-    { icon: Wallet, label: "Portfolio", path: "/funder/portfolio", show: activeRole === "funder" },
-    { icon: Receipt, label: "Settlements", path: "/funder/settlements", show: activeRole === "funder" },
-    { icon: BarChart3, label: "Reports", path: "/funder/reports", show: activeRole === "funder" },
-    // Common
-    { icon: HelpCircle, label: "Help Center", path: "/help", show: true, section: "Common" },
-    { icon: Settings, label: "Settings", path: "/settings", show: true },
+
+    // ── Originator — 13 items ────────────────────────────────────
+    { icon: UserCog,   label: "Users",            path: "/originator/users",             show: activeRole === "originator_admin", section: "Originator" },
+    { icon: Users,     label: "Borrowers",         path: "/originator/borrowers",         show: isOriginator },
+    { icon: Landmark,  label: "Funders",            path: "/originator/lender-management", show: activeRole === "originator_admin" },
+    { icon: Handshake, label: "Brokers",            path: "/originator/brokers",           show: activeRole === "originator_admin" },
+    { icon: FileText,  label: "Invoices & Funding", path: "/originator/invoices",          show: isOriginator },
+    { icon: Gavel,     label: "Credit Committee",   path: "/originator/credit-committee",  show: ["originator_admin", "credit_committee_member"].includes(activeRole) },
+    { icon: Banknote,  label: "Disbursements",      path: "/originator/disbursements",     show: ["originator_admin", "operations_manager"].includes(activeRole) },
+    { icon: Receipt,   label: "Collections",        path: "/originator/collections",       show: ["originator_admin", "operations_manager"].includes(activeRole) },
+    { icon: TrendingUp,label: "Settlements",        path: "/originator/settlements",       show: ["originator_admin", "operations_manager"].includes(activeRole) },
+    { icon: Scale,     label: "Reconciliation",     path: "/originator/reconciliation",    show: ["originator_admin", "operations_manager"].includes(activeRole) },
+    { icon: FileCheck, label: "Offer Letters",      path: "/originator/offer-letters",     show: activeRole === "originator_admin" },
+    { icon: BarChart3, label: "Reports",            path: "/originator/reports",           show: activeRole === "originator_admin" },
+    { icon: Layers,    label: "Platform Settings",  path: "/originator/platform-settings", show: activeRole === "originator_admin" },
+
+    // ── Broker ───────────────────────────────────────────────────
+    { icon: Users,     label: "Borrowers",  path: "/broker/borrowers",   show: activeRole === "broker_admin", section: "Broker" },
+    { icon: FileText,  label: "Contracts",  path: "/broker/contracts",   show: activeRole === "broker_admin" },
+    { icon: FileText,  label: "Invoices",   path: "/broker/invoices",    show: activeRole === "broker_admin" },
+    { icon: Receipt,   label: "Collections",path: "/broker/collections", show: activeRole === "broker_admin" },
+    { icon: BarChart3, label: "Reports",    path: "/broker/reports",     show: activeRole === "broker_admin" },
+
+    // ── Borrower ─────────────────────────────────────────────────
+    { icon: Building2, label: "My Profile",     path: "/borrower/profile",       show: activeRole === "borrower", section: "Borrower" },
+    { icon: FileCheck, label: "Onboarding",     path: "/borrower/onboarding",    show: activeRole === "borrower" },
+    { icon: FileText,  label: "My Invoices",    path: "/borrower/invoices",      show: activeRole === "borrower" },
+    { icon: FileCheck, label: "Verify Invoices",path: "/counterparty/dashboard", show: activeRole === "borrower" },
+    { icon: Receipt,   label: "Settlements",    path: "/borrower/settlements",   show: activeRole === "borrower" },
+    { icon: BarChart3, label: "My Reports",     path: "/borrower/reports",       show: activeRole === "borrower" },
+    { icon: FileText,  label: "Offer Letters",  path: "/borrower/offer-letters", show: activeRole === "borrower" },
+
+    // ── Funder ───────────────────────────────────────────────────
+    { icon: Shield,    label: "Onboarding & KYC", path: "/funder/onboarding", show: activeRole === "funder", section: "Funder" },
+    { icon: Banknote,  label: "Marketplace",      path: "/funder/marketplace", show: activeRole === "funder" },
+    { icon: Wallet,    label: "Portfolio",         path: "/funder/portfolio",   show: activeRole === "funder" },
+    { icon: Receipt,   label: "Settlements",       path: "/funder/settlements", show: activeRole === "funder" },
+    { icon: BarChart3, label: "Reports",           path: "/funder/reports",     show: activeRole === "funder" },
+
+    // ── Common bottom ────────────────────────────────────────────
+    { icon: HelpCircle, label: "Help Center", path: "/help",     show: true, section: "Common" },
+    { icon: Settings,   label: "Settings",    path: "/settings", show: true },
   ].filter((item) => item.show);
 
   return (
@@ -200,7 +199,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   onClick={() => setSidebarOpen(false)}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                    location.pathname === item.path
+                    location.pathname === item.path || location.pathname.startsWith(item.path + "/")
                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                   )}

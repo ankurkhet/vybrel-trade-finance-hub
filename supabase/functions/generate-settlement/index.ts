@@ -14,13 +14,7 @@ interface FeeConfig {
   payment_instructions: any;
 }
 
-const DEFAULT_FEE_CONFIG: FeeConfig = {
-  originator_fee_pct: 2,
-  platform_fee_pct: 0.5,
-  default_discount_rate: 5,
-  settlement_days: 1,
-  payment_instructions: {},
-};
+// Default used only as a TypeScript type reference; actual defaults are inline in the resolution chain.
 
 function generateAdviceNumber(type: string, index: number): string {
   const prefix = type === "borrower_settlement" ? "SA-B" : "SA-F";
@@ -146,7 +140,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { collection_id } = await req.json();
+    const {
+      collection_id,
+      // Optional: explicit multi-funder allocation array from UI
+      // [{ funder_user_id, allocation_id, amount, currency }]
+      funder_allocations: explicitAllocations,
+      // Stage-4 resolution: admin-entered rates to bypass the fee chain
+      fee_override,
+      // If resolving an existing task, pass its id so we can mark it resolved
+      resolve_task_id,
+    } = await req.json();
+
+    // fee_override shape: { originator_fee_pct, discount_rate, platform_fee_pct?, broker_fee_pct? }
 
     if (!collection_id) {
       return new Response(
@@ -189,7 +194,7 @@ Deno.serve(async (req) => {
 
     const { data: disbursementMemo } = await supabase
       .from("disbursement_memos")
-      .select("facility_request_id, disbursement_amount")
+      .select("id, facility_request_id, disbursement_amount, created_at")
       .eq("invoice_id", invoice.id)
       .not("facility_request_id", "is", null)
       .limit(1)
@@ -221,19 +226,180 @@ Deno.serve(async (req) => {
 
     const orgName = org?.name || "Originator";
 
-    // Fetch product fee config (fallback rates)
-    const { data: feeConfigData } = await supabase
-      .from("product_fee_configs")
-      .select("*")
-      .eq("organization_id", collection.organization_id)
-      .eq("product_type", invoice.product_type || "receivables_purchase")
-      .maybeSingle();
-
-    const feeConfig: FeeConfig = feeConfigData || DEFAULT_FEE_CONFIG;
-    const brokerFeePct = (feeConfigData as any)?.broker_fee_pct ?? 0;
     const advices: any[] = [];
     const currency: string = collection.currency || "GBP";
     const orgId: string = collection.organization_id;
+    const productType: string = invoice.product_type || "receivables_purchase";
+    const collectionDate: string = collection.collected_at
+      ? collection.collected_at.slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
+
+    // ── 4-Step Fee Resolution Chain ─────────────────────────────────────────
+    // Step 1: Offer letter with fee_valid_from ≤ collectionDate ≤ fee_valid_to
+    // Step 2: Offer letter in force at disbursement issue time (any with fee window covering that date)
+    // Step 3: product_fee_configs as emergency fallback
+    // Step 4: HIGH ALERT if all fail — do NOT create settlement advice
+
+    let feeConfig: FeeConfig | null = null;
+    let feeResolutionSource: string = "failed";
+    let brokerFeePct = 0;
+
+    const borrowerId = invoice.borrowers?.id;
+
+    // Step 0: Admin fee_override (supplied when resolving a Stage-4 task)
+    if (fee_override && fee_override.originator_fee_pct != null && fee_override.discount_rate != null) {
+      feeConfig = {
+        originator_fee_pct: Number(fee_override.originator_fee_pct),
+        platform_fee_pct: Number(fee_override.platform_fee_pct ?? 0.5),
+        default_discount_rate: Number(fee_override.discount_rate),
+        settlement_days: 1,
+        payment_instructions: {},
+      };
+      brokerFeePct = Number(fee_override.broker_fee_pct ?? 0);
+      feeResolutionSource = "manual_override";
+    }
+
+    // Step 1: Offer letter valid at collection date
+    if (borrowerId) {
+      const { data: olStep1 } = await supabase
+        .from("offer_letters")
+        .select("originator_fee_pct, platform_fee_pct, discount_rate, broker_fee_pct")
+        .eq("borrower_id", borrowerId)
+        .eq("organization_id", orgId)
+        .eq("product_type", productType)
+        .in("status", ["active", "issued"])
+        .lte("fee_valid_from", collectionDate)
+        .or(`fee_valid_to.is.null,fee_valid_to.gte.${collectionDate}`)
+        .order("fee_valid_from", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (olStep1) {
+        feeConfig = {
+          originator_fee_pct: Number(olStep1.originator_fee_pct ?? 2),
+          platform_fee_pct: Number(olStep1.platform_fee_pct ?? 0.5),
+          default_discount_rate: Number(olStep1.discount_rate ?? 5),
+          settlement_days: 1,
+          payment_instructions: {},
+        };
+        brokerFeePct = Number((olStep1 as any).broker_fee_pct ?? 0);
+        feeResolutionSource = "offer_letter";
+      }
+    }
+
+    // Step 2: Offer letter in force at disbursement issue date
+    if (!feeConfig && borrowerId && disbursementMemo) {
+      const disbIssuedAt = (disbursementMemo as any).created_at
+        ? String((disbursementMemo as any).created_at).slice(0, 10)
+        : collectionDate;
+
+      const { data: olStep2 } = await supabase
+        .from("offer_letters")
+        .select("originator_fee_pct, platform_fee_pct, discount_rate, broker_fee_pct")
+        .eq("borrower_id", borrowerId)
+        .eq("organization_id", orgId)
+        .eq("product_type", productType)
+        .in("status", ["active", "issued"])
+        .lte("fee_valid_from", disbIssuedAt)
+        .or(`fee_valid_to.is.null,fee_valid_to.gte.${disbIssuedAt}`)
+        .order("fee_valid_from", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (olStep2) {
+        feeConfig = {
+          originator_fee_pct: Number(olStep2.originator_fee_pct ?? 2),
+          platform_fee_pct: Number(olStep2.platform_fee_pct ?? 0.5),
+          default_discount_rate: Number(olStep2.discount_rate ?? 5),
+          settlement_days: 1,
+          payment_instructions: {},
+        };
+        brokerFeePct = Number((olStep2 as any).broker_fee_pct ?? 0);
+        feeResolutionSource = "offer_letter_fallback";
+      }
+    }
+
+    // Step 3: product_fee_configs emergency fallback
+    if (!feeConfig) {
+      const { data: feeConfigData } = await supabase
+        .from("product_fee_configs")
+        .select("*")
+        .eq("organization_id", orgId)
+        .eq("product_type", productType)
+        .maybeSingle();
+
+      if (feeConfigData) {
+        feeConfig = {
+          originator_fee_pct: Number((feeConfigData as any).originator_fee_pct ?? 2),
+          platform_fee_pct: Number((feeConfigData as any).platform_fee_pct ?? 0.5),
+          default_discount_rate: Number((feeConfigData as any).default_discount_rate ?? 5),
+          settlement_days: 1,
+          payment_instructions: (feeConfigData as any).payment_instructions || {},
+        };
+        brokerFeePct = Number((feeConfigData as any).broker_fee_pct ?? 0);
+        feeResolutionSource = "product_fee_config";
+        console.warn("[generate-settlement] Using emergency fallback product_fee_config for invoice", invoice.id);
+      }
+    }
+
+    // Step 4: HIGH ALERT — fee not found, create fee_resolution_task, do NOT create settlement advice
+    if (!feeConfig) {
+      feeResolutionSource = "failed";
+      console.error("[generate-settlement] CRITICAL: No fee configuration found for invoice", invoice.id);
+
+      // Upsert a fee_resolution_task so the UI can surface it
+      const failureReason = `No valid offer letter or product fee config found for product "${productType}" on collection date ${collectionDate}. ` +
+        `Checked: offer_letter (at collection date), offer_letter_fallback (at disbursement date), product_fee_configs.`;
+
+      const { data: newTask } = await supabase
+        .from("fee_resolution_tasks" as any)
+        .upsert({
+          organization_id: orgId,
+          collection_id: collection.id,
+          invoice_id: invoice.id,
+          borrower_id: borrowerId ?? null,
+          product_type: productType,
+          collection_amount: collection.collected_amount,
+          currency,
+          status: "pending",
+          failure_reason: failureReason,
+        }, { onConflict: "collection_id" })
+        .select("id")
+        .single();
+
+      return new Response(
+        JSON.stringify({
+          error: "fee_resolution_failed",
+          task_id: (newTask as any)?.id ?? null,
+          invoice_id: invoice.id,
+          invoice_number: invoice.invoice_number,
+          collection_id: collection.id,
+          collection_amount: collection.collected_amount,
+          currency,
+          product_type: productType,
+          failure_reason: failureReason,
+          message: "No valid fee configuration found. A HIGH ALERT task has been created — provide manual rates or update the facility and retry.",
+        }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // If we resolved a fee_resolution_task via override, mark it resolved now
+    if (resolve_task_id) {
+      await supabase
+        .from("fee_resolution_tasks" as any)
+        .update({
+          status: "resolved",
+          resolved_at: new Date().toISOString(),
+          resolution_type: feeResolutionSource === "manual_override" ? "manual_override" : "retry",
+          override_originator_fee_pct: fee_override?.originator_fee_pct ?? null,
+          override_discount_rate: fee_override?.discount_rate ?? null,
+          override_platform_fee_pct: fee_override?.platform_fee_pct ?? null,
+          override_broker_fee_pct: fee_override?.broker_fee_pct ?? null,
+        })
+        .eq("id", resolve_task_id);
+    }
+    // ── End Fee Resolution ───────────────────────────────────────────────────
 
     // Count existing advices for numbering
     const { count } = await supabase
@@ -251,7 +417,7 @@ Deno.serve(async (req) => {
       const settlement = calculateSettlement(
         collection.collected_amount,
         feeConfig,
-        invoice.product_type || "receivables_purchase",
+        productType,
         facilityRate,
         undefined,
         brokerFeePct
@@ -296,8 +462,10 @@ Deno.serve(async (req) => {
         net_margin_amount: settlement.netMarginAmount,
         net_margin_pct: settlement.netMarginPct,
         negative_margin: isNegativeMargin,
+        fee_resolution_source: feeResolutionSource,
+        disbursement_memo_id: disbursementMemo?.id ?? null,
         metadata: {
-          rate_source: facilityRate?.final_discounting_rate ? "facility" : "product_fee_config",
+          rate_source: feeResolutionSource,
           effective_discount_rate: settlement.effectiveDiscount,
         },
       };
@@ -312,6 +480,14 @@ Deno.serve(async (req) => {
         console.error("Failed to create borrower settlement:", baErr);
       } else {
         advices.push(ba);
+
+        // Stamp settlement_advice_id back onto the resolved task (if any)
+        if (resolve_task_id && ba?.id) {
+          await supabase
+            .from("fee_resolution_tasks" as any)
+            .update({ settlement_advice_id: ba.id })
+            .eq("id", resolve_task_id);
+        }
 
         // ── Fix D: Negative net margin alert ──────────────────────────────
         if (isNegativeMargin) {
@@ -577,6 +753,120 @@ Deno.serve(async (req) => {
             console.warn("[generate-settlement] Could not create payment_instruction:", piErr);
           }
         }
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 3. MULTI-FUNDER ALLOCATION SETTLEMENT (via facility_funder_allocations)
+    //    Used when caller passes explicit funder_allocations from the UI.
+    //    Each allocation gets its own settlement advice + balanced journals.
+    // -----------------------------------------------------------------------
+    if (explicitAllocations && explicitAllocations.length > 0) {
+      for (const alloc of explicitAllocations) {
+        const { funder_user_id, allocation_id, amount: allocAmount, currency: allocCurrency } = alloc;
+        if (!funder_user_id || !allocAmount) continue;
+
+        // Fetch funder name from profiles
+        const { data: funderProf } = await supabase
+          .from("profiles")
+          .select("full_name, email")
+          .eq("user_id", funder_user_id)
+          .single();
+
+        // Fetch rate from facility_funder_allocations
+        let allocRate = feeConfig.default_discount_rate;
+        if (allocation_id) {
+          const { data: allocRow } = await supabase
+            .from("facility_funder_allocations")
+            .select("final_discounting_rate")
+            .eq("id", allocation_id)
+            .single();
+          if (allocRow?.final_discounting_rate) allocRate = allocRow.final_discounting_rate;
+        }
+
+        const fundedDate = new Date(invoice.created_at || Date.now());
+        const collectionDate = new Date(collection.collection_date);
+        const daysFunded = Math.max(1, Math.ceil(
+          (collectionDate.getTime() - fundedDate.getTime()) / (1000 * 60 * 60 * 24)
+        ));
+
+        const funderReturn = calculateFunderReturn(allocAmount, allocRate, daysFunded, feeConfig);
+        const allocationCurrency = allocCurrency || currency;
+
+        const allocAdvice: any = {
+          organization_id: orgId,
+          collection_id: collection.id,
+          advice_number: generateAdviceNumber("funder_settlement", adviceIndex++),
+          advice_type: "funder_settlement",
+          from_party_name: orgName,
+          to_party_name: funderProf?.full_name || "Funder",
+          to_party_email: funderProf?.email,
+          to_funder_user_id: funder_user_id,
+          invoice_id: invoice.id,
+          product_type: invoice.product_type || "receivables_purchase",
+          gross_amount: allocAmount,
+          discount_amount: 0,
+          originator_fee: 0,
+          platform_fee: funderReturn.platformFee,
+          net_amount: funderReturn.netReturn,
+          currency: allocationCurrency,
+          fee_breakdown: funderReturn.feeBreakdown,
+          payment_instructions: feeConfig.payment_instructions || {},
+          status: "issued",
+          issued_at: new Date().toISOString(),
+          settlement_type: (facilityRate?.settlement_type as "advance" | "accrual") ?? "accrual",
+          advance_paid: 0,
+          remaining_balance: funderReturn.netReturn,
+          net_margin_amount: funderReturn.platformFee,
+          net_margin_pct: allocAmount > 0 ? (funderReturn.platformFee / allocAmount) * 100 : 0,
+          negative_margin: false,
+          metadata: {
+            days_funded: daysFunded,
+            discount_rate: allocRate,
+            allocation_id,
+            yield_amount: funderReturn.yield,
+          },
+        };
+
+        const { data: aa, error: aaErr } = await supabase
+          .from("settlement_advices")
+          .insert(allocAdvice)
+          .select()
+          .single();
+
+        if (aaErr) {
+          console.error("[generate-settlement] Failed funder alloc advice:", aaErr);
+          continue;
+        }
+
+        advices.push(aa);
+
+        // Balanced journals: DEBIT funder_yield_payable / CREDIT funder_net_settlement
+        const allocJournals: object[] = [
+          {
+            organization_id: orgId,
+            journal_type: "margin",
+            reference_id: aa.id,
+            account_id: funder_user_id,
+            system_account: "funder_yield_payable",
+            amount: funderReturn.netReturn,
+            direction: "debit",
+            currency: allocationCurrency,
+            description: `Funder alloc payout (${allocRate.toFixed(2)}% p.a. × ${daysFunded}d): ${invoice.invoice_number}`,
+          },
+          {
+            organization_id: orgId,
+            journal_type: "collection",
+            reference_id: aa.id,
+            account_id: funder_user_id,
+            system_account: "funder_net_settlement",
+            amount: funderReturn.netReturn,
+            direction: "credit",
+            currency: allocationCurrency,
+            description: `Net to funder (alloc): ${invoice.invoice_number}`,
+          },
+        ];
+        await postJournalBatch(supabase, allocJournals);
       }
     }
 

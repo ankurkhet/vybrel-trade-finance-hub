@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CreditCard, Loader2, Search, CheckCircle2, XCircle, Eye, Clock, FileCheck, Send } from "lucide-react";
+import { CreditCard, Loader2, Search, CheckCircle2, XCircle, Eye, Clock, FileCheck, Send, PackageCheck, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { FraudBadge } from "@/components/fraud/FraudBadge";
 import { FraudAssessmentSection } from "@/components/fraud/FraudAssessmentSection";
+import { SubmissionCommentsTimeline } from "@/components/invoice-submission/SubmissionCommentsTimeline";
 
 const PRODUCT_LABELS: Record<string, string> = {
   receivables_purchase: "Receivables Purchase",
@@ -133,6 +134,25 @@ export default function Invoices() {
     setReviewInvoice(null);
     fetchInvoices();
     setUpdating(false);
+  };
+
+  const handleGoodsVerify = async (invoiceId: string) => {
+    await supabase.from("invoices").update({
+      goods_verified_at: new Date().toISOString(),
+      goods_verified_by: profile?.user_id,
+      shipping_validation_status: "verified",
+    } as any).eq("id", invoiceId);
+    await supabase.from("audit_logs").insert({
+      organization_id: profile?.organization_id,
+      user_id: profile?.user_id,
+      action: "goods_verified",
+      table_name: "invoices",
+      record_id: invoiceId,
+      new_values: { goods_verified_at: new Date().toISOString() },
+    });
+    toast.success("Goods verified");
+    setReviewInvoice(null);
+    fetchInvoices();
   };
 
   const canApprove = (inv: any) => {
@@ -387,6 +407,52 @@ export default function Invoices() {
                 canOverride={true}
                 onOverrideComplete={() => { setReviewInvoice(null); fetchInvoices(); }}
               />
+
+              {/* Borrower Comments */}
+              <Separator />
+              <SubmissionCommentsTimeline invoiceId={reviewInvoice.id} />
+
+              {/* Goods / Shipping Verification */}
+              <Separator />
+              <div className="space-y-2">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <PackageCheck className="h-4 w-4 text-muted-foreground" />
+                  Goods Verification
+                </p>
+                {(reviewInvoice as any).goods_verified_at ? (
+                  <div className="flex items-center gap-2 text-xs text-emerald-600">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Goods verified on {new Date((reviewInvoice as any).goods_verified_at).toLocaleDateString("en-GB")}
+                  </div>
+                ) : (reviewInvoice as any).shipping_validation_status === "ai_flagged" ? (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-1">
+                    <div className="flex items-center gap-2 text-xs text-amber-700 font-medium">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      AI detected shipping mismatch
+                    </div>
+                    {(reviewInvoice as any).shipping_ai_result?.mismatches?.map((m: string, i: number) => (
+                      <p key={i} className="text-[10px] text-amber-600 pl-5">• {m}</p>
+                    ))}
+                    <Button size="sm" className="mt-2 h-7 text-xs gap-1" onClick={() => handleGoodsVerify(reviewInvoice.id)}>
+                      <CheckCircle2 className="h-3 w-3" /> Override & Verify
+                    </Button>
+                  </div>
+                ) : (reviewInvoice as any).shipping_validation_status === "verified" ? (
+                  <div className="flex items-center gap-2 text-xs text-emerald-600">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    AI-verified via shipping document
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed p-3 space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      No shipping documents uploaded. Confirm goods through external means (carrier receipt, delivery confirmation, etc.)
+                    </p>
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => handleGoodsVerify(reviewInvoice.id)}>
+                      <CheckCircle2 className="h-3 w-3" /> Mark Goods Verified
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
           <DialogFooter className="flex-wrap gap-2">

@@ -86,6 +86,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const profileRes = await supabase.from("profiles").select("*").eq("user_id", userId).single();
     if (profileRes.data) setProfile(profileRes.data);
 
+    // Flush any pending NDA acceptance recorded at signup time
+    const pendingNda = localStorage.getItem("pending_nda_acceptance");
+    if (pendingNda) {
+      try {
+        const ndaData = JSON.parse(pendingNda);
+        // Check not already recorded
+        const { count } = await supabase
+          .from("document_acceptances" as any)
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("document_type", "nda");
+        if (!count || count === 0) {
+          await supabase.from("document_acceptances" as any).insert({
+            actor_type: "originator_user",
+            actor_id: userId,
+            actor_email: ndaData.actor_email,
+            user_id: userId,
+            document_type: "nda",
+            document_version: ndaData.document_version || "1.0",
+            acceptance_method: "in_app_checkbox",
+            accepted_at: ndaData.accepted_at,
+          });
+        }
+        localStorage.removeItem("pending_nda_acceptance");
+      } catch {
+        localStorage.removeItem("pending_nda_acceptance");
+      }
+    }
+
     if (jwtRoles && jwtRoles.length > 0) {
       // Fast path: roles from JWT claim (no extra DB round-trip)
       setRoles(jwtRoles);

@@ -14,10 +14,44 @@ ALTER TABLE public.profiles RENAME COLUMN user_id TO id;
 -- Step 3: Add correct PK on id (= auth.users.id)
 ALTER TABLE public.profiles ADD PRIMARY KEY (id);
 
--- Step 4: Drop the orphaned old auto-generated id column
+-- Step 4: Drop dependent policies from other tables that might refer to the old profiles structure
+DROP POLICY IF EXISTS "funder_limits_select" ON public.funder_limits;
+DROP POLICY IF EXISTS "funder_limits_insert" ON public.funder_limits;
+DROP POLICY IF EXISTS "funder_limits_update" ON public.funder_limits;
+DROP POLICY IF EXISTS "originator_select_funder_relationships" ON public.funder_relationships;
+DROP POLICY IF EXISTS "originator_admin_modify_funder_relationships" ON public.funder_relationships;
+
+-- Step 5: Drop the orphaned old auto-generated id column
 ALTER TABLE public.profiles DROP COLUMN _old_id;
 
--- Step 5: Update get_user_organization_id() — was: WHERE user_id = _user_id
+-- Step 6: Recreate dependent policies using the new profiles.id structure
+CREATE POLICY "funder_limits_select" ON public.funder_limits
+    FOR SELECT USING (
+        organization_id IN (SELECT organization_id FROM public.profiles WHERE id = auth.uid()) OR funder_user_id = auth.uid()
+    );
+CREATE POLICY "funder_limits_insert" ON public.funder_limits
+    FOR INSERT WITH CHECK (
+        organization_id IN (SELECT organization_id FROM public.profiles WHERE id = auth.uid())
+    );
+CREATE POLICY "funder_limits_update" ON public.funder_limits
+    FOR UPDATE USING (
+        organization_id IN (SELECT organization_id FROM public.profiles WHERE id = auth.uid()) OR funder_user_id = auth.uid()
+    );
+
+CREATE POLICY "originator_select_funder_relationships" ON public.funder_relationships
+    FOR SELECT USING (
+        organization_id IN (SELECT organization_id FROM public.profiles WHERE id = auth.uid())
+    );
+CREATE POLICY "originator_admin_modify_funder_relationships" ON public.funder_relationships
+    FOR ALL USING (
+        organization_id IN (
+            SELECT p.organization_id FROM public.profiles p
+            INNER JOIN public.user_roles ur ON ur.user_id = p.id
+            WHERE p.id = auth.uid() AND ur.role = 'originator_admin'::app_role
+        )
+    );
+
+-- Step 7: Update get_user_organization_id() — was: WHERE user_id = _user_id
 CREATE OR REPLACE FUNCTION public.get_user_organization_id(_user_id UUID)
 RETURNS UUID
 LANGUAGE sql
@@ -28,7 +62,7 @@ AS $$
   SELECT organization_id FROM public.profiles WHERE id = _user_id LIMIT 1;
 $$;
 
--- Step 6: Update handle_new_user trigger — was: INSERT INTO profiles (user_id, ...)
+-- Step 8: Update handle_new_user trigger — was: INSERT INTO profiles (user_id, ...)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -48,7 +82,7 @@ BEGIN
 END;
 $$;
 
--- Step 7: Fix profiles RLS policies (user_id = auth.uid() → id = auth.uid())
+-- Step 9: Fix profiles RLS policies (user_id = auth.uid() → id = auth.uid())
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile" ON public.profiles
   FOR SELECT TO authenticated

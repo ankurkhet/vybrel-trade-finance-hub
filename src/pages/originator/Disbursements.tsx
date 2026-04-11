@@ -10,10 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Search, Receipt, Inbox, CheckCircle2, XCircle, Eye, Banknote, Plus } from "lucide-react";
+import { Loader2, Search, Receipt, Inbox, CheckCircle2, XCircle, Eye, Banknote, Plus, FileText } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { DisbursementAdvicesContent } from "./DisbursementAdvices";
 
 export default function Disbursements() {
   const { profile } = useAuth();
@@ -64,6 +66,32 @@ export default function Disbursements() {
        return;
     }
     setApproving(true);
+
+    // Find active facility for this borrower + currency
+    const currency = memo.facility_requests?.currency || "GBP";
+    const { data: facilityRow } = await (supabase as any)
+      .from("facilities")
+      .select("id, overall_limit")
+      .eq("borrower_id", memo.borrower_id)
+      .eq("currency", currency)
+      .eq("status", "active")
+      .limit(1)
+      .single();
+
+    if (facilityRow) {
+      const { data: validation } = await supabase.rpc("validate_disbursement" as any, {
+        p_invoice_id: memo.invoice_id,
+        p_facility_id: facilityRow.id,
+        p_amount: memo.disbursement_amount,
+        p_currency: currency,
+      });
+      if (validation && !validation.allowed) {
+        toast.error(`Validation blocked: ${validation.reason}`);
+        setApproving(false);
+        return;
+      }
+    }
+
     const { error } = await supabase.from("disbursement_memos").update({
       status: "approved",
       approved_by: profile?.user_id,
@@ -77,6 +105,16 @@ export default function Disbursements() {
         action: "disbursement_approved", resource_type: "disbursement_memo", resource_id: memo.id,
         details: { memo_number: memo.memo_number, amount: memo.disbursement_amount },
       });
+
+      // Trigger PSP-or-manual flow
+      const { data: flowResult } = await supabase.functions.invoke("process-disbursement", {
+        body: { disbursement_memo_id: memo.id },
+      });
+      if (flowResult?.mode === "psp") {
+        toast.success("Payment submitted via PSP — ledger updated");
+      } else if (flowResult?.mode === "manual") {
+        toast.info(`Disbursement Advice ${flowResult.advice_number} created — upload bank statement to confirm`);
+      }
     }
     setApproving(false);
     setDetailMemo(null);
@@ -333,14 +371,27 @@ export default function Disbursements() {
 
   return (
     <DashboardLayout>
+      <>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Disbursement Memos</h1>
+            <h1 className="text-2xl font-bold text-foreground">Disbursements</h1>
             <p className="text-sm text-muted-foreground">Create, review and approve funding disbursements</p>
           </div>
           <Button onClick={openCreateDialog}><Plus className="mr-2 h-4 w-4" /> Create Disbursement</Button>
         </div>
+
+        <Tabs defaultValue="memos">
+          <TabsList>
+            <TabsTrigger value="memos">Disbursement Memos</TabsTrigger>
+            <TabsTrigger value="advices">Disbursement Advices</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="advices" className="mt-4">
+            <DisbursementAdvicesContent />
+          </TabsContent>
+
+          <TabsContent value="memos" className="mt-4">
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -426,6 +477,9 @@ export default function Disbursements() {
             )}
           </CardContent>
         </Card>
+
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Detail & Approval Dialog */}
@@ -484,9 +538,16 @@ export default function Disbursements() {
                     </Button>
                   </>
                 )}
-                {detailMemo.status === "approved" && (
+                {detailMemo.status === "approved" && detailMemo.disbursement_mode === "psp" && (
                   <Button className="w-full" onClick={() => { setPaymentDialog(detailMemo); setDetailMemo(null); }}>
-                    <Banknote className="mr-2 h-4 w-4" /> Confirm Payment
+                    <Banknote className="mr-2 h-4 w-4" /> Confirm Payment (PSP)
+                  </Button>
+                )}
+                {detailMemo.status === "approved" && detailMemo.disbursement_mode !== "psp" && (
+                  <Button className="w-full" variant="outline" asChild>
+                    <a href="/originator/disbursement-advices">
+                      <FileText className="mr-2 h-4 w-4" /> View Disbursement Advice
+                    </a>
                   </Button>
                 )}
                 {detailMemo.status === "disbursed" && (
@@ -667,6 +728,7 @@ export default function Disbursements() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </>
     </DashboardLayout>
   );
 }

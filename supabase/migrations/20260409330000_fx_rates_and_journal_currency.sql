@@ -8,10 +8,10 @@ CREATE TABLE IF NOT EXISTS public.fx_rates (
   from_currency CHAR(3) NOT NULL,
   to_currency   CHAR(3) NOT NULL,
   rate          NUMERIC(20, 8) NOT NULL,  -- units of to_currency per 1 from_currency
-  as_of_date    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  rate_date     DATE NOT NULL DEFAULT CURRENT_DATE,
   source        TEXT,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE(from_currency, to_currency, (as_of_date::date))
+  UNIQUE(from_currency, to_currency, rate_date)
 );
 
 ALTER TABLE public.fx_rates ENABLE ROW LEVEL SECURITY;
@@ -30,7 +30,7 @@ VALUES
   ('EUR', 'GBP', 0.85470085, 'bootstrap'),
   ('USD', 'EUR', 0.92000000, 'bootstrap'),
   ('EUR', 'USD', 1.08695652, 'bootstrap')
-ON CONFLICT (from_currency, to_currency, (as_of_date::date)) DO NOTHING;
+ON CONFLICT (from_currency, to_currency, rate_date) DO NOTHING;
 
 -- Helper: Get latest FX rate between two currencies (returns NULL if same currency)
 CREATE OR REPLACE FUNCTION public.get_fx_rate(p_from CHAR(3), p_to CHAR(3))
@@ -43,7 +43,7 @@ AS $$
       SELECT rate
       FROM public.fx_rates
       WHERE from_currency = p_from AND to_currency = p_to
-      ORDER BY as_of_date DESC
+      ORDER BY rate_date DESC
       LIMIT 1
     )
   END;

@@ -6,10 +6,48 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter as DialogFt } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Hexagon, Check, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+
+const NDA_CONTENT = `
+NON-DISCLOSURE AGREEMENT
+
+This Non-Disclosure Agreement ("Agreement") is entered into as of the date of electronic acceptance between Vybrel Limited ("Platform", "we", "us") and the Originator accepting this Agreement ("you", "Originator").
+
+1. CONFIDENTIAL INFORMATION
+"Confidential Information" means any non-public information disclosed by the Platform or its clients including but not limited to: borrower financial data, funder terms, trade finance structures, pricing, proprietary algorithms, software, and business processes.
+
+2. OBLIGATIONS
+You agree to: (a) hold all Confidential Information in strict confidence; (b) not disclose Confidential Information to any third party without prior written consent; (c) use Confidential Information solely for the purpose of using the Vybrel Platform to originate trade finance transactions; (d) protect Confidential Information with at least the same degree of care you use to protect your own confidential information, but no less than reasonable care.
+
+3. PERMITTED DISCLOSURES
+Disclosure is permitted where: (a) required by applicable law, court order, or regulatory authority (with prior notice to the Platform where legally permissible); (b) the information is or becomes publicly available through no fault of yours; (c) you received the information from a third party free of any obligation of confidentiality.
+
+4. DATA PROTECTION
+Both parties agree to comply with the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018 in respect of any personal data processed under this Agreement. Personal data of borrowers, funders, and counterparties shall only be processed for purposes of originating and managing trade finance transactions on the Platform.
+
+5. RETURN OF INFORMATION
+Upon termination of your Platform access, you agree to promptly return or destroy all Confidential Information and certify such destruction upon request.
+
+6. TERM
+This Agreement shall remain in force for a period of five (5) years from the date of acceptance, and shall survive termination of your Platform subscription.
+
+7. REMEDIES
+You acknowledge that breach of this Agreement may cause irreparable harm for which monetary damages may be inadequate, and that the Platform shall be entitled to seek equitable relief including injunction in addition to all other remedies.
+
+8. GOVERNING LAW
+This Agreement shall be governed by the laws of England and Wales. Any disputes shall be subject to the exclusive jurisdiction of the courts of England and Wales.
+
+9. ENTIRE AGREEMENT
+This Agreement constitutes the entire agreement between the parties with respect to its subject matter and supersedes all prior agreements and understandings.
+
+By checking the acceptance box, you acknowledge that you have read, understood, and agree to be bound by the terms of this Non-Disclosure Agreement.
+`.trim();
 
 interface Plan {
   id: string;
@@ -30,6 +68,8 @@ export default function Signup() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [ndaAccepted, setNdaAccepted] = useState(false);
+  const [ndaOpen, setNdaOpen] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -62,6 +102,10 @@ export default function Signup() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!ndaAccepted) {
+      toast.error("You must accept the Non-Disclosure Agreement to continue");
+      return;
+    }
     if (formData.password !== formData.confirmPassword) {
       toast.error("Passwords do not match");
       return;
@@ -72,13 +116,23 @@ export default function Signup() {
     }
     setLoading(true);
     const { error } = await signUp(formData.email, formData.password, formData.fullName);
-    setLoading(false);
     if (error) {
+      setLoading(false);
       toast.error(error.message);
-    } else {
-      toast.success("Registration successful! Check your email to confirm your account.");
-      navigate("/auth");
+      return;
     }
+    // Record NDA acceptance — we capture metadata; user_id will be linked post-confirmation
+    // Store in local storage so the post-confirmation hook can persist it
+    localStorage.setItem("pending_nda_acceptance", JSON.stringify({
+      actor_email: formData.email,
+      document_type: "nda",
+      document_version: "1.0",
+      accepted_at: new Date().toISOString(),
+      acceptance_method: "in_app_checkbox",
+    }));
+    setLoading(false);
+    toast.success("Registration successful! Check your email to confirm your account.");
+    navigate("/auth");
   };
 
   if (step === "plan") {
@@ -292,21 +346,58 @@ export default function Signup() {
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col gap-3">
+                <div className="flex items-start gap-2 w-full rounded-lg border p-3 bg-muted/30">
+                  <Checkbox
+                    id="nda"
+                    checked={ndaAccepted}
+                    onCheckedChange={(v) => setNdaAccepted(!!v)}
+                    className="mt-0.5"
+                  />
+                  <Label htmlFor="nda" className="text-xs leading-relaxed text-muted-foreground cursor-pointer">
+                    I have read and accept the{" "}
+                    <button
+                      type="button"
+                      onClick={() => setNdaOpen(true)}
+                      className="text-primary underline hover:text-primary/80 font-medium"
+                    >
+                      Non-Disclosure Agreement
+                    </button>
+                    {" "}required to access the Vybrel platform.
+                  </Label>
+                </div>
                 <Button
                   type="submit"
                   className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
-                  disabled={loading || oauthLoading}
+                  disabled={loading || oauthLoading || !ndaAccepted}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Create Account
                 </Button>
                 <p className="text-center text-xs text-muted-foreground">
-                  By registering, you agree to our <Link to="/terms" className="text-primary hover:underline">Terms</Link> and{" "}
+                  By registering, you also agree to our <Link to="/terms" className="text-primary hover:underline">Terms</Link> and{" "}
                   <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
                 </p>
               </CardFooter>
             </form>
           </Card>
+
+          {/* NDA Modal */}
+          <Dialog open={ndaOpen} onOpenChange={setNdaOpen}>
+            <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle>Non-Disclosure Agreement v1.0</DialogTitle>
+              </DialogHeader>
+              <ScrollArea className="flex-1 pr-4">
+                <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-sans leading-relaxed">{NDA_CONTENT}</pre>
+              </ScrollArea>
+              <DialogFt className="flex gap-2">
+                <Button variant="outline" onClick={() => setNdaOpen(false)}>Close</Button>
+                <Button onClick={() => { setNdaAccepted(true); setNdaOpen(false); }}>
+                  <Check className="h-4 w-4 mr-1" />I Accept this Agreement
+                </Button>
+              </DialogFt>
+            </DialogContent>
+          </Dialog>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
             Already have an account?{" "}

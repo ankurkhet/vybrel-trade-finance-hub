@@ -65,10 +65,18 @@ import BorrowerDetail from "./pages/originator/BorrowerDetail";
 import CreditMemos from "./pages/originator/CreditMemos";
 import CreditMemoDetail from "./pages/originator/CreditMemoDetail";
 import Disbursements from "./pages/originator/Disbursements";
+import DisbursementAdvices from "./pages/originator/DisbursementAdvices";
+import Reconciliation from "./pages/originator/Reconciliation";
 import Repayments from "./pages/originator/Repayments";
 import OriginatorLenderManagement from "./pages/originator/LenderManagement";
 import FunderOnboarding from "./pages/funder/Onboarding";
 import HelpCenter from "./pages/HelpCenter";
+import OriginatorOfferLetters from "./pages/originator/OfferLetters";
+import BorrowerOfferLetters from "./pages/borrower/OfferLetters";
+import OriginatorUsers from "./pages/originator/Users";
+import OriginatorBrokers from "./pages/originator/Brokers";
+import OriginatorSettlements from "./pages/originator/Settlements";
+import PlatformSettings from "./pages/originator/PlatformSettings";
 
 const queryClient = new QueryClient();
 
@@ -130,8 +138,15 @@ const App = () => (
               <Route path="/originator/credit-memos" element={<ProtectedRoute requiredRoles={["originator_admin"]}><CreditMemos /></ProtectedRoute>} />
               <Route path="/originator/credit-memos/:id" element={<ProtectedRoute requiredRoles={["originator_admin"]}><CreditMemoDetail /></ProtectedRoute>} />
               <Route path="/originator/disbursements" element={<ProtectedRoute requiredRoles={["originator_admin", "operations_manager"]}><Disbursements /></ProtectedRoute>} />
+              <Route path="/originator/disbursement-advices" element={<ProtectedRoute requiredRoles={["originator_admin", "operations_manager"]}><DisbursementAdvices /></ProtectedRoute>} />
+              <Route path="/originator/reconciliation" element={<ProtectedRoute requiredRoles={["originator_admin", "operations_manager"]}><Reconciliation /></ProtectedRoute>} />
               <Route path="/originator/repayments" element={<ProtectedRoute requiredRoles={["originator_admin", "operations_manager"]}><Repayments /></ProtectedRoute>} />
               <Route path="/originator/lender-management" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorLenderManagement /></ProtectedRoute>} />
+              <Route path="/originator/offer-letters" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorOfferLetters /></ProtectedRoute>} />
+              <Route path="/originator/users" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorUsers /></ProtectedRoute>} />
+              <Route path="/originator/brokers" element={<ProtectedRoute requiredRoles={["originator_admin"]}><OriginatorBrokers /></ProtectedRoute>} />
+              <Route path="/originator/settlements" element={<ProtectedRoute requiredRoles={["originator_admin", "operations_manager"]}><OriginatorSettlements /></ProtectedRoute>} />
+              <Route path="/originator/platform-settings" element={<ProtectedRoute requiredRoles={["originator_admin"]}><PlatformSettings /></ProtectedRoute>} />
 
               {/* Broker (reuses originator components with read-only fee config) */}
               <Route path="/broker/borrowers" element={<ProtectedRoute requiredRoles={["broker_admin"]}><OriginatorBorrowers /></ProtectedRoute>} />
@@ -150,6 +165,7 @@ const App = () => (
               <Route path="/borrower/onboarding" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerOnboarding /></ProtectedRoute>} />
               <Route path="/borrower/settlements" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerSettlements /></ProtectedRoute>} />
               <Route path="/borrower/profile" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerMyProfile /></ProtectedRoute>} />
+              <Route path="/borrower/offer-letters" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerOfferLetters /></ProtectedRoute>} />
 
               {/* Funder */}
               <Route path="/funder/marketplace" element={<ProtectedRoute requiredRoles={["funder"]}><FunderMarketplace /></ProtectedRoute>} />

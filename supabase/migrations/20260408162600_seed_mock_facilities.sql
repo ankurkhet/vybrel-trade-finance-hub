@@ -6,25 +6,18 @@
 DO $$
 DECLARE
     v_org_id UUID;
-    v_borrower_role_id UUID;
     v_borrower_id UUID;
-    v_funder_role_id UUID;
     v_funder_id UUID;
     v_funder2_id UUID;
-    v_originator_id UUID;
     v_facility_id UUID;
 BEGIN
-    -- 1. Grab generic roles
-    SELECT id INTO v_borrower_role_id FROM public.app_roles WHERE name = 'borrower';
-    SELECT id INTO v_funder_role_id FROM public.app_roles WHERE name = 'funder';
-    
-    -- 2. Find any active borrower and funder
-    SELECT user_id INTO v_borrower_id FROM public.user_roles WHERE role_id = v_borrower_role_id LIMIT 1;
-    SELECT user_id INTO v_funder_id FROM public.user_roles WHERE role_id = v_funder_role_id LIMIT 1;
-    SELECT user_id INTO v_funder2_id FROM public.user_roles WHERE role_id = v_funder_role_id OFFSET 1 LIMIT 1;
+    -- 1. Find any active borrower and funder from user_roles (using app_role enum)
+    SELECT user_id INTO v_borrower_id FROM public.user_roles WHERE role = 'borrower'::public.app_role LIMIT 1;
+    SELECT user_id INTO v_funder_id FROM public.user_roles WHERE role = 'funder'::public.app_role LIMIT 1;
+    SELECT user_id INTO v_funder2_id FROM public.user_roles WHERE role = 'funder'::public.app_role OFFSET 1 LIMIT 1;
 
-    -- Grab an organization (Originator) 
-    SELECT organization_id INTO v_org_id FROM public.organization_members LIMIT 1;
+    -- 2. Grab an organization (Originator) from profiles
+    SELECT organization_id INTO v_org_id FROM public.profiles WHERE organization_id IS NOT NULL LIMIT 1;
 
     -- If we have enough data to mock, proceed:
     IF v_borrower_id IS NOT NULL AND v_funder_id IS NOT NULL AND v_org_id IS NOT NULL THEN

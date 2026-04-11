@@ -164,6 +164,20 @@ CREATE POLICY "facilities_manage" ON public.facilities FOR ALL TO authenticated 
     has_role(auth.uid(), 'originator_admin'::app_role) OR has_role(auth.uid(), 'admin'::app_role)
 );
 
+-- Helper struct for select permissions
+CREATE OR REPLACE FUNCTION public.borrower_id_from_facility(fac_id UUID)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    b_id UUID;
+BEGIN
+    SELECT borrower_id INTO b_id FROM public.facilities WHERE id = fac_id;
+    RETURN b_id;
+END;
+$$;
+
 CREATE TABLE IF NOT EXISTS public.facility_funder_pricing (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     facility_id UUID NOT NULL REFERENCES public.facilities(id) ON DELETE CASCADE,
@@ -190,17 +204,3 @@ CREATE POLICY "funder_pricing_select" ON public.facility_funder_pricing FOR SELE
 CREATE POLICY "funder_pricing_manage" ON public.facility_funder_pricing FOR ALL TO authenticated USING (
     has_role(auth.uid(), 'originator_admin'::app_role) OR has_role(auth.uid(), 'admin'::app_role)
 );
-
--- Helper struct for select permissions
-CREATE OR REPLACE FUNCTION public.borrower_id_from_facility(fac_id UUID)
-RETURNS UUID
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-    b_id UUID;
-BEGIN
-    SELECT borrower_id INTO b_id FROM public.facilities WHERE id = fac_id;
-    RETURN b_id;
-END;
-$$;
