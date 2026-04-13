@@ -9,6 +9,7 @@ Deno.serve(async (req) => {
   try {
     const payload = await req.json();
     const userId: string = payload.user_id;
+    const existingClaims = payload.claims ?? {};
 
     if (!userId) {
       return new Response(JSON.stringify({ error: "Missing user_id" }), {
@@ -66,8 +67,16 @@ Deno.serve(async (req) => {
       entity_id,
     };
 
-    // Supabase custom access token hook requires { claims: { ... } } wrapper
-    return new Response(JSON.stringify({ claims }), {
+    // Must return ALL existing claims merged with custom additions
+    return new Response(JSON.stringify({
+      claims: {
+        ...existingClaims,
+        org_id: claims.org_id,
+        role: claims.role,
+        roles: claims.roles,
+        entity_id: claims.entity_id,
+      }
+    }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
