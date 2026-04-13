@@ -1,4 +1,4 @@
-project_id = "dgkhnxoafvgdpqckuvei"
+project_id = "hngzrhsigrttsqviphlb"
 
 # Auth Hook: Custom Access Token
 # Enriches JWT with org_id, role, roles, entity_id on every sign-in / token refresh.
