@@ -78,10 +78,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const decodeJwt = (token: string): Record<string, any> => {
+    try {
+      return JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    } catch { return {}; }
+  };
+
   const fetchProfileAndRoles = async (userId: string, currentSession?: Session | null) => {
-    // Prefer JWT app_metadata claims (set by custom-jwt-claims hook after re-login)
-    const appMeta = currentSession?.user?.app_metadata;
-    const jwtRoles = appMeta?.roles as AppRole[] | undefined;
+    // Decode access token directly — custom hook claims live at JWT top level, not app_metadata
+    const jwtPayload = currentSession?.access_token ? decodeJwt(currentSession.access_token) : {};
+    const jwtRoles = (jwtPayload.roles ?? currentSession?.user?.app_metadata?.roles) as AppRole[] | undefined;
 
     // profiles.id = auth.users.id (standard Supabase convention on this project)
     const profileRes = await supabase.from("profiles").select("*").eq("id", userId).single();
