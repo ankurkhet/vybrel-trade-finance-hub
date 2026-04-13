@@ -66,8 +66,8 @@ Deno.serve(async (req) => {
       entity_id,
     };
 
-    // Return the claims to be merged into app_metadata
-    return new Response(JSON.stringify(claims), {
+    // Supabase custom access token hook requires { claims: { ... } } wrapper
+    return new Response(JSON.stringify({ claims }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
