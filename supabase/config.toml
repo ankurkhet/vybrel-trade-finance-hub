@@ -4,9 +4,8 @@ project_id = "hngzrhsigrttsqviphlb"
 # Enriches JWT with org_id, role, roles, entity_id on every sign-in / token refresh.
 # Must also be registered in Supabase Dashboard → Authentication → Hooks → Custom Access Token Hook
 # pointing to this edge function URL.
-[auth.hook.custom_access_token]
-enabled = true
-uri = "pg-functions://postgres/public/custom_access_token_hook"
+# Auth Hook is registered via Supabase Dashboard / Management API.
+# URI: https://hngzrhsigrttsqviphlb.supabase.co/functions/v1/custom-jwt-claims
 
 [functions.ai-analyze-document]
 verify_jwt = false

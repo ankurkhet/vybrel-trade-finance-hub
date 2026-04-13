@@ -83,9 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const appMeta = currentSession?.user?.app_metadata;
     const jwtRoles = appMeta?.roles as AppRole[] | undefined;
 
-    // The live DB has profiles.user_id = auth.users.id (Arch Fix 1 migration not yet applied).
-    // Query by user_id until the migration is run via `supabase db push`.
-    const profileRes = await supabase.from("profiles").select("*").eq("user_id", userId).single();
+    // profiles.id = auth.users.id (standard Supabase convention on this project)
+    const profileRes = await supabase.from("profiles").select("*").eq("id", userId).single();
     if (profileRes.data) setProfile(profileRes.data);
 
     // Flush any pending NDA acceptance recorded at signup time
