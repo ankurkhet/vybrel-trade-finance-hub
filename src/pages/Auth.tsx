@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
@@ -22,7 +22,7 @@ const roles = [
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { signIn } = useAuth();
+  const { signIn, user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
@@ -35,6 +35,11 @@ export default function Auth() {
   const [mfaChallengeId, setMfaChallengeId] = useState("");
   const [mfaCode, setMfaCode] = useState("");
   const [mfaLoading, setMfaLoading] = useState(false);
+
+  // If already authenticated (e.g. visiting /auth with a live session), redirect away
+  useEffect(() => {
+    if (!authLoading && user) navigate("/dashboard", { replace: true });
+  }, [authLoading, user]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +66,9 @@ export default function Auth() {
         }
       }
     }
-    navigate("/dashboard");
+    // Full page reload after sign-in: avoids React state-batching race with ProtectedRoute.
+    // Session is stored in localStorage by Supabase, so the reloaded page picks it up immediately.
+    window.location.href = "/dashboard";
   };
 
   const handleMfaVerify = async (e: React.FormEvent) => {

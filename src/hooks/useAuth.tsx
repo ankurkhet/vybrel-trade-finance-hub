@@ -136,6 +136,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (!error) {
       auditLogger.log(AuditLogger.Actions.LOGIN, "session", undefined, { email });
+      // Eagerly sync session into context so navigation works immediately
+      // without waiting for the async onAuthStateChange callback to fire.
+      const { data: { session: newSess } } = await supabase.auth.getSession();
+      if (newSess) {
+        setSession(newSess);
+        setUser(newSess.user);
+        fetchProfileAndRoles(newSess.user.id, newSess); // fire-and-forget; roles populate async
+      }
     }
     return { error };
   };

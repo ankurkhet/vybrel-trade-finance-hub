@@ -22,6 +22,14 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // Never let the service worker intercept Supabase API or edge function calls.
+        // Without this, a stale/bad cached response can silently block auth requests.
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/[a-z0-9]+\.supabase\.co\/.*/i,
+            handler: "NetworkOnly",
+          },
+        ],
       },
       manifest: {
         name: "Vybrel - Invoice Financing Platform",

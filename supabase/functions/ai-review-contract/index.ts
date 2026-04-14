@@ -10,8 +10,18 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const _admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+    const OPENAI_API_KEY = await (async () => {
+      const _k = Deno.env.get("OPENAI_API_KEY");
+      if (_k) return _k;
+      const { data: _s } = await _admin.from("platform_secrets").select("value").eq("key", "OPENAI_API_KEY").single();
+      if (!_s?.value) throw new Error("OPENAI_API_KEY not configured. Set it in Admin → Registry APIs → Secrets.");
+      return _s.value as string;
+    })();
 
     const authHeader = req.headers.get("Authorization");
     const supabase = createClient(
@@ -54,14 +64,14 @@ serve(async (req) => {
 
 Return structured analysis.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           {

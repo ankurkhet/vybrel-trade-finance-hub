@@ -198,6 +198,12 @@ export default function RegistryApis() {
   const [platformApis, setPlatformApis] = useState<any[]>([]);
   const [platformLoading, setPlatformLoading] = useState(true);
   const [invokingApi, setInvokingApi] = useState<string | null>(null);
+  // Secrets tab state
+  const [secrets, setSecrets] = useState<{ key: string; value: string; description: string; updated_at: string }[]>([]);
+  const [secretsLoading, setSecretsLoading] = useState(false);
+  const [editingSecret, setEditingSecret] = useState<string | null>(null);
+  const [secretValue, setSecretValue] = useState("");
+  const [savingSecret, setSavingSecret] = useState(false);
 
   const emptyForm = {
     country_code: "",
@@ -218,7 +224,39 @@ export default function RegistryApis() {
 
   const [form, setForm] = useState(emptyForm);
 
-  useEffect(() => { fetchConfigs(); fetchPlatformApis(); }, []);
+  useEffect(() => { fetchConfigs(); fetchPlatformApis(); fetchSecrets(); }, []);
+
+  const fetchSecrets = async () => {
+    setSecretsLoading(true);
+    const { data } = await (db as any).from("platform_secrets").select("key, value, description, updated_at").order("key");
+    setSecrets(data || []);
+    setSecretsLoading(false);
+  };
+
+  const saveSecret = async (key: string) => {
+    setSavingSecret(true);
+    const existing = secrets.find(s => s.key === key);
+    if (existing) {
+      await (db as any).from("platform_secrets").update({ value: secretValue, updated_at: new Date().toISOString() }).eq("key", key);
+    } else {
+      const descriptions: Record<string, string> = {
+        OPENAI_API_KEY: "OpenAI API key — powers all AI document analysis, credit memo generation, invoice matching, and chatbot features.",
+        RESEND_API_KEY: "Resend email API key — used for counterparty notification and messaging emails.",
+        FRED_API_KEY: "FRED (St. Louis Fed) API key — fetches live SOFR/SONIA benchmark rates.",
+        GETADDRESS_API_KEY: "GetAddress.io API key — UK address autocomplete in onboarding forms.",
+        TRUELAYER_CLIENT_ID: "TrueLayer OAuth client ID — open banking name verification.",
+        TRUELAYER_CLIENT_SECRET: "TrueLayer OAuth client secret.",
+        PSP_WEBHOOK_SECRET: "PSP webhook shared secret — validates inbound payment status webhooks.",
+        APP_URL: "Public app URL (e.g. https://vybrel-abce2.web.app) — used in email links.",
+      };
+      await (db as any).from("platform_secrets").insert({ key, value: secretValue, description: descriptions[key] || "" });
+    }
+    toast.success(`${key} saved`);
+    setSavingSecret(false);
+    setEditingSecret(null);
+    setSecretValue("");
+    fetchSecrets();
+  };
 
   const fetchConfigs = async () => {
     setLoading(true);
@@ -421,8 +459,12 @@ export default function RegistryApis() {
                 <Plus className="mr-2 h-4 w-4" /> Add Registry
               </Button>
             </div>
-          ) : (
+          ) : activeTab === "platform" ? (
             <Button variant="outline" onClick={fetchPlatformApis}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={fetchSecrets}>
               <RefreshCw className="mr-2 h-4 w-4" /> Refresh
             </Button>
           )}
@@ -435,6 +477,9 @@ export default function RegistryApis() {
             </TabsTrigger>
             <TabsTrigger value="platform">
               <Server className="mr-2 h-4 w-4" /> Platform APIs
+            </TabsTrigger>
+            <TabsTrigger value="secrets">
+              <Key className="mr-2 h-4 w-4" /> Secrets
             </TabsTrigger>
           </TabsList>
 
@@ -961,6 +1006,96 @@ export default function RegistryApis() {
           </CardContent>
         </Card>
 
+          </TabsContent>
+
+          {/* ── SECRETS TAB ──────────────────────────────────────────────── */}
+          <TabsContent value="secrets" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Key className="h-4 w-4 text-primary" />
+                  Platform Secrets
+                </CardTitle>
+                <CardDescription>
+                  API keys stored here are available to all edge functions. Values are masked after saving and only accessible to platform admins.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-1 p-0">
+                {secretsLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30">
+                        <TableHead className="text-xs">Secret Name</TableHead>
+                        <TableHead className="text-xs">Description</TableHead>
+                        <TableHead className="text-xs">Value</TableHead>
+                        <TableHead className="text-xs">Last Updated</TableHead>
+                        <TableHead className="text-xs text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {[
+                        { key: "OPENAI_API_KEY", desc: "OpenAI API key — AI document analysis, credit memos, invoice matching, chatbot" },
+                        { key: "RESEND_API_KEY", desc: "Resend email — counterparty notifications and in-app messaging" },
+                        { key: "FRED_API_KEY", desc: "FRED (St. Louis Fed) — live SOFR/SONIA benchmark rates" },
+                        { key: "GETADDRESS_API_KEY", desc: "GetAddress.io — UK postcode and address autocomplete" },
+                        { key: "TRUELAYER_CLIENT_ID", desc: "TrueLayer — open banking account name verification (client ID)" },
+                        { key: "TRUELAYER_CLIENT_SECRET", desc: "TrueLayer — open banking client secret" },
+                        { key: "PSP_WEBHOOK_SECRET", desc: "PSP webhook shared secret — validates inbound payment status callbacks" },
+                        { key: "APP_URL", desc: "Public app URL — used in outbound email links (e.g. https://vybrel-abce2.web.app)" },
+                      ].map(({ key, desc }) => {
+                        const saved = secrets.find(s => s.key === key);
+                        const isEditing = editingSecret === key;
+                        return (
+                          <TableRow key={key}>
+                            <TableCell>
+                              <code className="text-xs font-mono font-semibold">{key}</code>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground max-w-[260px]">{desc}</TableCell>
+                            <TableCell>
+                              {isEditing ? (
+                                <Input
+                                  type="text"
+                                  className="h-7 text-xs font-mono w-64"
+                                  placeholder="Paste key here…"
+                                  value={secretValue}
+                                  onChange={e => setSecretValue(e.target.value)}
+                                  autoFocus
+                                />
+                              ) : saved ? (
+                                <span className="text-xs font-mono text-muted-foreground">
+                                  {saved.value.slice(0, 6)}{"•".repeat(Math.min(20, saved.value.length - 6))}
+                                </span>
+                              ) : (
+                                <Badge variant="destructive" className="text-[10px]">Not set</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {saved ? new Date(saved.updated_at).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" }) : "—"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {isEditing ? (
+                                <div className="flex items-center gap-1 justify-end">
+                                  <Button size="sm" className="h-7 text-xs" disabled={!secretValue.trim() || savingSecret} onClick={() => saveSecret(key)}>
+                                    {savingSecret ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setEditingSecret(null); setSecretValue(""); }}>Cancel</Button>
+                                </div>
+                              ) : (
+                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setEditingSecret(key); setSecretValue(saved?.value || ""); }}>
+                                  <Settings2 className="mr-1 h-3 w-3" />{saved ? "Update" : "Set"}
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

@@ -13,8 +13,18 @@ async function interpretRegistryData(
   borrower: any,
   registryName: string,
 ): Promise<any> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) return null;
+  const _admin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+  const OPENAI_API_KEY = await (async () => {
+    const _k = Deno.env.get("OPENAI_API_KEY");
+    if (_k) return _k;
+    const { data: _s } = await _admin.from("platform_secrets").select("value").eq("key", "OPENAI_API_KEY").single();
+    return _s?.value as string | undefined;
+  })();
+  if (!OPENAI_API_KEY) return null;
 
   const systemPrompt = `You are a KYB (Know Your Business) analyst at a trade finance originator. 
 You will be given raw data from a company registry API and the borrower's submitted details.
@@ -37,14 +47,14 @@ ${JSON.stringify(rawData, null, 2).substring(0, 6000)}
 Extract meaningful KYB findings. Return JSON only, no extra text.`;
 
   try {
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

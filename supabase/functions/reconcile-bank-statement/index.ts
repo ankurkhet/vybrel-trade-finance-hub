@@ -263,9 +263,19 @@ function parseDate(raw: string): string | null {
 // ── PDF Parser (via AI) ───────────────────────────────────────────────────────
 
 async function parsePdfWithAi(file: Blob): Promise<ParsedLine[]> {
-  const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+  const _admin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+  const lovableApiKey = await (async () => {
+    const _k = Deno.env.get("OPENAI_API_KEY");
+    if (_k) return _k;
+    const { data: _s } = await _admin.from("platform_secrets").select("value").eq("key", "OPENAI_API_KEY").single();
+    return _s?.value as string | undefined;
+  })();
   if (!lovableApiKey) {
-    console.warn("[reconcile] No LOVABLE_API_KEY — cannot parse PDF");
+    console.warn("[reconcile] No OPENAI_API_KEY — cannot parse PDF");
     return [];
   }
 
@@ -278,14 +288,14 @@ async function parsePdfWithAi(file: Blob): Promise<ParsedLine[]> {
   }
   const base64 = btoa(binary);
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${lovableApiKey}`,
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash-preview",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "user",
