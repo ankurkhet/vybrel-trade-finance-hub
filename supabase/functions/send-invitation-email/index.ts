@@ -1,7 +1,7 @@
-// send-message-email
-// Called best-effort from Messages.tsx when a new in-app message is sent.
-// Sends an email notification to the recipient via Resend.
-// Errors are non-blocking — the caller silently ignores them.
+// send-invitation-email
+// Sends a Vybrel platform invitation email to a newly onboarded originator contact.
+// Called from Organizations.tsx handleCreate for each contact person.
+// Reads RESEND_API_KEY from env, falling back to platform_secrets table.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -10,23 +10,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { recipient_id, sender_name, preview } = body;
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
 
     // Health-check mode: invoked with empty body by platform API health checker
-    if (!recipient_id) {
+    if (!body.email) {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        { auth: { autoRefreshToken: false, persistSession: false } }
+      );
       let apiKey = Deno.env.get("RESEND_API_KEY");
       if (!apiKey) {
         const { data } = await supabase.from("platform_secrets").select("value").eq("key", "RESEND_API_KEY").maybeSingle();
@@ -44,56 +42,42 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!sender_name) {
+    const { email, full_name, org_name, invite_url } = body;
+
+    if (!email || !invite_url) {
       return new Response(
-        JSON.stringify({ error: "recipient_id and sender_name are required" }),
+        JSON.stringify({ error: "email and invite_url are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Fetch recipient's email from profiles (id = auth.users.id after Arch Fix 1)
-    const { data: profile, error: profileErr } = await supabase
-      .from("profiles")
-      .select("email, full_name")
-      .eq("id", recipient_id)
-      .maybeSingle();
-
-    if (profileErr || !profile?.email) {
-      console.warn("[send-message-email] Recipient profile not found:", recipient_id);
-      return new Response(
-        JSON.stringify({ skipped: true, reason: "recipient_not_found" }),
-        { headers: { "Content-Type": "application/json" } }
-      );
-    }
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
 
     let apiKey = Deno.env.get("RESEND_API_KEY");
     if (!apiKey) {
-      const { data } = await supabase.from('platform_secrets').select('value').eq('key', 'RESEND_API_KEY').maybeSingle();
-      if (data) apiKey = data.value;
+      const { data } = await supabase.from("platform_secrets").select("value").eq("key", "RESEND_API_KEY").maybeSingle();
+      apiKey = data?.value;
     }
 
     if (!apiKey) {
-      console.warn("[send-message-email] RESEND_API_KEY not set — skipping email delivery");
+      console.warn("[send-invitation-email] RESEND_API_KEY not configured — skipping email");
       return new Response(
-        JSON.stringify({ skipped: true, reason: "no_api_key" }),
-        { headers: { "Content-Type": "application/json" } }
+        JSON.stringify({ skipped: true, reason: "RESEND_API_KEY not configured" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    let appUrl = Deno.env.get("APP_URL");
-    if (!appUrl) {
-      const { data } = await supabase.from('platform_secrets').select('value').eq('key', 'APP_URL').maybeSingle();
-      if (data) appUrl = data.value;
-    }
-    appUrl = appUrl || "https://app.vybrel.com";
-    
-    const recipientName = profile.full_name || "there";
-    const safePreview = (preview || "").slice(0, 200);
+    const recipientName = full_name || "there";
+    const orgDisplay = org_name || "your organisation";
 
     const emailPayload = {
       from: "Vybrel Platform <noreply@vybrel.com>",
-      to: [profile.email],
-      subject: `New message from ${sender_name}`,
+      to: [email],
+      subject: `You've been invited to join ${orgDisplay} on Vybrel`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -122,28 +106,29 @@ Deno.serve(async (req) => {
                         Hi ${recipientName},
                       </p>
                       <p style="margin:0 0 20px;font-size:15px;color:#374151;">
-                        <strong>${sender_name}</strong> sent you a message on Vybrel:
+                        You've been invited to join <strong>${orgDisplay}</strong> on the Vybrel Trade Finance Platform as an <strong>Originator Admin</strong>.
                       </p>
-                      <div style="background:#f5f3ff;border-left:3px solid #6366f1;border-radius:4px;
-                        padding:14px 18px;margin-bottom:24px;">
-                        <p style="margin:0;font-size:14px;color:#4b5563;line-height:1.6;">
-                          ${safePreview}
-                        </p>
-                      </div>
-                      <a href="${appUrl}/messages"
+                      <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">
+                        Click the button below to accept your invitation and set up your account. This link will expire in 7 days.
+                      </p>
+                      <a href="${invite_url}"
                         style="display:inline-block;background:#4f46e5;color:#ffffff;
-                        padding:11px 22px;border-radius:6px;text-decoration:none;
-                        font-size:14px;font-weight:600;">
-                        Open Messages
+                        padding:12px 28px;border-radius:6px;text-decoration:none;
+                        font-size:14px;font-weight:600;letter-spacing:0.2px;">
+                        Accept Invitation
                       </a>
+                      <p style="margin:24px 0 0;font-size:12px;color:#9ca3af;">
+                        Or copy this link into your browser:<br />
+                        <a href="${invite_url}" style="color:#6366f1;word-break:break-all;">${invite_url}</a>
+                      </p>
                     </td>
                   </tr>
                   <!-- Footer -->
                   <tr>
                     <td style="padding:16px 32px;border-top:1px solid #f3f4f6;">
                       <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.5;">
-                        You are receiving this notification because you have an account on Vybrel.<br />
-                        Log in to manage your notification preferences.
+                        If you did not expect this invitation, you can safely ignore this email.<br />
+                        Vybrel · Trade Finance Platform
                       </p>
                     </td>
                   </tr>
@@ -166,25 +151,25 @@ Deno.serve(async (req) => {
 
     if (!resendRes.ok) {
       const errText = await resendRes.text();
-      console.error("[send-message-email] Resend API error:", resendRes.status, errText);
+      console.error("[send-invitation-email] Resend error:", resendRes.status, errText);
       return new Response(
         JSON.stringify({ error: "Email delivery failed", detail: errText }),
-        { status: 502, headers: { "Content-Type": "application/json" } }
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const result = await resendRes.json();
-    console.log("[send-message-email] Email sent to", profile.email, "id:", result.id);
+    console.log("[send-invitation-email] Sent to", email, "id:", result.id);
 
     return new Response(
       JSON.stringify({ sent: true, email_id: result.id }),
-      { headers: { "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (err) {
-    console.error("[send-message-email] Unhandled error:", err);
+  } catch (err: any) {
+    console.error("[send-invitation-email] Error:", err);
     return new Response(
-      JSON.stringify({ error: (err as Error).message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({ error: err.message || "Internal error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

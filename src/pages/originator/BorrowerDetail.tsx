@@ -96,6 +96,8 @@ export default function BorrowerDetail() {
   const [savingBank, setSavingBank] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ndaFileRef = useRef<HTMLInputElement>(null);
+  // Tracks which document type row triggered the shared file input
+  const pendingDocTypeRef = useRef<string>("");
   const { preview, openPreview, closePreview } = useDocumentPreview();
 
   // Request Update dialog
@@ -104,9 +106,21 @@ export default function BorrowerDetail() {
   const [requestUpdateMessage, setRequestUpdateMessage] = useState("");
   const [kycDialog, setKycDialog] = useState(false);
 
+  const triggerDocUpload = (docType: string) => {
+    pendingDocTypeRef.current = docType;
+    setUploadDocType(docType);
+    fileInputRef.current?.click();
+  };
+
   const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !uploadDocType || !profile?.organization_id || !id) return;
+    // Support both per-row trigger (pendingDocTypeRef) and legacy dropdown (uploadDocType)
+    const effectiveDocType = pendingDocTypeRef.current || uploadDocType;
+    if (!file || !effectiveDocType || !profile?.organization_id || !id) return;
+    pendingDocTypeRef.current = "";
+    // Reset the input so the same file can be re-selected
+    e.target.value = "";
+    const docType = effectiveDocType;
     setDocUploading(true);
     const filePath = `${profile.organization_id}/${id}/${Date.now()}_${file.name}`;
     const { error: uploadErr } = await supabase.storage.from("documents").upload(filePath, file);
@@ -114,7 +128,7 @@ export default function BorrowerDetail() {
     const { error } = await supabase.from("documents").insert({
       organization_id: profile.organization_id,
       borrower_id: id,
-      document_type: uploadDocType as any,
+      document_type: docType as any,
       file_name: file.name,
       file_path: filePath,
       file_size: file.size,
@@ -775,94 +789,87 @@ export default function BorrowerDetail() {
           <TabsContent value="documents" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><FileCheck className="h-5 w-5 text-primary" /> Uploaded Documents</CardTitle>
-                <CardDescription>Review, approve, or reject borrower documents. Upload documents on behalf of the borrower.</CardDescription>
+                <CardTitle className="flex items-center gap-2"><FileCheck className="h-5 w-5 text-primary" /> Documents</CardTitle>
+                <CardDescription>Upload, review, approve, or reject borrower documents. Click Upload on any row to add a file.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Upload section */}
-                <div className="rounded-lg border border-dashed border-border p-4 space-y-3">
-                  <p className="text-sm font-medium text-foreground">Upload Document for Borrower</p>
-                  <div className="flex gap-3 items-end flex-wrap">
-                    <div className="space-y-1 flex-1 min-w-[180px]">
-                      <Label className="text-xs">Document Type</Label>
-                      <Select value={uploadDocType} onValueChange={setUploadDocType}>
-                        <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                        <SelectContent>
-                          {["kyc","financial_statement","incorporation","invoice","contract","bank_statement","board_resolution","tax_certificate","other"].map(t => (
-                            <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        onChange={handleDocUpload}
-                      />
-                      <Button variant="outline" size="sm" disabled={!uploadDocType || docUploading} onClick={() => fileInputRef.current?.click()}>
-                        {docUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                        Choose File
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                {/* Hidden shared file input */}
+                <input type="file" ref={fileInputRef} className="hidden" onChange={handleDocUpload} />
 
-                {documents.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">No documents uploaded yet.</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Document Type</TableHead>
-                        <TableHead>File Name</TableHead>
-                        <TableHead>Version</TableHead>
-                        <TableHead>Uploaded</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {documents.map((doc) => (
-                        <TableRow key={doc.id}>
-                          <TableCell className="capitalize text-sm">{doc.document_type.replace(/_/g, " ")}</TableCell>
-                         <TableCell>
-                            <button
-                              className="text-sm text-primary underline hover:text-primary/80 text-left"
-                              onClick={() => openPreview(doc.file_path, doc.file_name, doc.mime_type)}
-                            >
-                              {doc.file_name}
-                            </button>
-                          </TableCell>
-                          <TableCell>v{doc.version}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{new Date(doc.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <Badge variant={doc.status === "approved" ? "default" : doc.status === "rejected" ? "destructive" : "secondary"} className="capitalize text-xs">
-                              {doc.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openPreview(doc.file_path, doc.file_name, doc.mime_type)}>
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              {doc.status === "pending" && (
-                                <Button variant="outline" size="sm" className="text-xs" onClick={() => {
-                                  setDocReviewDialog(doc);
+                {/* Per-document-type upload rows */}
+                {(() => {
+                  const DOC_TYPES = [
+                    { key: "kyc", label: "KYC / Identity" },
+                    { key: "incorporation", label: "Incorporation Certificate" },
+                    { key: "financial_statement", label: "Financial Statement" },
+                    { key: "bank_statement", label: "Bank Statement" },
+                    { key: "board_resolution", label: "Board Resolution" },
+                    { key: "tax_certificate", label: "Tax Certificate" },
+                    { key: "contract", label: "Contract" },
+                    { key: "invoice", label: "Invoice" },
+                    { key: "other", label: "Other" },
+                  ];
+                  return (
+                    <div className="rounded-lg border divide-y">
+                      {DOC_TYPES.map(({ key, label }) => {
+                        const uploaded = documents.filter(d => d.document_type === key);
+                        const latest = uploaded[0];
+                        return (
+                          <div key={key} className="flex items-center justify-between px-4 py-3 gap-4">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground">{label}</p>
+                              {latest ? (
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <button
+                                    className="text-xs text-primary underline hover:text-primary/80 truncate max-w-[200px]"
+                                    onClick={() => openPreview(latest.file_path, latest.file_name, latest.mime_type)}
+                                  >
+                                    {latest.file_name}
+                                  </button>
+                                  <Badge
+                                    variant={latest.status === "approved" ? "default" : latest.status === "rejected" ? "destructive" : "secondary"}
+                                    className="text-[10px] capitalize shrink-0"
+                                  >
+                                    {latest.status}
+                                  </Badge>
+                                  {uploaded.length > 1 && (
+                                    <span className="text-xs text-muted-foreground shrink-0">+{uploaded.length - 1} more</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground mt-0.5">Not uploaded</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {latest?.status === "pending" && (
+                                <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => {
+                                  setDocReviewDialog(latest);
                                   setDocAction("approved");
                                   setDocRejectionReason("");
                                 }}>
                                   Review
                                 </Button>
                               )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs h-7"
+                                disabled={docUploading}
+                                onClick={() => triggerDocUpload(key)}
+                              >
+                                {docUploading && uploadDocType === key
+                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  : <Upload className="h-3.5 w-3.5" />}
+                                <span className="ml-1.5">{latest ? "Re-upload" : "Upload"}</span>
+                              </Button>
                             </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
               </CardContent>
             </Card>
           </TabsContent>

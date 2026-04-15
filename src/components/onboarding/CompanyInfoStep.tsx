@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { sicToIndustry } from "@/lib/sic-industry-map";
+import { CompanyAutocompleteInput, AutocompleteResult } from "./CompanyAutocompleteInput";
 
 interface CompanyInfoStepProps {
   data: CompanyFormData;
@@ -47,22 +48,6 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
         <CardDescription>As it appears in registration documents</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="space-y-2">
-          <Label>Company Name (as per Registration Documents) <span className="text-destructive">*</span></Label>
-          <Input value={data.company_name} onChange={(e) => update("company_name", e.target.value)} placeholder="Acme Corp Ltd" disabled={disabled} />
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Trading Name (if different)</Label>
-            <Input value={data.trading_name} onChange={(e) => update("trading_name", e.target.value)} placeholder="Acme" disabled={disabled} />
-          </div>
-          <div className="space-y-2">
-            <Label>Registration / Company Number</Label>
-            <Input value={data.registration_number} onChange={(e) => update("registration_number", e.target.value)} placeholder="12345678" disabled={disabled} />
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Country <span className="text-destructive">*</span></Label>
@@ -100,6 +85,34 @@ export function CompanyInfoStep({ data, onChange, disabled }: CompanyInfoStepPro
               maxToday
               fromYear={1900}
             />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Company Name (as per Registration Documents) <span className="text-destructive">*</span></Label>
+          <CompanyAutocompleteInput 
+            value={data.company_name} 
+            onChange={(val) => update("company_name", val)} 
+            countryCode={data.country}
+            disabled={disabled}
+            onSelectCompany={(comp: AutocompleteResult) => {
+               onChange({
+                 ...data,
+                 company_name: comp.company_name,
+                 registration_number: comp.registration_number,
+               });
+            }}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Trading Name (if different)</Label>
+            <Input value={data.trading_name} onChange={(e) => update("trading_name", e.target.value)} placeholder="Acme" disabled={disabled} />
+          </div>
+          <div className="space-y-2">
+            <Label>Registration / Company Number</Label>
+            <Input value={data.registration_number} onChange={(e) => update("registration_number", e.target.value)} placeholder="12345678" disabled={disabled} />
           </div>
         </div>
 

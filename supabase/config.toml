@@ -82,5 +82,8 @@ verify_jwt = false
 [functions.psp-webhook]
 verify_jwt = false
 
+[functions.send-invitation-email]
+verify_jwt = false
+
 [functions.send-message-email]
 verify_jwt = true

@@ -252,6 +252,73 @@ serve(async (req) => {
       );
     }
 
+    if (action === "autocomplete") {
+      const { company_name, country_code } = body;
+      if (!company_name || !country_code) {
+        return new Response(JSON.stringify({ error: "Missing company_name or country_code" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const openBrisCountries = [
+        "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
+        "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK",
+        "SI", "ES", "SE", "IS", "LI", "NO"
+      ];
+
+      const { data: registries } = await supabase
+        .from("registry_api_configs")
+        .select("*")
+        .eq("country_code", country_code)
+        .eq("is_active", true);
+
+      let targetRegistry = registries?.[0];
+      if (!targetRegistry && openBrisCountries.includes(country_code)) {
+        const { data: brisRegistries } = await supabase.from("registry_api_configs").select("*").eq("country_code", "EU").eq("is_active", true);
+        if (brisRegistries && brisRegistries.length > 0) targetRegistry = brisRegistries[0];
+      }
+
+      if (!targetRegistry) {
+        return new Response(JSON.stringify({ results: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const noAuth = targetRegistry.api_key_secret_name === "NO_AUTH_NEEDED";
+      const apiKey = noAuth ? null : (targetRegistry.api_key_value || Deno.env.get(targetRegistry.api_key_secret_name));
+      const isCkan = targetRegistry.registry_type === "ckan";
+
+      try {
+        const companyData = isCkan
+          ? await fetchCkanCompanyData(targetRegistry, apiKey, company_name)
+          : await fetchCompanyData(targetRegistry, apiKey!, company_name, undefined, country_code, true);
+
+        const profileData = companyData?.company_profile;
+        const mappedResults: any[] = [];
+        
+        if (isCkan && profileData?.companies) {
+           profileData.companies.slice(0, 10).forEach((c: any) => {
+             mappedResults.push({
+               company_name: c.company_name,
+               registration_number: c.registration_number,
+               address_snippet: [c.state, c.postcode].filter(Boolean).join(", ") || "",
+               source: targetRegistry.registry_name
+             });
+           });
+        } else if (profileData?.items) {
+           // REST (like GB Companies House)
+           profileData.items.slice(0, 10).forEach((item: any) => {
+             mappedResults.push({
+               company_name: item.title || item.company_name,
+               registration_number: item.company_number || item.registration_number,
+               address_snippet: item.address_snippet || (item.address ? Object.values(item.address).join(", ") : ""),
+               source: targetRegistry.registry_name
+             });
+           });
+        }
+
+        return new Response(JSON.stringify({ results: mappedResults }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (err) {
+        return new Response(JSON.stringify({ results: [], error: (err as Error).message }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     // Company lookup
     const { borrower_id, organization_id, company_name, registration_number, country_code } = body;
 
@@ -564,7 +631,8 @@ async function fetchCompanyData(
   apiKey: string,
   companyName: string,
   registrationNumber?: string,
-  lookupCountryCode?: string
+  lookupCountryCode?: string,
+  isQuickSearch: boolean = false
 ): Promise<Record<string, any> | null> {
   const results: Record<string, any> = {};
   const effectiveCountry = registry.country_code === "EU" ? (lookupCountryCode || "EU") : registry.country_code;
@@ -572,9 +640,9 @@ async function fetchCompanyData(
 
   switch (registry.country_code) {
     case "GB": {
-      const searchUrl = registrationNumber
+      const searchUrl = registrationNumber && !isQuickSearch
         ? `${registry.api_base_url}/company/${registrationNumber}`
-        : `${registry.api_base_url}/search/companies?q=${encodeURIComponent(companyName)}&items_per_page=5`;
+        : `${registry.api_base_url}/search/companies?q=${encodeURIComponent(companyName)}&items_per_page=10`;
 
       const searchRes = await fetch(searchUrl, { headers });
       if (!searchRes.ok) throw new Error(`Companies House API error: ${searchRes.status}`);
@@ -582,7 +650,7 @@ async function fetchCompanyData(
       results.company_profile = searchData;
 
       const companyNumber = registrationNumber || searchData?.items?.[0]?.company_number;
-      if (companyNumber) {
+      if (companyNumber && !isQuickSearch) {
         if (registry.capabilities?.includes("directors")) {
           try {
             const officersRes = await fetch(`${registry.api_base_url}/company/${companyNumber}/officers`, { headers });

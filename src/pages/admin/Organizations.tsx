@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Plus, Loader2, UserPlus, Trash2, Upload, CheckCircle2, XCircle, Clock, FileText, Eye, Users, CreditCard, Landmark, Receipt, GitBranch } from "lucide-react";
+import { Building2, Plus, Loader2, UserPlus, Trash2, Upload, CheckCircle2, XCircle, Clock, FileText, Eye, Users, CreditCard, Landmark, Receipt, GitBranch, ArrowRight, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -59,6 +59,7 @@ export default function Organizations() {
     { full_name: "", email: "", designation: "", is_primary: true },
   ]);
   const [creating, setCreating] = useState(false);
+  const [activeTab, setActiveTab] = useState("general");
 
   useEffect(() => { fetchOrgs(); }, []);
 
@@ -183,7 +184,19 @@ export default function Organizations() {
     }));
     await supabase.from("org_contacts" as any).insert(contactRows);
 
+    // Insert branding profile for co-branded orgs
+    if (newMode === "white_label" || newMode === "joint_label") {
+      await supabase.from("branding_profiles" as any).insert({
+        organization_id: org.id,
+        profile_name: "Default",
+        is_active: true,
+        logo_url: newLogoUrl || null,
+        colors: { primary: newPrimaryColor },
+      });
+    }
+
     const { data: session } = await supabase.auth.getSession();
+    let emailsSent = 0;
     for (const contact of validContacts) {
       const { data: inv } = await supabase.from("invitations").insert({
         email: contact.email,
@@ -199,14 +212,29 @@ export default function Organizations() {
 
       if (inv) {
         const inviteUrl = `${window.location.origin}/invite/accept?token=${inv.token}`;
-        console.log(`Invitation for ${contact.email}: ${inviteUrl}`);
+        // Send invitation email via Resend
+        try {
+          await supabase.functions.invoke("send-invitation-email", {
+            body: {
+              email: contact.email,
+              full_name: contact.full_name,
+              org_name: newName,
+              invite_url: inviteUrl,
+            },
+          });
+          emailsSent++;
+        } catch {
+          console.warn(`[Organizations] Failed to send invitation email to ${contact.email}`);
+        }
       }
     }
 
     toast.success(
       <div className="space-y-1">
         <p><strong>{newName}</strong> created successfully</p>
-        <p className="text-xs text-muted-foreground">{validContacts.length} invitation(s) generated.</p>
+        <p className="text-xs text-muted-foreground">
+          {validContacts.length} invitation(s) generated{emailsSent > 0 ? `, ${emailsSent} email(s) sent` : " (email delivery pending)"}.
+        </p>
       </div>,
       { duration: 8000 }
     );
@@ -221,6 +249,7 @@ export default function Organizations() {
     setNewName(""); setNewSlug(""); setNewMode("platform_label");
     setNewPrimaryColor("#1a1a2e"); setNewLogoUrl("");
     setContacts([{ full_name: "", email: "", designation: "", is_primary: true }]);
+    setActiveTab("general");
   };
 
   const statusBadge = (status: string) => {
@@ -295,11 +324,11 @@ export default function Organizations() {
                   <DialogTitle>Onboard New Originator</DialogTitle>
                   <DialogDescription>Set up the organization, contact persons, and branding.</DialogDescription>
                 </DialogHeader>
-                <Tabs defaultValue="general" className="mt-4">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
                   <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="general">General</TabsTrigger>
-                    <TabsTrigger value="contacts">Contact Persons</TabsTrigger>
-                    <TabsTrigger value="branding">Branding</TabsTrigger>
+                    <TabsTrigger value="general">1. General</TabsTrigger>
+                    <TabsTrigger value="contacts">2. Contacts</TabsTrigger>
+                    <TabsTrigger value="branding">3. Branding</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="general" className="space-y-4 mt-4">
@@ -324,11 +353,16 @@ export default function Organizations() {
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="flex justify-end pt-2">
+                      <Button onClick={() => setActiveTab("contacts")} disabled={!newName || !newSlug}>
+                        Next: Contact Persons <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </div>
                   </TabsContent>
 
                   <TabsContent value="contacts" className="space-y-4 mt-4">
                     <p className="text-sm text-muted-foreground">
-                      Add contact persons. Each will receive an invitation to join as an Originator Admin.
+                      Add contact persons. Each will receive an invitation email to join as Originator Admin.
                     </p>
                     {contacts.map((contact, idx) => (
                       <Card key={idx} className="p-4">
@@ -363,6 +397,14 @@ export default function Organizations() {
                     <Button variant="outline" size="sm" onClick={addContact}>
                       <UserPlus className="mr-2 h-3 w-3" /> Add Another Contact
                     </Button>
+                    <div className="flex justify-between pt-2">
+                      <Button variant="outline" onClick={() => setActiveTab("general")}>
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                      </Button>
+                      <Button onClick={() => setActiveTab("branding")}>
+                        Next: Branding <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </div>
                   </TabsContent>
 
                   <TabsContent value="branding" className="space-y-4 mt-4">
@@ -376,7 +418,7 @@ export default function Organizations() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>Logo URL</Label>
+                      <Label>Logo URL <span className="text-xs text-muted-foreground">(optional)</span></Label>
                       <Input placeholder="https://example.com/logo.png" value={newLogoUrl}
                         onChange={(e) => setNewLogoUrl(e.target.value)} />
                     </div>
@@ -386,15 +428,20 @@ export default function Organizations() {
                         <img src={newLogoUrl} alt="Logo preview" className="h-12 object-contain" />
                       </div>
                     )}
+                    <div className="flex justify-between pt-2">
+                      <Button variant="outline" onClick={() => setActiveTab("contacts")}>
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                      </Button>
+                      <Button onClick={handleCreate} disabled={creating}>
+                        {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Create & Send Invitations
+                      </Button>
+                    </div>
                   </TabsContent>
                 </Tabs>
 
                 <DialogFooter className="mt-4">
-                  <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                  <Button onClick={handleCreate} disabled={creating}>
-                    {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Create & Send Invitations
-                  </Button>
+                  <Button variant="outline" onClick={() => { setCreateOpen(false); resetForm(); }}>Cancel</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
