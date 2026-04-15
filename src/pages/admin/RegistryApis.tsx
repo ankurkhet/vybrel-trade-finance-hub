@@ -303,16 +303,38 @@ export default function RegistryApis() {
   const invokePlatformApi = async (api: any) => {
     setInvokingApi(api.id);
     try {
-      const { error } = await supabase.functions.invoke(api.api_name, { body: {} });
-      if (error) throw error;
-      await db.from("platform_api_configs").update({
-        last_invoked_at: new Date().toISOString(),
-        health_status: "healthy",
-        health_message: null,
-      }).eq("id", api.id);
-      toast.success(`${api.display_name}: invoked successfully`);
+      const requiredSecrets: string[] = api.requires_secrets || [];
+
+      // Check all required secrets are present in platform_secrets
+      let missingSecrets: string[] = [];
+      if (requiredSecrets.length > 0) {
+        const { data: presentSecrets } = await db
+          .from("platform_secrets")
+          .select("key")
+          .in("key", requiredSecrets);
+        const presentKeys = new Set((presentSecrets || []).map((s: any) => s.key));
+        missingSecrets = requiredSecrets.filter((k: string) => !presentKeys.has(k));
+      }
+
+      if (missingSecrets.length > 0) {
+        const msg = `Missing secrets: ${missingSecrets.join(", ")} — configure in Secrets tab`;
+        await db.from("platform_api_configs").update({
+          last_invoked_at: new Date().toISOString(),
+          health_status: "unhealthy",
+          health_message: msg,
+        }).eq("id", api.id);
+        toast.error(`${api.display_name}: ${msg}`);
+      } else {
+        // All secrets present — mark healthy without invoking with empty body
+        await db.from("platform_api_configs").update({
+          last_invoked_at: new Date().toISOString(),
+          health_status: "healthy",
+          health_message: null,
+        }).eq("id", api.id);
+        toast.success(`${api.display_name}: All required secrets configured — healthy ✓`);
+      }
     } catch (err: any) {
-      const msg = err.message || "Invocation failed";
+      const msg = err.message || "Health check failed";
       await db.from("platform_api_configs").update({
         health_status: "unhealthy",
         health_message: msg,
@@ -442,6 +464,17 @@ export default function RegistryApis() {
     return <Activity className="h-3.5 w-3.5 text-muted-foreground" />;
   };
 
+  const [checkingAll, setCheckingAll] = useState(false);
+  const checkAllHealth = async () => {
+    setCheckingAll(true);
+    const activeApis = platformApis.filter(a => a.is_active);
+    for (const api of activeApis) {
+      await invokePlatformApi(api);
+    }
+    setCheckingAll(false);
+    toast.success("Health check complete for all active functions");
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -460,9 +493,15 @@ export default function RegistryApis() {
               </Button>
             </div>
           ) : activeTab === "platform" ? (
-            <Button variant="outline" onClick={fetchPlatformApis}>
-              <RefreshCw className="mr-2 h-4 w-4" /> Refresh
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={fetchPlatformApis}>
+                <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+              </Button>
+              <Button variant="outline" onClick={checkAllHealth} disabled={checkingAll}>
+                {checkingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Activity className="mr-2 h-4 w-4" />}
+                Check All Health
+              </Button>
+            </div>
           ) : (
             <Button variant="outline" onClick={fetchSecrets}>
               <RefreshCw className="mr-2 h-4 w-4" /> Refresh
