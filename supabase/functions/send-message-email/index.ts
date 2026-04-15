@@ -37,7 +37,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    const apiKey = Deno.env.get("RESEND_API_KEY");
+    let apiKey = Deno.env.get("RESEND_API_KEY");
+    if (!apiKey) {
+      const { data } = await supabase.from('platform_secrets').select('value').eq('key', 'RESEND_API_KEY').maybeSingle();
+      if (data) apiKey = data.value;
+    }
+
     if (!apiKey) {
       console.warn("[send-message-email] RESEND_API_KEY not set — skipping email delivery");
       return new Response(
@@ -46,7 +51,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    const appUrl = Deno.env.get("APP_URL") || "https://app.vybrel.com";
+    let appUrl = Deno.env.get("APP_URL");
+    if (!appUrl) {
+      const { data } = await supabase.from('platform_secrets').select('value').eq('key', 'APP_URL').maybeSingle();
+      if (data) appUrl = data.value;
+    }
+    appUrl = appUrl || "https://app.vybrel.com";
+    
     const recipientName = profile.full_name || "there";
     const safePreview = (preview || "").slice(0, 200);
 

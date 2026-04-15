@@ -144,7 +144,16 @@ Deno.serve(async (req) => {
     console.log(`[notify-counterparty] Sending verification email to ${invoice.counterparty_email} for invoice ${invoice.invoice_number}`);
 
     // Attempt to send via Resend if API key is configured
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    let resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      const { data: secretData } = await supabase
+        .from('platform_secrets')
+        .select('value')
+        .eq('key', 'RESEND_API_KEY')
+        .maybeSingle();
+      if (secretData) resendApiKey = secretData.value;
+    }
+    
     let emailSent = false;
     let emailError: string | null = null;
 
