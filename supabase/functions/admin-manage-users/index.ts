@@ -56,11 +56,20 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case 'list_users': {
-        const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-        const { data: profiles } = await supabaseAdmin.from('profiles').select('*');
-        const { data: userRoles } = await supabaseAdmin.from('user_roles').select('*');
-        const { data: orgs } = await supabaseAdmin.from('organizations').select('id, name, slug');
-        const { data: borrowerEntities } = await supabaseAdmin.from('borrowers').select('id, company_name, user_id, organization_id');
+        const { data: authUsers, error: authErr } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+        if (authErr) throw authErr;
+
+        const { data: profiles, error: profErr } = await supabaseAdmin.from('profiles').select('*');
+        if (profErr) throw profErr;
+
+        const { data: userRoles, error: rolesErr } = await supabaseAdmin.from('user_roles').select('*');
+        if (rolesErr) throw rolesErr;
+
+        const { data: orgs, error: orgsErr } = await supabaseAdmin.from('organizations').select('id, name, slug');
+        if (orgsErr) throw orgsErr;
+
+        const { data: borrowerEntities, error: borrErr } = await supabaseAdmin.from('borrowers').select('id, company_name, user_id, organization_id');
+        if (borrErr) throw borrErr;
 
         const users = (authUsers?.users || []).map(u => {
           const profile = profiles?.find(p => p.id === u.id);
@@ -243,13 +252,15 @@ Deno.serve(async (req) => {
         if (!user_id || !roles) throw new Error('Missing user_id or roles');
 
         // Delete existing roles
-        await supabaseAdmin.from('user_roles').delete().eq('id', user_id);
+        const { error: delErr } = await supabaseAdmin.from('user_roles').delete().eq('user_id', user_id);
+        if (delErr) throw delErr;
 
         // Insert new roles
         if (roles.length > 0) {
-          await supabaseAdmin.from('user_roles').insert(
+          const { error: insErr } = await supabaseAdmin.from('user_roles').insert(
             roles.map((role: string) => ({ user_id, role }))
           );
+          if (insErr) throw insErr;
         }
 
         await logAudit('admin.user_role_change', 'user', user_id, { roles });
