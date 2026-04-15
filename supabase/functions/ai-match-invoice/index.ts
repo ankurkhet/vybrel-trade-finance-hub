@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createAIClient } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,13 +16,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-    const OPENAI_API_KEY = await (async () => {
-      const _k = Deno.env.get("OPENAI_API_KEY");
-      if (_k) return _k;
-      const { data: _s } = await _admin.from("platform_secrets").select("value").eq("key", "OPENAI_API_KEY").single();
-      if (!_s?.value) throw new Error("OPENAI_API_KEY not configured. Set it in Admin → Registry APIs → Secrets.");
-      return _s.value as string;
-    })();
+    const ai = await createAIClient(_admin);
 
     const authHeader = req.headers.get("Authorization");
     const supabase = createClient(
@@ -72,58 +67,45 @@ serve(async (req) => {
 
 Return match results with confidence scores.`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: `Match this invoice against contracts:\n\nInvoice:\n- Number: ${invoice.invoice_number}\n- Debtor: ${invoice.debtor_name}\n- Amount: ${invoice.amount} ${invoice.currency}\n- Issue Date: ${invoice.issue_date}\n- Due Date: ${invoice.due_date}\n\nAvailable Contracts:\n${(contracts || []).map((c: any) => `- ${c.title} | Counterparty: ${c.counterparty} | Value: ${c.contract_value} ${c.currency} | Period: ${c.start_date} to ${c.end_date}`).join("\n")}`,
-          },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "invoice_match",
-            description: "Return invoice-contract matching results",
-            parameters: {
-              type: "object",
-              properties: {
-                best_match_contract: { type: "string", description: "Title of best matching contract or 'none'" },
-                match_score: { type: "number", description: "0-100 confidence score" },
-                counterparty_match: { type: "boolean" },
-                amount_within_limits: { type: "boolean" },
-                date_within_period: { type: "boolean" },
-                terms_compliant: { type: "boolean" },
-                discrepancies: { type: "array", items: { type: "object", properties: { field: { type: "string" }, invoice_value: { type: "string" }, contract_value: { type: "string" }, severity: { type: "string", enum: ["info", "warning", "critical"] } }, required: ["field", "severity"] } },
-                fraud_indicators: { type: "array", items: { type: "string" } },
-                recommendation: { type: "string", enum: ["approve", "review", "reject"] },
-                summary: { type: "string" },
-              },
-              required: ["match_score", "recommendation", "summary"],
-            },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "invoice_match" } },
-      }),
-    });
+    const userPrompt = `Match this invoice against contracts:
 
-    if (!response.ok) {
+Invoice:
+- Number: ${invoice.invoice_number}
+- Debtor: ${invoice.debtor_name}
+- Amount: ${invoice.amount} ${invoice.currency}
+- Issue Date: ${invoice.issue_date}
+- Due Date: ${invoice.due_date}
+
+Available Contracts:
+${(contracts || []).map((c: any) => `- ${c.title} | Counterparty: ${c.counterparty} | Value: ${c.contract_value} ${c.currency} | Period: ${c.start_date} to ${c.end_date}`).join("\n")}
+
+Return a valid JSON object (no markdown fences) with:
+{
+  "best_match_contract": "title or none",
+  "match_score": 0,
+  "counterparty_match": true,
+  "amount_within_limits": true,
+  "date_within_period": true,
+  "terms_compliant": true,
+  "discrepancies": [],
+  "fraud_indicators": [],
+  "recommendation": "approve|review|reject",
+  "summary": "string"
+}`;
+
+    let findings: any = {};
+    try {
+      const rawText = await ai.complete(
+        `You are a trade finance analyst matching invoices against contracts. Analyze counterparty match, amount validation, date validation, terms compliance, duplicates, and concentration risk.`,
+        userPrompt,
+        { maxTokens: 1024, temperature: 0.2 }
+      );
+      const jsonStr = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "").trim();
+      findings = JSON.parse(jsonStr);
+    } catch (aiErr: any) {
       await supabase.from("ai_analyses").update({ status: "failed" }).eq("id", analysis_id);
-      if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (response.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      throw new Error("AI matching failed");
+      return new Response(JSON.stringify({ error: aiErr.message || "AI matching failed" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-
-    const aiResult = await response.json();
-    const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
-    const findings = toolCall ? JSON.parse(toolCall.function.arguments) : {};
 
     // Update invoice with match results
     await supabase.from("invoices").update({

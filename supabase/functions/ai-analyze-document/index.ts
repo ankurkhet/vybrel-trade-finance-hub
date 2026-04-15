@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createAIClient } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,13 +16,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-    const OPENAI_API_KEY = await (async () => {
-      const _k = Deno.env.get("OPENAI_API_KEY");
-      if (_k) return _k;
-      const { data: _s } = await _admin.from("platform_secrets").select("value").eq("key", "OPENAI_API_KEY").single();
-      if (!_s?.value) throw new Error("OPENAI_API_KEY not configured. Set it in Admin → Registry APIs → Secrets.");
-      return _s.value as string;
-    })();
+    const ai = await createAIClient(_admin);
 
     const authHeader = req.headers.get("Authorization");
     const supabase = createClient(
@@ -64,99 +59,33 @@ serve(async (req) => {
 5. **Risk Flags**: Identify any potential red flags (expired documents, mismatched information)
 6. **Compliance Notes**: Check against standard KYC/AML requirements
 
-Return a JSON object with:
-- "document_classification": string
-- "extracted_fields": object with key-value pairs
-- "completeness_score": number 0-100
-- "missing_fields": string array
-- "risk_flags": array of { "severity": "low"|"medium"|"high", "description": string }
-- "compliance_notes": string array
-- "summary": string (2-3 sentence overview)
-- "annotations": array of { "field": string, "value": string, "confidence": number, "note": string }`;
+Return a valid JSON object (no markdown fences) with these exact keys:
+{
+  "document_classification": "string",
+  "extracted_fields": {},
+  "completeness_score": 0,
+  "missing_fields": [],
+  "risk_flags": [{"severity": "low|medium|high", "description": "string"}],
+  "compliance_notes": [],
+  "summary": "string",
+  "annotations": [{"field": "string", "value": "string", "confidence": 0, "note": "string"}]
+}`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: `Analyze this document:\nFile: ${doc.file_name}\nType: ${doc.document_type}\nMetadata: ${JSON.stringify(doc.metadata)}`,
-          },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "document_analysis",
-            description: "Return structured document analysis results",
-            parameters: {
-              type: "object",
-              properties: {
-                document_classification: { type: "string" },
-                extracted_fields: { type: "object" },
-                completeness_score: { type: "number" },
-                missing_fields: { type: "array", items: { type: "string" } },
-                risk_flags: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      severity: { type: "string", enum: ["low", "medium", "high"] },
-                      description: { type: "string" },
-                    },
-                    required: ["severity", "description"],
-                  },
-                },
-                compliance_notes: { type: "array", items: { type: "string" } },
-                summary: { type: "string" },
-                annotations: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      field: { type: "string" },
-                      value: { type: "string" },
-                      confidence: { type: "number" },
-                      note: { type: "string" },
-                    },
-                    required: ["field", "value", "confidence"],
-                  },
-                },
-              },
-              required: ["document_classification", "extracted_fields", "completeness_score", "summary"],
-            },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "document_analysis" } },
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("AI gateway error:", response.status, errText);
+    let findings: any = {};
+    try {
+      const rawText = await ai.complete(
+        systemPrompt,
+        `Analyze this document:\nFile: ${doc.file_name}\nType: ${doc.document_type}\nMetadata: ${JSON.stringify(doc.metadata)}`,
+        { maxTokens: 2048, temperature: 0.2 }
+      );
+      const jsonStr = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "").trim();
+      findings = JSON.parse(jsonStr);
+    } catch (aiErr: any) {
       await supabase.from("ai_analyses").update({ status: "failed" }).eq("id", analysis_id);
-
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited, please try again later" }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted" }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error("AI analysis failed");
+      return new Response(JSON.stringify({ error: aiErr.message || "AI analysis failed" }), {
+        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
-
-    const aiResult = await response.json();
-    const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
-    const findings = toolCall ? JSON.parse(toolCall.function.arguments) : {};
 
     const riskScore = findings.risk_flags?.length
       ? Math.min(100, findings.risk_flags.filter((f: any) => f.severity === "high").length * 30 +

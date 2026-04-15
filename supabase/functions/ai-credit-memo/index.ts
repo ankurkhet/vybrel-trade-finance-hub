@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createAIClient } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,13 +27,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-    const OPENAI_API_KEY = await (async () => {
-      const _k = Deno.env.get("OPENAI_API_KEY");
-      if (_k) return _k;
-      const { data: _s } = await _admin.from("platform_secrets").select("value").eq("key", "OPENAI_API_KEY").single();
-      if (!_s?.value) throw new Error("OPENAI_API_KEY not configured. Set it in Admin → Registry APIs → Secrets.");
-      return _s.value as string;
-    })();
+    const ai = await createAIClient(_admin);
 
     const authHeader = req.headers.get("Authorization");
     const supabase = createClient(
@@ -219,59 +214,33 @@ Be specific about numbers. Use tables extensively. Cite sources for all financia
       })),
     };
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: `Generate a credit memo for:\n\n${JSON.stringify(context, null, 2)}`,
-          },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "credit_memo",
-            description: "Return structured credit memo matching the Convenient Capital format",
-            parameters: {
-              type: "object",
-              properties: {
-                memo_text: { type: "string", description: "Full credit memo in professional markdown following the exact structure: Company Details, Facility Sought, Purpose, Countries, Debtor Limits, UBO, Shareholders, Financial Analysis (multi-year tables), Performance Metrics, Revenue Pipeline, Risk Assessment, Recommendation, Sources" },
-                risk_rating: { type: "string", enum: ["low", "moderate", "elevated", "high", "critical"] },
-                recommended_limit: { type: "number" },
-                recommended_advance_rate: { type: "number", description: "Percentage 0-100" },
-                key_risks: { type: "array", items: { type: "string" } },
-                key_strengths: { type: "array", items: { type: "string" } },
-                conditions_precedent: { type: "array", items: { type: "string" } },
-                recommendation: { type: "string", enum: ["approve", "approve_with_conditions", "decline", "defer"] },
-                summary: { type: "string", description: "2-3 sentence executive summary" },
-                facility_sought: { type: "array", items: { type: "object", properties: { type: { type: "string" }, amount: { type: "number" }, tenor: { type: "string" }, pricing: { type: "string" } } } },
-                financial_analysis: { type: "object", description: "Multi-year financial data extracted or computed" },
-              },
-              required: ["memo_text", "risk_rating", "recommendation", "summary"],
-            },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "credit_memo" } },
-      }),
-    });
+    const aiUserPrompt = `Generate a credit memo for:\n\n${JSON.stringify(context, null, 2)}
 
-    if (!response.ok) {
+Return a valid JSON object (no markdown fences) with these exact keys:
+{
+  "memo_text": "Full credit memo in professional markdown",
+  "risk_rating": "low|moderate|elevated|high|critical",
+  "recommended_limit": 0,
+  "recommended_advance_rate": 0,
+  "key_risks": [],
+  "key_strengths": [],
+  "conditions_precedent": [],
+  "recommendation": "approve|approve_with_conditions|decline|defer",
+  "summary": "2-3 sentence executive summary"
+}`;
+
+    await supabase.from("ai_analyses").update({ status: "processing" }).eq("id", analysis_id);
+
+    let findings: any = {};
+    try {
+      const rawText = await ai.complete(systemPrompt, aiUserPrompt, { maxTokens: 4096, temperature: 0.3 });
+      // Parse JSON from response (strip markdown fences if any)
+      const jsonStr = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "").trim();
+      findings = JSON.parse(jsonStr);
+    } catch (aiErr: any) {
       await supabase.from("ai_analyses").update({ status: "failed" }).eq("id", analysis_id);
-      if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (response.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      throw new Error("AI credit memo generation failed");
+      return new Response(JSON.stringify({ error: aiErr.message || "AI generation failed" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-
-    const aiResult = await response.json();
-    const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
-    const findings = toolCall ? JSON.parse(toolCall.function.arguments) : {};
 
     const riskMap: Record<string, number> = { low: 10, moderate: 30, elevated: 50, high: 75, critical: 95 };
 

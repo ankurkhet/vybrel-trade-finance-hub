@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createAIClient } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,13 +27,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-    const OPENAI_API_KEY = await (async () => {
-      const _k = Deno.env.get("OPENAI_API_KEY");
-      if (_k) return _k;
-      const { data: _s } = await _admin.from("platform_secrets").select("value").eq("key", "OPENAI_API_KEY").single();
-      if (!_s?.value) throw new Error("OPENAI_API_KEY not configured. Set it in Admin → Registry APIs → Secrets.");
-      return _s.value as string;
-    })();
+    const ai = await createAIClient(_admin);
 
     const authHeader = req.headers.get("Authorization");
     const supabase = createClient(
@@ -73,65 +68,39 @@ serve(async (req) => {
 
 Return structured analysis.`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: `Review this contract:\nTitle: ${contract.title}\nCounterparty: ${contract.counterparty}\nValue: ${contract.contract_value} ${contract.currency}\nBorrower: ${contract.borrowers?.company_name}\nIndustry: ${contract.borrowers?.industry}\nTerms: ${JSON.stringify(contract.terms_summary)}`,
-          },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "contract_review",
-            description: "Return structured contract review results",
-            parameters: {
-              type: "object",
-              properties: {
-                key_terms: {
-                  type: "object",
-                  properties: {
-                    parties: { type: "array", items: { type: "string" } },
-                    contract_value: { type: "string" },
-                    duration: { type: "string" },
-                    payment_terms: { type: "string" },
-                    governing_law: { type: "string" },
-                  },
-                },
-                obligations: { type: "array", items: { type: "object", properties: { party: { type: "string" }, obligation: { type: "string" } }, required: ["party", "obligation"] } },
-                risks: { type: "array", items: { type: "object", properties: { category: { type: "string" }, severity: { type: "string", enum: ["low", "medium", "high", "critical"] }, description: { type: "string" }, mitigation: { type: "string" } }, required: ["category", "severity", "description"] } },
-                missing_clauses: { type: "array", items: { type: "string" } },
-                red_flags: { type: "array", items: { type: "string" } },
-                trade_finance_assessment: { type: "object", properties: { eligible_for_financing: { type: "boolean" }, reason: { type: "string" }, recommended_advance_rate: { type: "number" } } },
-                overall_risk_rating: { type: "string", enum: ["low", "medium", "high", "critical"] },
-                summary: { type: "string" },
-              },
-              required: ["key_terms", "risks", "overall_risk_rating", "summary"],
-            },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "contract_review" } },
-      }),
-    });
+    const userPrompt = `Review this contract:
+Title: ${contract.title}
+Counterparty: ${contract.counterparty}
+Value: ${contract.contract_value} ${contract.currency}
+Borrower: ${contract.borrowers?.company_name}
+Industry: ${contract.borrowers?.industry}
+Terms: ${JSON.stringify(contract.terms_summary)}
 
-    if (!response.ok) {
+Return a valid JSON object (no markdown fences) with:
+{
+  "key_terms": {"parties": [], "contract_value": "", "duration": "", "payment_terms": "", "governing_law": ""},
+  "obligations": [{"party": "", "obligation": ""}],
+  "risks": [{"category": "", "severity": "low|medium|high|critical", "description": "", "mitigation": ""}],
+  "missing_clauses": [],
+  "red_flags": [],
+  "trade_finance_assessment": {"eligible_for_financing": true, "reason": "", "recommended_advance_rate": 0},
+  "overall_risk_rating": "low|medium|high|critical",
+  "summary": "string"
+}`;
+
+    let findings: any = {};
+    try {
+      const rawText = await ai.complete(
+        `You are a legal and financial contract analyst for a trade finance platform.`,
+        userPrompt,
+        { maxTokens: 2048, temperature: 0.2 }
+      );
+      const jsonStr = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "").trim();
+      findings = JSON.parse(jsonStr);
+    } catch (aiErr: any) {
       await supabase.from("ai_analyses").update({ status: "failed" }).eq("id", analysis_id);
-      if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (response.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      throw new Error("AI review failed");
+      return new Response(JSON.stringify({ error: aiErr.message || "AI review failed" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-
-    const aiResult = await response.json();
-    const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
-    const findings = toolCall ? JSON.parse(toolCall.function.arguments) : {};
 
     const riskMap: Record<string, number> = { low: 15, medium: 40, high: 70, critical: 95 };
     const riskScore = riskMap[findings.overall_risk_rating] || 50;

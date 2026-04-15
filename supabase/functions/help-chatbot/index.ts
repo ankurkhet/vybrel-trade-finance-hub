@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.99.1";
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.99.1/cors";
+import { createAIClient } from "../_shared/ai-client.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -154,45 +155,19 @@ GLEIF (Global LEI Foundation) is available in Registry APIs for Legal Entity Ide
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-    const apiKey = await (async () => {
-      const _k = Deno.env.get("OPENAI_API_KEY");
-      if (_k) return _k;
-      const { data: _s } = await _admin.from("platform_secrets").select("value").eq("key", "OPENAI_API_KEY").single();
-      return _s?.value as string | undefined;
-    })();
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "AI service not configured. Set OPENAI_API_KEY in Admin → Registry APIs → Secrets." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
-    const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages,
-        max_tokens: 1024,
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("AI Gateway error:", errText);
-      return new Response(JSON.stringify({ error: "AI service error" }), {
+    let answer: string;
+    try {
+      const ai = await createAIClient(_admin);
+      answer = await ai.completeMessages(messages, { maxTokens: 1024, temperature: 0.4 });
+    } catch (aiErr: any) {
+      return new Response(JSON.stringify({ error: aiErr.message || "AI service error" }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const aiData = await aiResponse.json();
-    const answer = aiData.choices?.[0]?.message?.content || "I'm sorry, I couldn't generate a response. Please try again.";
-
-    return new Response(JSON.stringify({ answer }), {
+    return new Response(JSON.stringify({ answer: answer || "I'm sorry, I couldn't generate a response. Please try again." }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
