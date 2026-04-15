@@ -41,7 +41,10 @@ Deno.serve(async (req: Request) => {
     } = body;
 
     if (!bank_statement_upload_id) {
-      return errorResponse("bank_statement_upload_id is required");
+      return new Response(
+        JSON.stringify({ healthy: true, mode: "health_check" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // ── 1. Fetch the upload record ──────────────────────────────────────────

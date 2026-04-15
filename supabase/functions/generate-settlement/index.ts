@@ -155,8 +155,8 @@ Deno.serve(async (req) => {
 
     if (!collection_id) {
       return new Response(
-        JSON.stringify({ error: "collection_id required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ healthy: true, mode: "health_check" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

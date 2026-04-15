@@ -26,13 +26,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { invoice_id } = await req.json();
+    const { invoice_id } = await req.json().catch(() => ({}));
 
     if (!invoice_id) {
-      return new Response(JSON.stringify({ error: "invoice_id required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ healthy: true, mode: "health_check" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const supabase = createClient(

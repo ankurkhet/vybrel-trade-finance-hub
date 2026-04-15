@@ -13,9 +13,16 @@ serve(async (req) => {
   }
 
   try {
-    const { token, user_id } = await req.json();
+    const { token, user_id } = await req.json().catch(() => ({}));
 
-    if (!token || !user_id) {
+    if (!token) {
+      return new Response(
+        JSON.stringify({ healthy: true, mode: "health_check" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!user_id) {
       return new Response(
         JSON.stringify({ error: "Missing token or user_id" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

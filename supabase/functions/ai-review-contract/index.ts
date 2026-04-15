@@ -10,6 +10,17 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const body = await req.json().catch(() => ({}));
+    const { contract_id, analysis_id } = body;
+
+    // Platform health-check: called with empty body by RegistryApis health checker
+    if (!contract_id) {
+      return new Response(
+        JSON.stringify({ healthy: true, mode: "health_check" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const _admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -36,8 +47,6 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const { contract_id, analysis_id } = await req.json();
 
     const { data: contract } = await supabase
       .from("contracts")

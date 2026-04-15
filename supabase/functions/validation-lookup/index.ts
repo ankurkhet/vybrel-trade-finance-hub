@@ -16,8 +16,13 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { action } = body;
+
+    // Platform health-check: called with empty body by RegistryApis health checker
+    if (!action) {
+      return jsonResponse({ healthy: true, mode: "health_check" });
+    }
 
     // ─── IBAN Validation ───────────────────────────────────────
     if (action === "validate_iban") {

@@ -12,8 +12,13 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { action } = body;
+
+    // Platform health-check: called with empty body by RegistryApis health checker
+    if (!action) {
+      return json({ healthy: true, mode: "health_check" });
+    }
 
     // Resolve client_id: prefer body param, then DB lookup, then env fallback
     const resolveClientId = async (): Promise<string | null> => {

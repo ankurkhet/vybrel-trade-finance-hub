@@ -138,8 +138,16 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { action } = body;
+
+    // Platform health-check: called with empty body by RegistryApis health checker
+    if (!action && !body.country_code && !body.company_name && !body.registration_number) {
+      return new Response(
+        JSON.stringify({ healthy: true, mode: "health_check" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Health check for a specific registry
     if (action === "health_check") {

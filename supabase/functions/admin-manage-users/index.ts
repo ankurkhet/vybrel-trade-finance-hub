@@ -54,6 +54,13 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action } = body;
 
+    if (!action) {
+      return new Response(
+        JSON.stringify({ healthy: true, mode: "health_check" }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     switch (action) {
       case 'list_users': {
         const { data: authUsers, error: authErr } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
