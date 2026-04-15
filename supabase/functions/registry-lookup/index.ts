@@ -319,6 +319,71 @@ serve(async (req) => {
       }
     }
 
+    if (action === "fetch_directors") {
+      const { company_name, registration_number, country_code } = body;
+      if (!country_code || (!company_name && !registration_number)) {
+        return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const { data: activeRegistries } = await supabase
+        .from("registry_api_configs")
+        .select("*")
+        .eq("country_code", country_code)
+        .eq("is_active", true);
+
+      let targetRegistry = activeRegistries?.[0];
+      if (!targetRegistry) {
+        return new Response(JSON.stringify({ results: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const noAuth = targetRegistry.api_key_secret_name === "NO_AUTH_NEEDED";
+      const apiKey = noAuth ? null : (targetRegistry.api_key_value || Deno.env.get(targetRegistry.api_key_secret_name));
+      const isCkan = targetRegistry.registry_type === "ckan";
+
+      try {
+        const companyData = isCkan
+          ? null 
+          : await fetchCompanyData(targetRegistry, apiKey!, company_name, registration_number, country_code, false);
+
+        const dirsData = companyData?.directors?.items || [];
+        const mappedDirectors: any[] = [];
+        
+        dirsData.forEach((d: any) => {
+          if (d.resigned_on) return; // exclude former
+          let first_name = d.name;
+          let last_name = "";
+          if (typeof d.name === "string" && d.name.includes(",")) {
+            const parts = d.name.split(",");
+            last_name = parts[0].trim();
+            first_name = parts.slice(1).join(" ").trim();
+          }
+
+          let dob = undefined;
+          if (d.date_of_birth && d.date_of_birth.year && d.date_of_birth.month) {
+            dob = `${d.date_of_birth.year}-${String(d.date_of_birth.month).padStart(2, '0')}-01`;
+          }
+
+          mappedDirectors.push({
+            first_name,
+            last_name,
+            role: "director", 
+            nationality: d.nationality || "",
+            date_of_birth: dob || "",
+            residential_address: d.address ? {
+              line1: d.address.address_line_1 || "",
+              city: d.address.locality || "",
+              postal_code: d.address.postal_code || "",
+              country: d.address.country || ""
+            } : null
+          });
+        });
+
+        return new Response(JSON.stringify({ results: mappedDirectors }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (err) {
+        return new Response(JSON.stringify({ results: [], error: (err as Error).message }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     // Company lookup
     const { borrower_id, organization_id, company_name, registration_number, country_code } = body;
 

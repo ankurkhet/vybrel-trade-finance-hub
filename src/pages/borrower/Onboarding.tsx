@@ -646,7 +646,14 @@ export default function BorrowerOnboarding() {
 
         {/* Step 2: Directors */}
         {step === 2 && (
-          <DirectorsStep directors={directors} onChange={setDirectors} disabled={isReadOnly} />
+          <DirectorsStep 
+            directors={directors} 
+            onChange={setDirectors} 
+            disabled={isReadOnly}
+            companyName={companyData.company_name}
+            registrationNumber={companyData.registration_number}
+            countryCode={companyData.country}
+          />
         )}
 
         {/* Step 3: Facility Requirements */}

@@ -13,8 +13,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { CompanyInfoStep } from "@/components/onboarding/CompanyInfoStep";
+import { DirectorsStep } from "@/components/onboarding/DirectorsStep";
 import { emptyCompanyForm, COUNTRIES } from "@/lib/onboarding-types";
-import type { CompanyFormData } from "@/lib/onboarding-types";
+import type { CompanyFormData, DirectorData } from "@/lib/onboarding-types";
 
 export default function Borrowers() {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ export default function Borrowers() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [companyData, setCompanyData] = useState<CompanyFormData>({ ...emptyCompanyForm });
+  const [directors, setDirectors] = useState<DirectorData[]>([]);
   const [lookingUp, setLookingUp] = useState(false);
 
   const handleRegistryLookup = async () => {
@@ -102,7 +104,7 @@ export default function Borrowers() {
     }
     setSubmitting(true);
 
-    const { error } = await supabase.from("borrowers").insert({
+    const { data: newBorrower, error } = await supabase.from("borrowers").insert({
       organization_id: profile.organization_id,
       ...(isBroker && user?.id ? { broker_user_id: user.id } : {}),
       company_name: companyData.company_name,
@@ -122,15 +124,41 @@ export default function Borrowers() {
       num_employees: companyData.num_employees ? parseInt(companyData.num_employees) : null,
       annual_turnover: companyData.annual_turnover ? parseFloat(companyData.annual_turnover) : null,
       onboarding_status: "invited" as const,
-    });
+    }).select("id").single();
 
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Borrower added successfully");
-      setDialogOpen(false);
-      setCompanyData({ ...emptyCompanyForm });
-      fetchBorrowers();
+    if (error) {
+      toast.error(error.message);
+      setSubmitting(false);
+      return;
     }
+
+    if (newBorrower && directors.length > 0) {
+      const { error: dirError } = await supabase.from("borrower_directors").insert(
+        directors.map(d => ({
+          borrower_id: newBorrower.id,
+          organization_id: profile.organization_id,
+          first_name: d.first_name,
+          middle_name: d.middle_name || null,
+          last_name: d.last_name,
+          date_of_birth: d.date_of_birth || null,
+          nationality: d.nationality || null,
+          role: d.role,
+          shareholding_pct: d.shareholding_pct ? Number(d.shareholding_pct) : null,
+          email: d.email || null,
+          phone: d.phone || null,
+          residential_address: d.residential_address as any,
+        }))
+      );
+      if (dirError) {
+        toast.error("Borrower created, but failed to save directors: " + dirError.message);
+      }
+    }
+
+    toast.success("Borrower added successfully");
+    setDialogOpen(false);
+    setCompanyData({ ...emptyCompanyForm });
+    setDirectors([]);
+    fetchBorrowers();
     setSubmitting(false);
   };
 
@@ -269,7 +297,16 @@ export default function Borrowers() {
               Lookup
             </Button>
           </div>
-          <CompanyInfoStep data={companyData} onChange={setCompanyData} />
+          <div className="space-y-6">
+            <CompanyInfoStep data={companyData} onChange={setCompanyData} />
+            <DirectorsStep 
+              directors={directors} 
+              onChange={setDirectors} 
+              companyName={companyData.company_name}
+              registrationNumber={companyData.registration_number}
+              countryCode={companyData.country}
+            />
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleCreate} disabled={submitting}>

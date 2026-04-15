@@ -21,12 +21,16 @@ interface DirectorsStepProps {
   disabled?: boolean;
   borrowerId?: string;
   organizationId?: string;
+  companyName?: string;
+  registrationNumber?: string;
+  countryCode?: string;
 }
 
-export function DirectorsStep({ directors, onChange, disabled, borrowerId, organizationId }: DirectorsStepProps) {
+export function DirectorsStep({ directors, onChange, disabled, borrowerId, organizationId, companyName, registrationNumber, countryCode }: DirectorsStepProps) {
   const [expanded, setExpanded] = useState<number | null>(directors.length > 0 ? 0 : null);
   const [screeningResults, setScreeningResults] = useState<Record<number, { status: string; message: string } | null>>({});
   const [screeningLoading, setScreeningLoading] = useState<Record<number, boolean>>({});
+  const [syncing, setSyncing] = useState(false);
 
   const addDirector = () => {
     onChange([...directors, { ...emptyDirector }]);
@@ -44,6 +48,44 @@ export function DirectorsStep({ directors, onChange, disabled, borrowerId, organ
     const updated = [...directors];
     updated[idx] = { ...updated[idx], [field]: value };
     onChange(updated);
+  };
+
+  const handleSyncDirectors = async () => {
+    if (!countryCode || (!companyName && !registrationNumber)) {
+      toast.error("Please enter a company name/registration number and country first.");
+      return;
+    }
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("registry-lookup", {
+        body: {
+          action: "fetch_directors",
+          company_name: companyName,
+          registration_number: registrationNumber,
+          country_code: countryCode
+        }
+      });
+      if (error) throw error;
+      
+      const newDirs = data?.results || [];
+      if (newDirs.length === 0) {
+        toast.info("No directors found in the registry for this company.");
+      } else {
+        const currentNames = new Set(directors.map(d => `${d.first_name} ${d.last_name}`.trim().toLowerCase()));
+        const toAdd = newDirs.filter((nd: any) => !currentNames.has(`${nd.first_name} ${nd.last_name}`.toLowerCase()));
+        
+        if (toAdd.length === 0) {
+          toast.info("All registry directors are already in the list.");
+        } else {
+          onChange([...directors, ...toAdd.map((nd: any) => ({ ...emptyDirector, ...nd }))]);
+          toast.success(`Successfully synced ${toAdd.length} director(s) from registry.`);
+        }
+      }
+    } catch (err: any) {
+      toast.error("Failed to sync directors: " + err.message);
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const runSanctionsScreening = async (idx: number) => {
@@ -268,10 +310,22 @@ export function DirectorsStep({ directors, onChange, disabled, borrowerId, organ
           </div>
         ))}
 
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <Button type="button" variant="outline" className="flex-1" onClick={addDirector} disabled={disabled}>
             <Plus className="mr-2 h-4 w-4" /> Add Director / Signatory
           </Button>
+          {(companyName || registrationNumber) && countryCode && (
+            <Button
+              type="button" 
+              variant="secondary" 
+              className="flex-1 bg-primary/5 hover:bg-primary/10 text-primary border-primary/20"
+              onClick={handleSyncDirectors}
+              disabled={disabled || syncing}
+            >
+              {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+              Sync Directors from Registry
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
