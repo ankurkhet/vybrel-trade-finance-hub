@@ -1,9 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { createAIClient } from "../_shared/ai-client.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-version",
 };
 
 // ─── AI Interpretation ─────────────────────────────────────────────────────────
@@ -18,18 +20,11 @@ async function interpretRegistryData(
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
-  const OPENAI_API_KEY = await (async () => {
-    const _k = Deno.env.get("OPENAI_API_KEY");
-    if (_k) return _k;
-    const { data: _s } = await _admin.from("platform_secrets").select("value").eq("key", "OPENAI_API_KEY").single();
-    return _s?.value as string | undefined;
-  })();
-  if (!OPENAI_API_KEY) return null;
+  const ai = await createAIClient(_admin);
 
   const systemPrompt = `You are a KYB (Know Your Business) analyst at a trade finance originator. 
 You will be given raw data from a company registry API and the borrower's submitted details.
-Your job is to extract ONLY the meaningful, human-readable information and highlight any discrepancies or red flags.
-Respond ONLY with valid JSON in the exact schema requested — no markdown, no prose outside JSON.`;
+Your job is to extract ONLY the meaningful, human-readable information and highlight any discrepancies or red flags.`;
 
   const userPrompt = `Registry: ${registryName}
 Check type: ${resultType}
@@ -44,86 +39,24 @@ Borrower submitted:
 Raw registry API response:
 ${JSON.stringify(rawData, null, 2).substring(0, 6000)}
 
-Extract meaningful KYB findings. Return JSON only, no extra text.`;
+Extract meaningful KYB findings.
+
+Return a valid JSON object (no markdown fences) with:
+{
+  "verdict": "verified|partial_match|discrepancy_found|not_found|manual_review_required",
+  "summary": "1-2 sentence plain-English summary",
+  "key_facts": [{"label": "string", "value": "string"}],
+  "flags": [{"severity": "high|medium|low|info", "message": "string", "field": "string"}],
+  "recommendation": "string",
+  "data_quality": "good|partial|poor|no_data"
+}`;
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "kyb_findings",
-            description: "Extract structured KYB findings from raw registry data",
-            parameters: {
-              type: "object",
-              properties: {
-                verdict: {
-                  type: "string",
-                  enum: ["verified", "partial_match", "discrepancy_found", "not_found", "manual_review_required"],
-                  description: "Overall KYB verification verdict for this check"
-                },
-                summary: {
-                  type: "string",
-                  description: "1-2 sentence plain-English summary of findings for this check"
-                },
-                key_facts: {
-                  type: "array",
-                  description: "Key facts extracted from the registry, as bullet points. Only include meaningful facts.",
-                  items: {
-                    type: "object",
-                    properties: {
-                      label: { type: "string" },
-                      value: { type: "string" }
-                    }
-                  }
-                },
-                flags: {
-                  type: "array",
-                  description: "Discrepancies, risks, or red flags found. Empty array if none.",
-                  items: {
-                    type: "object",
-                    properties: {
-                      severity: { type: "string", enum: ["high", "medium", "low", "info"] },
-                      message: { type: "string", description: "Plain-English description of the issue" },
-                      field: { type: "string", description: "Which field or area the issue relates to" }
-                    }
-                  }
-                },
-                recommendation: {
-                  type: "string",
-                  description: "What action the analyst should take next, if any"
-                },
-                data_quality: {
-                  type: "string",
-                  enum: ["good", "partial", "poor", "no_data"],
-                  description: "Quality of data returned by the registry"
-                }
-              },
-              required: ["verdict", "summary", "key_facts", "flags", "data_quality"]
-            }
-          }
-        }],
-        tool_choice: { type: "function", function: { name: "kyb_findings" } },
-      }),
-    });
-
-    if (!response.ok) return null;
-    const result = await response.json();
-    const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) return null;
-    return JSON.parse(toolCall.function.arguments);
-  } catch (err) {
-    console.error("AI interpretation error:", err);
+    const rawText = await ai.complete(systemPrompt, userPrompt, { maxTokens: 1024, temperature: 0.1 });
+    const jsonStr = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "").trim();
+    return JSON.parse(jsonStr);
+  } catch (err: any) {
+    console.error("AI interpretation error:", err.message);
     return null;
   }
 }
@@ -351,7 +284,7 @@ serve(async (req) => {
       try {
         const companyData = isCkan
           ? null 
-          : await fetchCompanyData(targetRegistry, apiKey!, company_name, registration_number, country_code, false);
+          : await fetchCompanyData(targetRegistry, apiKey ?? "", company_name, registration_number, country_code, false);
 
         const dirsData = companyData?.directors?.items || [];
         const mappedDirectors: any[] = [];

@@ -7,11 +7,12 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createAIClient } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-version",
 };
 
 interface ParsedLine {
@@ -271,16 +272,13 @@ async function parsePdfWithAi(file: Blob): Promise<ParsedLine[]> {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
-  const lovableApiKey = await (async () => {
-    const _k = Deno.env.get("OPENAI_API_KEY");
-    if (_k) return _k;
-    const { data: _s } = await _admin.from("platform_secrets").select("value").eq("key", "OPENAI_API_KEY").single();
-    return _s?.value as string | undefined;
-  })();
-  if (!lovableApiKey) {
-    console.warn("[reconcile] No OPENAI_API_KEY — cannot parse PDF");
-    return [];
-  }
+  
+  const ai = await createAIClient(_admin).catch(err => {
+    console.warn("[reconcile] Could not init AI client:", err.message);
+    return null;
+  });
+  
+  if (!ai) return [];
 
   // Convert to base64
   const arrayBuffer = await file.arrayBuffer();
@@ -291,21 +289,8 @@ async function parsePdfWithAi(file: Blob): Promise<ParsedLine[]> {
   }
   const base64 = btoa(binary);
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${lovableApiKey}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Extract all bank transaction rows from this bank statement as a JSON array.
+  const systemPrompt = "You are a data extraction assistant.";
+  const userPrompt = `Extract all bank transaction rows from this bank statement as a JSON array.
 Each item must have these fields:
 - date: ISO date string (YYYY-MM-DD)
 - amount: number (positive = credit/money in, negative = debit/money out)
@@ -313,32 +298,14 @@ Each item must have these fields:
 - reference: payment reference or transaction ID if available, else empty string
 
 Return ONLY the JSON array, no other text. Example:
-[{"date":"2026-04-10","amount":-5000.00,"description":"Payment to Acme Ltd","reference":"BACS-123"}]`,
-            },
-            {
-              type: "image_url",
-              image_url: { url: `data:application/pdf;base64,${base64}` },
-            },
-          ],
-        },
-      ],
-      max_tokens: 4096,
-    }),
-  });
-
-  if (!response.ok) {
-    console.error("[reconcile] AI PDF parse failed:", response.status);
-    return [];
-  }
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content || "[]";
+[{"date":"2026-04-10","amount":-5000.00,"description":"Payment to Acme Ltd","reference":"BACS-123"}]`;
 
   try {
-    const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+    const rawText = await ai.analyzeDocument(systemPrompt, userPrompt, base64, "application/pdf", { maxTokens: 4096 });
+    const cleaned = rawText.replace(/^```json?\n?/i, "").replace(/```/g, "").trim();
     return JSON.parse(cleaned) as ParsedLine[];
-  } catch {
-    console.error("[reconcile] Failed to parse AI response as JSON:", content);
+  } catch (err: any) {
+    console.error("[reconcile] Failed to parse PDF with AI:", err.message);
     return [];
   }
 }

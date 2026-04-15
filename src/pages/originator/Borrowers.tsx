@@ -44,8 +44,10 @@ export default function Borrowers() {
         },
       });
       if (error) throw error;
-      if (data?.company) {
-        const c = data.company;
+      if (data?.message && (!data.results || data.results.length === 0)) {
+        toast.warning(data.message);
+      } else if (data?.results?.[0]?.company) {
+        const c = data.results[0].company;
         setCompanyData(prev => ({
           ...prev,
           company_name: c.company_name || prev.company_name,
@@ -283,31 +285,33 @@ export default function Borrowers() {
 
       {/* Add Borrower Dialog - now uses the rich company form */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-2 shrink-0">
             <DialogTitle>Add New Borrower</DialogTitle>
           </DialogHeader>
-          <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-foreground">Auto-fill from Registry</p>
-              <p className="text-xs text-muted-foreground">Enter a company name or registration number &amp; country above, then click lookup to pre-fill company details.</p>
+          <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-6">
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Auto-fill from Registry</p>
+                <p className="text-xs text-muted-foreground">Enter a company name or registration number &amp; country above, then click lookup to pre-fill company details.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleRegistryLookup} disabled={lookingUp || (!companyData.registration_number && !companyData.company_name)}>
+                {lookingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Globe className="mr-2 h-4 w-4" />}
+                Lookup
+              </Button>
             </div>
-            <Button variant="outline" size="sm" onClick={handleRegistryLookup} disabled={lookingUp || (!companyData.registration_number && !companyData.company_name)}>
-              {lookingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Globe className="mr-2 h-4 w-4" />}
-              Lookup
-            </Button>
+            <div className="space-y-6">
+              <CompanyInfoStep data={companyData} onChange={setCompanyData} />
+              <DirectorsStep 
+                directors={directors} 
+                onChange={setDirectors} 
+                companyName={companyData.company_name}
+                registrationNumber={companyData.registration_number}
+                countryCode={companyData.country}
+              />
+            </div>
           </div>
-          <div className="space-y-6">
-            <CompanyInfoStep data={companyData} onChange={setCompanyData} />
-            <DirectorsStep 
-              directors={directors} 
-              onChange={setDirectors} 
-              companyName={companyData.company_name}
-              registrationNumber={companyData.registration_number}
-              countryCode={companyData.country}
-            />
-          </div>
-          <DialogFooter>
+          <DialogFooter className="p-6 pt-4 shrink-0 bg-background border-t">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleCreate} disabled={submitting}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

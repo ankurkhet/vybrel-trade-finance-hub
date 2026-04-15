@@ -29,12 +29,13 @@ export function CompanyAutocompleteInput({ value, onChange, onSelectCompany, cou
   const timeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    if (!open) return;
     if (!value || value.length < 2) {
       setResults([]);
       return;
     }
     if (!countryCode) return;
+    
+    if (!open) setOpen(true);
 
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(async () => {

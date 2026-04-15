@@ -16,6 +16,7 @@ export interface AIClient {
   engine: "openai" | "gemini";
   complete(systemPrompt: string, userPrompt: string, opts?: { maxTokens?: number; temperature?: number }): Promise<string>;
   completeMessages(messages: AIMessage[], opts?: { maxTokens?: number; temperature?: number }): Promise<string>;
+  analyzeDocument(systemPrompt: string, userPrompt: string, base64: string, mimeType: string, opts?: { maxTokens?: number; temperature?: number }): Promise<string>;
 }
 
 async function getSecret(admin: ReturnType<typeof createClient>, key: string): Promise<string | null> {
@@ -79,6 +80,38 @@ export async function createAIClient(admin: ReturnType<typeof createClient>): Pr
         const rest = messages.filter(m => m.role !== "system");
         return geminiCall(systemMsg, rest, opts);
       },
+      async analyzeDocument(systemPrompt, userPrompt, base64, mimeType, opts) {
+        const body: Record<string, unknown> = {
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{
+            role: "user",
+            parts: [
+              { text: userPrompt },
+              { inlineData: { mimeType, data: base64 } }
+            ]
+          }],
+          generationConfig: {
+            temperature: opts?.temperature ?? 0.3,
+            maxOutputTokens: opts?.maxTokens ?? 4096,
+          }
+        };
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          if (res.status === 429) throw new Error("Gemini rate limited");
+          throw new Error(`Gemini error ${res.status}: ${errText.slice(0, 200)}`);
+        }
+
+        const data = await res.json();
+        return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      }
     };
   }
 
@@ -117,5 +150,34 @@ export async function createAIClient(admin: ReturnType<typeof createClient>): Pr
     async completeMessages(messages, opts) {
       return openaiCall(messages, opts);
     },
+    async analyzeDocument(systemPrompt, userPrompt, base64, mimeType, opts) {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: userPrompt },
+                { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } }
+              ]
+            }
+          ],
+          temperature: opts?.temperature ?? 0.3,
+          max_tokens: opts?.maxTokens ?? 4096,
+        }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 429) throw new Error("OpenAI rate limited");
+        throw new Error(`OpenAI error ${res.status}`);
+      }
+
+      const data = await res.json();
+      return data?.choices?.[0]?.message?.content ?? "";
+    }
   };
 }

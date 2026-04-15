@@ -1,9 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createAIClient } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-version",
 };
 
 serve(async (req) => {
@@ -15,13 +16,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-    const OPENAI_API_KEY = await (async () => {
-      const _k = Deno.env.get("OPENAI_API_KEY");
-      if (_k) return _k;
-      const { data: _s } = await _admin.from("platform_secrets").select("value").eq("key", "OPENAI_API_KEY").single();
-      if (!_s?.value) throw new Error("OPENAI_API_KEY not configured. Set it in Admin → Registry APIs → Secrets.");
-      return _s.value as string;
-    })();
+    const ai = await createAIClient(_admin);
 
     const authHeader = req.headers.get("Authorization");
     const supabase = createClient(
@@ -69,122 +64,26 @@ Return structured results via the tool call.`;
       `Document ${i + 1}: "${d.file_name}" (${d.mime_type || 'unknown type'}, ${d.file_size ? Math.round(d.file_size / 1024) + 'KB' : 'unknown size'})`
     ).join("\n");
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: `Analyze these ${documents.length} documents uploaded for an invoice submission:\n\n${documentList}\n\nClassify each document, extract invoice details from the primary invoice, and identify any cross-document discrepancies or observations.`,
-          },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "invoice_document_analysis",
-            description: "Return complete analysis of invoice submission documents",
-            parameters: {
-              type: "object",
-              properties: {
-                document_classifications: {
-                  type: "array",
-                  description: "Classification for each uploaded document",
-                  items: {
-                    type: "object",
-                    properties: {
-                      file_name: { type: "string" },
-                      tag: { type: "string", enum: ["invoice", "proof_of_delivery", "packaging_slip", "sales_quote", "purchase_order", "banking_note", "buyer_email", "contract", "credit_note", "statement_of_account", "bill_of_lading", "insurance_certificate", "other"] },
-                      confidence: { type: "number", description: "0-100 confidence" },
-                      description: { type: "string", description: "Brief description of the document" },
-                    },
-                    required: ["file_name", "tag", "confidence"],
-                  },
-                },
-                extracted_invoice_data: {
-                  type: "object",
-                  properties: {
-                    invoice_number: { type: "string" },
-                    invoice_date: { type: "string" },
-                    due_date: { type: "string" },
-                    buyer_name: { type: "string" },
-                    buyer_address: { type: "string" },
-                    buyer_tax_id: { type: "string" },
-                    seller_name: { type: "string" },
-                    seller_address: { type: "string" },
-                    seller_tax_id: { type: "string" },
-                    subtotal: { type: "number" },
-                    tax_amount: { type: "number" },
-                    total_amount: { type: "number" },
-                    currency: { type: "string" },
-                    line_items: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          description: { type: "string" },
-                          quantity: { type: "number" },
-                          unit_price: { type: "number" },
-                          total: { type: "number" },
-                        },
-                        required: ["description"],
-                      },
-                    },
-                  },
-                },
-                observations: {
-                  type: "array",
-                  description: "Cross-document discrepancies and notable observations",
-                  items: {
-                    type: "object",
-                    properties: {
-                      severity: { type: "string", enum: ["info", "warning", "critical"] },
-                      title: { type: "string" },
-                      description: { type: "string" },
-                      documents_involved: { type: "array", items: { type: "string" } },
-                    },
-                    required: ["severity", "title", "description"],
-                  },
-                },
-                missing_documents: {
-                  type: "array",
-                  description: "Expected documents that appear to be missing",
-                  items: { type: "string" },
-                },
-                summary: { type: "string", description: "Brief overall summary of the submission" },
-              },
-              required: ["document_classifications", "extracted_invoice_data", "observations", "summary"],
-            },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "invoice_document_analysis" } },
-      }),
-    });
+    const userPrompt = `Analyze these ${documents.length} documents uploaded for an invoice submission:\n\n${documentList}\n\nClassify each document, extract invoice details from the primary invoice, and identify any cross-document discrepancies or observations.
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("AI gateway error:", response.status, errText);
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited, please try again later" }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted" }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error("AI analysis failed");
-    }
+Return a valid JSON object (no markdown fences) with:
+{
+  "document_classifications": [{"file_name": "", "tag": "invoice|proof_of_delivery|packaging_slip|sales_quote|purchase_order|banking_note|buyer_email|contract|credit_note|statement_of_account|bill_of_lading|insurance_certificate|other", "confidence": 100, "description": ""}],
+  "extracted_invoice_data": {
+    "invoice_number": "", "invoice_date": "", "due_date": "",
+    "buyer_name": "", "buyer_address": "", "buyer_tax_id": "",
+    "seller_name": "", "seller_address": "", "seller_tax_id": "",
+    "subtotal": 0, "tax_amount": 0, "total_amount": 0, "currency": "USD",
+    "line_items": [{"description": "", "quantity": 1, "unit_price": 0, "total": 0}]
+  },
+  "observations": [{"severity": "info|warning|critical", "title": "", "description": "", "documents_involved": []}],
+  "missing_documents": [],
+  "summary": ""
+}`;
 
-    const aiResult = await response.json();
-    const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
-    const analysis = toolCall ? JSON.parse(toolCall.function.arguments) : {};
+    const rawText = await ai.complete(systemPrompt, userPrompt, { maxTokens: 2048, temperature: 0.1 });
+    const jsonStr = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "").trim();
+    const analysis = JSON.parse(jsonStr);
 
     return new Response(JSON.stringify({ success: true, analysis }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
