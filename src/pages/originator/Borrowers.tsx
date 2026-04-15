@@ -28,8 +28,8 @@ export default function Borrowers() {
   const [lookingUp, setLookingUp] = useState(false);
 
   const handleRegistryLookup = async () => {
-    if (!companyData.registration_number || !companyData.country) {
-      toast.error("Enter a registration number and select a country first");
+    if ((!companyData.registration_number && !companyData.company_name) || !companyData.country) {
+      toast.error("Enter a company name or registration number, and select a country first");
       return;
     }
     setLookingUp(true);
@@ -262,9 +262,9 @@ export default function Borrowers() {
           <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3 flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-foreground">Auto-fill from Registry</p>
-              <p className="text-xs text-muted-foreground">Enter a registration number &amp; country above, then click lookup to pre-fill company details.</p>
+              <p className="text-xs text-muted-foreground">Enter a company name or registration number &amp; country above, then click lookup to pre-fill company details.</p>
             </div>
-            <Button variant="outline" size="sm" onClick={handleRegistryLookup} disabled={lookingUp || !companyData.registration_number}>
+            <Button variant="outline" size="sm" onClick={handleRegistryLookup} disabled={lookingUp || (!companyData.registration_number && !companyData.company_name)}>
               {lookingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Globe className="mr-2 h-4 w-4" />}
               Lookup
             </Button>

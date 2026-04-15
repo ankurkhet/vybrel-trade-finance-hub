@@ -255,9 +255,9 @@ serve(async (req) => {
     // Company lookup
     const { borrower_id, organization_id, company_name, registration_number, country_code } = body;
 
-    if (!borrower_id || !organization_id || !company_name || !country_code) {
+    if (!country_code || (!company_name && !registration_number)) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: borrower_id, organization_id, company_name, country_code" }),
+        JSON.stringify({ error: "Missing required fields: country_code, and either company_name or registration_number" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -289,20 +289,22 @@ serve(async (req) => {
     }
 
     if (activeRegistries.length === 0) {
-      await supabase.from("registry_results").insert({
-        borrower_id,
-        organization_id,
-        result_type: "company_profile",
-        data: { message: `No active registry configured for country ${country_code}` },
-        match_analysis: {},
-        ai_summary: {
-          verdict: "not_found",
-          summary: `No active registry API is configured for ${country_code}. Manual verification required.`,
-          key_facts: [],
-          flags: [{ severity: "medium", message: `No registry configured for country ${country_code}`, field: "registry_config" }],
-          data_quality: "no_data"
-        }
-      });
+      if (borrower_id && organization_id) {
+        await supabase.from("registry_results").insert({
+          borrower_id,
+          organization_id,
+          result_type: "company_profile",
+          data: { message: `No active registry configured for country ${country_code}` },
+          match_analysis: {},
+          ai_summary: {
+            verdict: "not_found",
+            summary: `No active registry API is configured for ${country_code}. Manual verification required.`,
+            key_facts: [],
+            flags: [{ severity: "medium", message: `No registry configured for country ${country_code}`, field: "registry_config" }],
+            data_quality: "no_data"
+          }
+        });
+      }
 
       return new Response(
         JSON.stringify({ message: `No active registry for country ${country_code}`, results: [] }),
@@ -310,12 +312,16 @@ serve(async (req) => {
       );
     }
 
-    // Fetch borrower for AI context
-    const { data: borrower } = await supabase
-      .from("borrowers")
-      .select("*, borrower_directors(*)")
-      .eq("id", borrower_id)
-      .single();
+    // Fetch borrower for AI context if borrower_id exists
+    let borrower = null;
+    if (borrower_id) {
+      const { data: b } = await supabase
+        .from("borrowers")
+        .select("*, borrower_directors(*)")
+        .eq("id", borrower_id)
+        .single();
+      borrower = b;
+    }
 
     const results: any[] = [];
 
@@ -339,28 +345,34 @@ serve(async (req) => {
 
         if (companyData) {
           for (const [resultType, data] of Object.entries(companyData)) {
-            const matchAnalysis = analyzeMatch(resultType, data, borrower);
-
             // AI Interpretation — extract human-readable findings from raw data
-            const aiSummary = await interpretRegistryData(
-              resultType,
-              data,
-              { ...borrower, directors: borrower?.borrower_directors || [] },
-              registry.registry_name
-            );
+            let aiSummary = null;
+            let matchAnalysis = {};
+            if (borrower) {
+              matchAnalysis = analyzeMatch(resultType, data, borrower);
+              aiSummary = await interpretRegistryData(
+                resultType,
+                data,
+                { ...borrower, directors: borrower.borrower_directors || [] },
+                registry.registry_name
+              );
+            }
 
-            await supabase.from("registry_results").insert({
-              borrower_id,
-              organization_id,
-              registry_api_id: registry.id,
-              result_type: resultType,
-              data: data as any,
-              match_analysis: matchAnalysis,
-              ai_summary: aiSummary || null,
-              fetched_at: new Date().toISOString(),
-            });
+            if (borrower_id && organization_id) {
+              await supabase.from("registry_results").insert({
+                borrower_id,
+                organization_id,
+                registry_api_id: registry.id,
+                result_type: resultType,
+                data: data as any,
+                match_analysis: matchAnalysis,
+                ai_summary: aiSummary || null,
+                fetched_at: new Date().toISOString(),
+              });
+            }
 
-            results.push({ registry: registry.registry_name, type: resultType, data, ai_summary: aiSummary });
+            // Expose the raw registry mapping directly to the frontend for pre-filling logic
+            results.push({ registry: registry.registry_name, type: resultType, data, ai_summary: aiSummary, company: (data as any)?.items?.[0] || (data as any)?.result?.records?.[0] || data });
           }
         }
       } catch (err) {
