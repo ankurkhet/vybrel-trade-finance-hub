@@ -44,31 +44,36 @@ export default function Auth() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await signIn(loginEmail, loginPassword);
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    // Check if user has MFA enrolled
-    const { data: assuranceData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (assuranceData?.nextLevel === "aal2" && assuranceData.currentLevel === "aal1") {
-      // MFA is enrolled, challenge required
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      const totpFactor = factors?.totp?.[0];
-      if (totpFactor) {
-        const { data: challenge } = await supabase.auth.mfa.challenge({ factorId: totpFactor.id });
-        if (challenge) {
-          setMfaFactorId(totpFactor.id);
-          setMfaChallengeId(challenge.id);
-          setMfaRequired(true);
-          return;
+    try {
+      const { error } = await signIn(loginEmail, loginPassword);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      // Check if user has MFA enrolled
+      const { data: assuranceData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (assuranceData?.nextLevel === "aal2" && assuranceData.currentLevel === "aal1") {
+        // MFA is enrolled, challenge required
+        const { data: factors } = await supabase.auth.mfa.listFactors();
+        const totpFactor = factors?.totp?.[0];
+        if (totpFactor) {
+          const { data: challenge } = await supabase.auth.mfa.challenge({ factorId: totpFactor.id });
+          if (challenge) {
+            setMfaFactorId(totpFactor.id);
+            setMfaChallengeId(challenge.id);
+            setMfaRequired(true);
+            return;
+          }
         }
       }
+      // Full page reload after sign-in: avoids React state-batching race with ProtectedRoute.
+      // Session is stored in localStorage by Supabase, so the reloaded page picks it up immediately.
+      window.location.href = "/dashboard";
+    } catch (err: any) {
+      toast.error(err?.message || "Sign-in failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    // Full page reload after sign-in: avoids React state-batching race with ProtectedRoute.
-    // Session is stored in localStorage by Supabase, so the reloaded page picks it up immediately.
-    window.location.href = "/dashboard";
   };
 
   const handleMfaVerify = async (e: React.FormEvent) => {

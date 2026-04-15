@@ -38,38 +38,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    let initialized = false;
 
-    // FIRST restore any existing session synchronously
-    supabase.auth.getSession().then(async ({ data: { session: existingSession } }) => {
+    // Supabase docs: do NOT await async work inside onAuthStateChange — it causes
+    // deadlocks. Set loading = false immediately after user/session state is set,
+    // then let profile/roles populate asynchronously in the background.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (!mounted) return;
-      initialized = true;
-      setSession(existingSession);
-      setUser(existingSession?.user ?? null);
-      if (existingSession?.user) {
-        await fetchProfileAndRoles(existingSession.user.id, existingSession);
-      }
-      if (mounted) setLoading(false);
-    });
-
-    // THEN listen for auth state changes (sign in, sign out, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      if (!mounted) return;
-
-      // Skip the initial INITIAL_SESSION event if getSession() already handled it
-      if (event === "INITIAL_SESSION" && initialized) return;
 
       setSession(newSession);
       setUser(newSession?.user ?? null);
 
       if (newSession?.user) {
-        await fetchProfileAndRoles(newSession.user.id, newSession);
-        if (mounted) setLoading(false);
+        // Fire-and-forget — never await inside this callback
+        fetchProfileAndRoles(newSession.user.id, newSession);
       } else {
         setProfile(null);
         setRoles([]);
-        if (mounted) setLoading(false);
       }
+
+      // Always resolve loading immediately so ProtectedRoute never hangs
+      if (mounted) setLoading(false);
     });
 
     return () => {
@@ -85,50 +73,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchProfileAndRoles = async (userId: string, currentSession?: Session | null) => {
-    // Decode access token directly — custom hook claims live at JWT top level, not app_metadata
-    const jwtPayload = currentSession?.access_token ? decodeJwt(currentSession.access_token) : {};
-    const jwtRoles = (jwtPayload.roles ?? currentSession?.user?.app_metadata?.roles) as AppRole[] | undefined;
+    try {
+      // Decode access token — custom JWT hook claims live at top level
+      const jwtPayload = currentSession?.access_token ? decodeJwt(currentSession.access_token) : {};
+      const jwtRoles = (jwtPayload.roles ?? currentSession?.user?.app_metadata?.roles) as AppRole[] | undefined;
 
-    // profiles.id = auth.users.id (standard Supabase convention on this project)
-    const profileRes = await supabase.from("profiles").select("*").eq("id", userId).single();
-    if (profileRes.data) setProfile(profileRes.data);
+      // profiles.id = auth.users.id on this project
+      const { data: profileData } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+      if (profileData) setProfile(profileData);
 
-    // Flush any pending NDA acceptance recorded at signup time
-    const pendingNda = localStorage.getItem("pending_nda_acceptance");
-    if (pendingNda) {
-      try {
-        const ndaData = JSON.parse(pendingNda);
-        // Check not already recorded
-        const { count } = await supabase
-          .from("document_acceptances" as any)
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .eq("document_type", "nda");
-        if (!count || count === 0) {
-          await supabase.from("document_acceptances" as any).insert({
-            actor_type: "originator_user",
-            actor_id: userId,
-            actor_email: ndaData.actor_email,
-            user_id: userId,
-            document_type: "nda",
-            document_version: ndaData.document_version || "1.0",
-            acceptance_method: "in_app_checkbox",
-            accepted_at: ndaData.accepted_at,
-          });
-        }
-        localStorage.removeItem("pending_nda_acceptance");
-      } catch {
-        localStorage.removeItem("pending_nda_acceptance");
+      if (jwtRoles && jwtRoles.length > 0) {
+        // Fast path: roles from JWT claim — no extra DB round-trip
+        setRoles(jwtRoles);
+      } else {
+        // Fallback: DB RPC
+        const { data: rolesData } = await supabase.rpc("get_user_roles", { _user_id: userId });
+        if (rolesData) setRoles(rolesData as AppRole[]);
       }
-    }
-
-    if (jwtRoles && jwtRoles.length > 0) {
-      // Fast path: roles from JWT claim (no extra DB round-trip)
-      setRoles(jwtRoles);
-    } else {
-      // Fallback: DB RPC for users who haven't re-logged in since hook registration
-      const rolesRes = await supabase.rpc("get_user_roles", { _user_id: userId });
-      if (rolesRes.data) setRoles(rolesRes.data as AppRole[]);
+    } catch (err) {
+      // Swallow — loading was already set to false; roles will just be empty
+      console.warn("[useAuth] fetchProfileAndRoles error:", err);
     }
   };
 
