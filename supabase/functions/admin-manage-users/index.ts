@@ -75,13 +75,13 @@ Deno.serve(async (req) => {
         const { data: orgs, error: orgsErr } = await supabaseAdmin.from('organizations').select('id, name, slug');
         if (orgsErr) throw orgsErr;
 
-        const { data: borrowerEntities, error: borrErr } = await supabaseAdmin.from('borrowers').select('id, company_name, user_id, organization_id');
+        const { data: borrowerEntities, error: borrErr } = await supabaseAdmin.from('borrowers').select('id, company_name, organization_id');
         if (borrErr) throw borrErr;
 
         const users = (authUsers?.users || []).map(u => {
           const profile = profiles?.find(p => p.id === u.id);
           const roles = userRoles?.filter(r => r.user_id === u.id).map(r => r.role) || [];
-          const linkedBorrower = borrowerEntities?.find(b => b.user_id === u.id);
+          const linkedBorrower = borrowerEntities?.find(b => b.organization_id === profile?.organization_id);
           return {
             id: u.id,
             email: u.email,

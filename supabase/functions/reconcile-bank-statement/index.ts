@@ -158,6 +158,32 @@ Deno.serve(async (req: Request) => {
         .from("disbursement_advices")
         .update({ ai_match_result: adviceMatchResult })
         .eq("id", disbursement_advice_id);
+
+      // FIN-I4: When bank statement confirms payment, automatically mark the
+      // linked disbursement_memo as 'disbursed' for manual payment mode.
+      if (bestMatch) {
+        const { data: advice } = await supabase
+          .from("disbursement_advices")
+          .select("disbursement_memo_id")
+          .eq("id", disbursement_advice_id)
+          .single();
+
+        if (advice?.disbursement_memo_id) {
+          await supabase
+            .from("disbursement_memos")
+            .update({
+              status: "disbursed",
+              disbursed_at: bestMatch.statement_date
+                ? new Date(bestMatch.statement_date).toISOString()
+                : new Date().toISOString(),
+              payment_reference: bestMatch.statement_reference || null,
+            })
+            .eq("id", advice.disbursement_memo_id)
+            .eq("status", "approved"); // only if still in approved state
+
+          console.log("[reconcile-bank-statement] FIN-I4: Disbursement memo marked as disbursed via bank statement match:", advice.disbursement_memo_id);
+        }
+      }
     }
 
     // ── 6. Update upload status ─────────────────────────────────────────────

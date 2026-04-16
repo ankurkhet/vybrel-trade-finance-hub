@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -54,7 +55,8 @@ const ALL_WIDGETS: WidgetDef[] = [
   // Borrower
   { id: "borr_docs", title: "Documents", icon: Upload, subtitle: "Uploaded documents", role: "borrower", navigateTo: "/borrower/documents", supportsChart: false },
   { id: "borr_invoices", title: "Invoices", icon: CreditCard, subtitle: "Submitted invoices", role: "borrower", navigateTo: "/borrower/invoices", supportsChart: true },
-  { id: "borr_credit", title: "Credit Limit", icon: BarChart3, subtitle: "Available limit", role: "borrower", supportsChart: false },
+  { id: "borr_credit", title: "Credit Limit", icon: BarChart3, subtitle: "Available facility limit", role: "borrower", supportsChart: false },
+  { id: "borr_rates", title: "My Rates", icon: Receipt, subtitle: "Discounting · Advance · Overdue", role: "borrower", navigateTo: "/borrower/offer-letters", supportsChart: false },
   // Funder
   { id: "fund_portfolio", title: "Portfolio", icon: BarChart3, subtitle: "Total exposure", role: "funder", navigateTo: "/funder/portfolio", supportsChart: true },
   { id: "fund_deals", title: "Active Deals", icon: Shield, subtitle: "Funded deals", role: "funder", navigateTo: "/funder/portfolio", supportsChart: false },
@@ -266,10 +268,57 @@ export default function Dashboard() {
         ]);
       });
       // Assuming borrower only has access to their own data via RLS, or we use organization_id / id depending on schema
-      supabase.from("borrowers").select("credit_limit").eq("organization_id", profile.organization_id).limit(1).then(({ data }) => {
-        const limit = data?.[0]?.credit_limit;
-        set("borr_credit", limit ? `$${(Number(limit) / 1000000).toFixed(1)}M` : "$0");
-      });
+      // FIN-BR1: Read currency from borrower record; group by currency for per-currency limits
+      supabase
+        .from("borrowers")
+        .select("credit_limit, limit_currency")
+        .eq("user_id", user!.id)
+        .then(({ data }) => {
+          if (!data || data.length === 0) { set("borr_credit", "—"); return; }
+          // Group by currency
+          const byCurrency: Record<string, number> = {};
+          for (const b of data) {
+            const cur = b.limit_currency || "GBP";
+            byCurrency[cur] = (byCurrency[cur] || 0) + Number(b.credit_limit || 0);
+          }
+          const currencies = Object.keys(byCurrency);
+          if (currencies.length === 1) {
+            const [cur] = currencies;
+            const val = byCurrency[cur];
+            set("borr_credit", val >= 1_000_000
+              ? `${cur} ${(val / 1_000_000).toFixed(1)}M`
+              : val >= 1_000
+              ? `${cur} ${(val / 1_000).toFixed(0)}K`
+              : `${cur} ${val.toFixed(2)}`);
+          } else {
+            // Multi-currency: show first currency + indicator
+            const firstCur = currencies[0];
+            set("borr_credit",
+              `${firstCur} ${(byCurrency[firstCur] / 1_000).toFixed(0)}K (+${currencies.length - 1} more)`);
+          }
+        });
+
+      // FIN-BR2: Surface discounting rate, advance rate, overdue rate (but NOT funder margins)
+      // Fetch from the most recent approved facility_request for this borrower
+      supabase
+        .from("facility_requests" as any)
+        .select("final_discounting_rate, advance_rate, overdue_fee_pct")
+        .eq("organization_id", profile.organization_id)
+        .in("status", ["approved", "active"])
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .then(({ data: facData }: any) => {
+          const fac = facData?.[0];
+          if (fac) {
+            const dr = fac.final_discounting_rate != null ? `${fac.final_discounting_rate}% disc` : null;
+            const ar = fac.advance_rate != null ? `${fac.advance_rate}% adv` : null;
+            const or_ = fac.overdue_fee_pct != null ? `${fac.overdue_fee_pct}% ovd` : null;
+            const parts = [dr, ar, or_].filter(Boolean);
+            set("borr_rates", parts.length ? parts.join(" · ") : "See offer letter");
+          } else {
+            set("borr_rates", "No active facility");
+          }
+        });
     }
 
     if (isFunder && user) {
@@ -302,7 +351,7 @@ export default function Dashboard() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">
-              Welcome back, {profile?.full_name || "User"}
+              {profile?.full_name ? `Welcome back, ${profile.full_name}` : "Welcome back!"}
             </h1>
             <p className="text-muted-foreground">
               Here's what's happening on your platform today.
@@ -418,7 +467,13 @@ export default function Dashboard() {
           {user?.id && <ActorWalletCard actorId={user.id} />}
         </div>
         
-        {visibleWidgets.length === 0 ? (
+        {!prefsLoaded ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}><CardContent className="pt-6"><Skeleton className="h-20 w-full" /></CardContent></Card>
+            ))}
+          </div>
+        ) : visibleWidgets.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center py-12">
               <EyeOff className="h-10 w-10 text-muted-foreground mb-3" />
@@ -516,7 +571,11 @@ export default function Dashboard() {
                     <w.icon className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stat?.loading !== false ? "—" : stat.value}</div>
+                    {stat?.loading !== false ? (
+                      <Skeleton className="h-8 w-24 mt-1" />
+                    ) : (
+                      <p className="text-2xl font-bold">{stat.value}</p>
+                    )}
                     <p className="text-xs text-muted-foreground">{w.subtitle}</p>
                   </CardContent>
                 </Card>

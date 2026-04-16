@@ -870,17 +870,101 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Update invoice status to collected
-    await supabase
-      .from("invoices")
-      .update({ status: "collected" })
-      .eq("id", invoice.id);
+    // -----------------------------------------------------------------------
+    // 4. BROKER SETTLEMENT ADVICE (FIN-B2: when broker fee > 0)
+    // -----------------------------------------------------------------------
+    if (brokerFeePct > 0 && feeConfig) {
+      const borrowerAdvice = advices.find(a => a.advice_type === "borrower_settlement");
+      const brokerFeeAmount = borrowerAdvice
+        ? Number(borrowerAdvice.gross_amount) * (brokerFeePct / 100)
+        : (Number(collection.collected_amount) * brokerFeePct) / 100;
 
-    // Update collection status to confirmed
-    await supabase
-      .from("collections")
-      .update({ status: "confirmed", confirmed_at: new Date().toISOString() })
-      .eq("id", collection_id);
+      // Fetch originator broker config if broker_user_id is on disbursementMemo
+      const { data: brokerProfile } = disbursementMemo
+        ? await supabase.from("profiles").select("full_name, email").eq("id", (disbursementMemo as any).broker_user_id || "").maybeSingle()
+        : { data: null };
+
+      const brokerAdvice: any = {
+        organization_id: orgId,
+        collection_id: collection.id,
+        advice_number: generateAdviceNumber("broker_settlement", adviceIndex++),
+        advice_type: "broker_settlement",
+        from_party_name: orgName,
+        to_party_name: brokerProfile?.full_name || "Broker",
+        to_party_email: brokerProfile?.email,
+        invoice_id: invoice.id,
+        product_type: invoice.product_type || "receivables_purchase",
+        gross_amount: collection.collected_amount,
+        discount_amount: 0,
+        originator_fee: 0,
+        platform_fee: 0,
+        net_amount: brokerFeeAmount,
+        currency,
+        fee_breakdown: [
+          { label: "Gross Collection", amount: Number(collection.collected_amount), type: "gross" },
+          { label: `Broker Commission (${brokerFeePct.toFixed(2)}%)`, amount: brokerFeeAmount, type: "broker" },
+        ],
+        payment_instructions: feeConfig.payment_instructions || {},
+        status: "issued",
+        issued_at: new Date().toISOString(),
+        fee_resolution_source: feeResolutionSource,
+        disbursement_memo_id: disbursementMemo?.id ?? null,
+        metadata: { broker_fee_pct: brokerFeePct },
+      };
+
+      const { data: ba2, error: ba2Err } = await supabase
+        .from("settlement_advices" as any)
+        .insert(brokerAdvice)
+        .select()
+        .single();
+
+      if (ba2Err) {
+        console.error("[generate-settlement] Failed broker settlement advice:", ba2Err.message);
+      } else {
+        advices.push(ba2);
+      }
+    }
+
+    // ── FIN-S3: Determine if this is a partial settlement ──────────────────
+    const invoiceAmount = Number(invoice.amount);
+    const collectedAmount = Number(collection.collected_amount);
+    const isPartialCollection = collectedAmount < invoiceAmount * 0.99; // 1% tolerance
+
+    if (isPartialCollection) {
+      const shortfall = invoiceAmount - collectedAmount;
+      console.warn(`[generate-settlement] FIN-S3: Partial collection detected. Invoice: ${invoiceAmount}, Collected: ${collectedAmount}, Shortfall: ${shortfall}`);
+      // Mark invoice as partially_settled
+      await supabase
+        .from("invoices")
+        .update({ status: "partially_settled" } as any)
+        .eq("id", invoice.id);
+
+      // Record shortfall on collection
+      await supabase
+        .from("collections")
+        .update({
+          status: "partial",
+          metadata: {
+            ...(collection.metadata || {}),
+            shortfall_amount: shortfall,
+            shortfall_currency: currency,
+            partial_settlement_note: `Partial collection: ${currency} ${collectedAmount.toFixed(2)} of ${invoiceAmount.toFixed(2)}. Outstanding balance: ${shortfall.toFixed(2)}`,
+          },
+        } as any)
+        .eq("id", collection_id);
+    } else {
+      // Update invoice status to collected
+      await supabase
+        .from("invoices")
+        .update({ status: "collected" })
+        .eq("id", invoice.id);
+
+      // Update collection status to confirmed
+      await supabase
+        .from("collections")
+        .update({ status: "confirmed", confirmed_at: new Date().toISOString() })
+        .eq("id", collection_id);
+    }
 
     // Record invocation in platform_api_configs
     await supabase

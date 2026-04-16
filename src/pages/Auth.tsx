@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,21 +14,22 @@ import { toast } from "sonner";
 const roles = [
   { key: "admin", label: "Vybrel Admin", icon: Shield, desc: "Platform governance" },
   { key: "originator", label: "Originator", icon: Building2, desc: "Manage borrowers & invoices" },
-  { key: "broker", label: "Broker", icon: Users, desc: "Introduce & manage borrowers" },
-  { key: "borrower", label: "Borrower", icon: Users, desc: "Submit documents & financing" },
-  { key: "funder", label: "Lender / Funder", icon: BarChart3, desc: "Portfolio & deals" },
-  { key: "counterparty", label: "Counterparty", icon: FileCheck, desc: "Invoice verification" },
+  { key: "broker", label: "Broker", icon: Users, desc: "Access by invitation only" },
+  { key: "borrower", label: "Borrower", icon: Users, desc: "Access by invitation only" },
+  { key: "funder", label: "Lender / Funder", icon: BarChart3, desc: "Access by invitation only" },
+  { key: "counterparty", label: "Counterparty", icon: FileCheck, desc: "Access by invitation only" },
 ];
 
 export default function Auth() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { signIn, user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string | null>(searchParams.get("role"));
   // MFA state
   const [mfaRequired, setMfaRequired] = useState(false);
   const [mfaFactorId, setMfaFactorId] = useState("");
@@ -113,7 +114,7 @@ export default function Auth() {
           </Link>
           <Link to="/signup">
             <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium">
-              Register as Originator
+              Register
             </Button>
           </Link>
         </header>
@@ -131,7 +132,10 @@ export default function Auth() {
               {roles.map((r) => (
                 <button
                   key={r.key}
-                  onClick={() => setSelectedRole(r.key)}
+                  onClick={() => {
+                    setSelectedRole(r.key);
+                    navigate(`/auth?role=${r.key}`, { replace: true });
+                  }}
                   className="group flex items-start gap-4 rounded-xl border border-border bg-card p-5 text-left transition-colors hover:border-primary/35 hover:bg-secondary/40"
                 >
                   <r.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" strokeWidth={1.5} />
@@ -143,8 +147,10 @@ export default function Auth() {
               ))}
             </div>
 
-            <p className="mt-8 text-center text-xs text-muted-foreground">
-              Access is by invitation only. Your role determines what you see.
+            <p className="mt-4 text-center text-xs">
+              <Link to="/forgot-password" className="text-muted-foreground hover:text-primary transition-colors">
+                Forgot your password?
+              </Link>
             </p>
           </div>
         </div>

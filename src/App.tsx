@@ -46,6 +46,7 @@ import BorrowerDocuments from "./pages/borrower/Documents";
 import BorrowerInvoices from "./pages/borrower/Invoices";
 import BorrowerSettlements from "./pages/borrower/Settlements";
 import BorrowerMyProfile from "./pages/borrower/MyProfile";
+import BorrowerFinancingHistory from "./pages/borrower/FinancingHistory"; // FIN-BR4
 import FunderReports from "./pages/funder/Reports";
 import FunderMarketplace from "./pages/funder/Marketplace";
 import FunderPortfolio from "./pages/funder/Portfolio";
@@ -166,6 +167,8 @@ const App = () => (
               <Route path="/borrower/settlements" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerSettlements /></ProtectedRoute>} />
               <Route path="/borrower/profile" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerMyProfile /></ProtectedRoute>} />
               <Route path="/borrower/offer-letters" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerOfferLetters /></ProtectedRoute>} />
+              {/* FIN-BR4: Borrower Financing History page */}
+              <Route path="/borrower/financing-history" element={<ProtectedRoute requiredRoles={["borrower"]}><BorrowerFinancingHistory /></ProtectedRoute>} />
 
               {/* Funder */}
               <Route path="/funder/marketplace" element={<ProtectedRoute requiredRoles={["funder"]}><FunderMarketplace /></ProtectedRoute>} />

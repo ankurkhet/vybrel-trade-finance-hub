@@ -10,10 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import {
   Loader2, Upload, CheckCircle2, XCircle, AlertTriangle, RefreshCw,
-  Scale, FileText, Search, AlertCircle, ChevronRight,
+  Scale, FileText, Search, AlertCircle, ChevronRight, ToggleLeft, ToggleRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface UploadRow {
   id: string;
@@ -60,17 +61,29 @@ export default function Reconciliation() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [weeklyReminderDue, setWeeklyReminderDue] = useState(false);
+  // FIN-R3: Toggle to include advice-specific uploads
+  const [showAdviceUploads, setShowAdviceUploads] = useState(false);
+  // FIN-R1: Manual match dialog state
+  const [manualMatchDialog, setManualMatchDialog] = useState<MatchRow | null>(null);
+  const [paymentInstructions, setPaymentInstructions] = useState<any[]>([]);
+  const [selectedInstruction, setSelectedInstruction] = useState("");
+  const [fetchingInstructions, setFetchingInstructions] = useState(false);
+  const [savingManualMatch, setSavingManualMatch] = useState(false);
 
   const fetchUploads = useCallback(async () => {
     setLoading(true);
-    const { data } = await (supabase as any)
+    let query = (supabase as any)
       .from("bank_statement_uploads")
       .select("*")
-      .is("disbursement_advice_id", null)   // only general recon uploads, not advice-specific
       .order("created_at", { ascending: false });
+    // FIN-R3: filter based on toggle
+    if (!showAdviceUploads) {
+      query = query.is("disbursement_advice_id", null);
+    }
+    const { data } = await query;
     setUploads(((data || []) as any) as UploadRow[]);
     setLoading(false);
-  }, []);
+  }, [showAdviceUploads]);
 
   const checkWeeklyReminder = useCallback(async () => {
     const { data } = await (supabase as any)
@@ -98,12 +111,31 @@ export default function Reconciliation() {
     setMatchesLoading(false);
   };
 
+  // FIN-R5: Validate CSV has expected columns before calling edge function
+  const validateCsvColumns = (content: string): boolean => {
+    const firstLine = content.split('\n')[0]?.toLowerCase() || '';
+    // At minimum we need: date (or similar), amount, and one of reference/description
+    const hasDate = /date|Date/.test(firstLine);
+    const hasAmount = /amount|Amount|debit|credit/.test(firstLine);
+    if (!hasDate || !hasAmount) {
+      toast.error("CSV format invalid: file must have at least 'Date' and 'Amount' columns. Please check your bank export format.");
+      return false;
+    }
+    return true;
+  };
+
   // ── Upload & process a bank statement ─────────────────────────────────────
   const handleUpload = async (file: File) => {
     if (!["text/csv", "application/pdf"].includes(file.type) &&
         !file.name.endsWith(".csv") && !file.name.endsWith(".pdf")) {
       toast.error("Only CSV and PDF files are supported");
       return;
+    }
+
+    // FIN-R5: Pre-validate CSV column structure
+    if (file.name.endsWith(".csv")) {
+      const text = await file.text();
+      if (!validateCsvColumns(text)) return;
     }
 
     setUploading(true);
@@ -159,7 +191,23 @@ export default function Reconciliation() {
   };
 
   // ── Manual match for an unmatched line ───────────────────────────────────
+  // FIN-R1: Open a dialog to select the matching payment instruction
+  const openManualMatchDialog = async (match: MatchRow) => {
+    setManualMatchDialog(match);
+    setSelectedInstruction("");
+    setFetchingInstructions(true);
+    // Fetch recent payment instructions for selection
+    const { data } = await (supabase as any)
+      .from("payment_instructions")
+      .select("id, amount, currency, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setPaymentInstructions(data || []);
+    setFetchingInstructions(false);
+  };
+
   const handleManualMatch = async (matchId: string, paymentInstructionId: string) => {
+    setSavingManualMatch(true);
     await (supabase as any)
       .from("reconciliation_matches")
       .update({
@@ -169,8 +217,24 @@ export default function Reconciliation() {
         matched_at: new Date().toISOString(),
       })
       .eq("id", matchId);
+    setSavingManualMatch(false);
     toast.success("Match recorded");
+    setManualMatchDialog(null);
     if (selectedUpload) fetchMatches(selectedUpload.id);
+  };
+
+  // FIN-R4: Retry reconciliation for a failed/pending upload
+  const handleRetryReconciliation = async (upload: UploadRow) => {
+    toast.info("Retrying reconciliation...");
+    const { error: fnErr } = await supabase.functions.invoke("reconcile-bank-statement", {
+      body: { bank_statement_upload_id: upload.id },
+    });
+    if (fnErr) {
+      toast.error(`Retry failed: ${fnErr.message}`);
+    } else {
+      toast.success("Reconciliation completed");
+      await fetchUploads();
+    }
   };
 
   const pendingCount = uploads.filter(u => u.status === "pending" || u.status === "processing").length;
@@ -294,7 +358,18 @@ export default function Reconciliation() {
         {/* Upload history */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Upload History</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Upload History</CardTitle>
+              {/* FIN-R3: Toggle to show advice-specific uploads */}
+              <Button
+                size="sm" variant="ghost"
+                className="gap-2 text-xs"
+                onClick={() => setShowAdviceUploads(v => !v)}
+              >
+                {showAdviceUploads ? <ToggleRight className="h-4 w-4 text-primary" /> : <ToggleLeft className="h-4 w-4" />}
+                {showAdviceUploads ? 'All uploads (incl. advice)' : 'General uploads only'}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
@@ -378,6 +453,17 @@ export default function Reconciliation() {
                               }}
                             >
                               View <ChevronRight className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {/* FIN-R4: Retry button for failed/stuck uploads */}
+                          {(upload.status === "failed" || upload.status === "pending") && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 gap-1 text-xs text-amber-600 hover:text-amber-700"
+                              onClick={() => handleRetryReconciliation(upload)}
+                            >
+                              <RefreshCw className="h-3 w-3" /> Retry
                             </Button>
                           )}
                           {upload.status === "processing" && (
@@ -468,14 +554,12 @@ export default function Reconciliation() {
                       </TableCell>
                       <TableCell>
                         {m.match_type === "unmatched" && (
+                          // FIN-R1: Opens proper dialog instead of prompt()
                           <Button
                             size="sm"
                             variant="ghost"
                             className="h-6 text-[10px] gap-1"
-                            onClick={async () => {
-                              const ref = prompt("Enter payment instruction ID to match:");
-                              if (ref) handleManualMatch(m.id, ref);
-                            }}
+                            onClick={() => openManualMatchDialog(m)}
                           >
                             <Search className="h-3 w-3" /> Match
                           </Button>
@@ -486,6 +570,58 @@ export default function Reconciliation() {
                 })}
               </TableBody>
             </Table>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── FIN-R1: Manual Match Dialog — replaces prompt() ─────────────── */}
+      <Dialog open={!!manualMatchDialog} onOpenChange={o => !o && setManualMatchDialog(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Manual Match — Select Payment Instruction</DialogTitle>
+          </DialogHeader>
+          {manualMatchDialog && (
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm space-y-1">
+                <p className="font-medium">Statement Line</p>
+                <p className="text-xs text-muted-foreground">
+                  Date: {manualMatchDialog.statement_date || '—'} &nbsp;|&nbsp;
+                  Amount: {manualMatchDialog.statement_amount?.toLocaleString('en-GB', { minimumFractionDigits: 2 }) || '—'} &nbsp;|&nbsp;
+                  Ref: {manualMatchDialog.statement_reference || '—'}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Select Matching Payment Instruction</Label>
+                {fetchingInstructions ? (
+                  <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
+                ) : (
+                  <Select value={selectedInstruction} onValueChange={setSelectedInstruction}>
+                    <SelectTrigger><SelectValue placeholder="Choose payment instruction..." /></SelectTrigger>
+                    <SelectContent>
+                      {paymentInstructions.length === 0 && (
+                        <SelectItem value="none" disabled>No payment instructions found</SelectItem>
+                      )}
+                      {paymentInstructions.map((pi: any) => (
+                        <SelectItem key={pi.id} value={pi.id}>
+                          {pi.currency} {Number(pi.amount || 0).toLocaleString()} — {pi.status} — {new Date(pi.created_at).toLocaleDateString()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => setManualMatchDialog(null)}>Cancel</Button>
+                <Button
+                  className="flex-1"
+                  disabled={!selectedInstruction || savingManualMatch}
+                  onClick={() => handleManualMatch(manualMatchDialog.id, selectedInstruction)}
+                >
+                  {savingManualMatch && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Confirm Match
+                </Button>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>

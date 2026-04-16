@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import {
   Loader2, ArrowLeft, Building2, Users, FileCheck, Shield, Save, Send,
   ShieldCheck, FileText, CreditCard, Landmark, UserCheck, CheckCircle2,
-  XCircle, AlertTriangle, Eye, Download, Upload,
+  XCircle, AlertTriangle, Eye, Download, Upload, ChevronRight,
   TrendingUp,
   MessageSquare,
   Banknote,
@@ -487,6 +487,13 @@ export default function BorrowerDetail() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Link to="/originator/borrowers" className="hover:text-foreground transition-colors">Borrowers</Link>
+          <ChevronRight className="h-3.5 w-3.5" />
+          <span className="text-foreground">{borrower.company_name}</span>
+        </nav>
+
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">

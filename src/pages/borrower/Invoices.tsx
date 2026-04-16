@@ -32,6 +32,10 @@ export default function BorrowerInvoices() {
   const [submitting, setSubmitting] = useState(false);
   const [uploadDialogInvoice, setUploadDialogInvoice] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
+  // FIN-BR3: headroom tracking for invoice submission
+  const [creditLimit, setCreditLimit] = useState<number | null>(null);
+  const [totalOutstanding, setTotalOutstanding] = useState<number>(0);
+  const [limitCurrency, setLimitCurrency] = useState<string>("GBP");
 
   // Form
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -53,12 +57,25 @@ export default function BorrowerInvoices() {
     setLoading(true);
     const { data: b } = await supabase
       .from("borrowers")
-      .select("id, organization_id, company_name")
+      .select("id, organization_id, company_name, credit_limit, limit_currency")
       .eq("user_id", user!.id)
       .single();
 
     if (!b) { setLoading(false); return; }
     setBorrower(b);
+    // FIN-BR3: Fetch credit limit and outstanding funded amount
+    if (b.credit_limit != null) {
+      setCreditLimit(Number(b.credit_limit));
+      setLimitCurrency(b.limit_currency || "GBP");
+    }
+    // Sum all currently funded/approved invoices as outstanding
+    const { data: activeInvs } = await supabase
+      .from("invoices")
+      .select("requested_funding_amount")
+      .eq("borrower_id", b.id)
+      .in("status", ["approved", "funded", "disbursed"]);
+    const outstanding = (activeInvs || []).reduce((s: number, i: any) => s + Number(i.requested_funding_amount || 0), 0);
+    setTotalOutstanding(outstanding);
 
     const { data } = await supabase
       .from("invoices")
@@ -237,6 +254,31 @@ export default function BorrowerInvoices() {
             <Plus className="mr-2 h-4 w-4" /> Submit Invoice
           </Button>
         </div>
+
+        {/* FIN-BR3: Headroom indicator shown before Submit Invoice dialog */}
+        {borrower && creditLimit != null && (
+          <div className="flex items-center gap-4 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+            <div className="flex-1 space-y-1">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Facility Headroom</p>
+              <p className="text-base font-semibold">
+                {limitCurrency} {Math.max(0, creditLimit - totalOutstanding).toLocaleString("en-GB", { minimumFractionDigits: 2 })} available
+              </p>
+              <div className="w-full h-1.5 rounded-full bg-border overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    totalOutstanding / creditLimit > 0.9 ? 'bg-destructive' :
+                    totalOutstanding / creditLimit > 0.7 ? 'bg-amber-500' : 'bg-emerald-500'
+                  }`}
+                  style={{ width: `${Math.min(100, (totalOutstanding / creditLimit) * 100).toFixed(1)}%` }}
+                />
+              </div>
+            </div>
+            <div className="text-right text-xs text-muted-foreground">
+              <p>{limitCurrency} {totalOutstanding.toLocaleString("en-GB", { minimumFractionDigits: 2 })} used</p>
+              <p>of {limitCurrency} {creditLimit.toLocaleString("en-GB", { minimumFractionDigits: 2 })} limit</p>
+            </div>
+          </div>
+        )}
 
         <Card>
           <CardContent className="p-0">

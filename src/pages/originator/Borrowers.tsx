@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Plus, Loader2, Search, Eye, Send, Globe } from "lucide-react";
+import { Users, Plus, Loader2, Search, Eye, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -23,6 +23,9 @@ export default function Borrowers() {
   const [borrowers, setBorrowers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 25;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [companyData, setCompanyData] = useState<CompanyFormData>({ ...emptyCompanyForm });
@@ -74,7 +77,7 @@ export default function Borrowers() {
       // Profile loaded but no organization_id
       setLoading(false);
     }
-  }, [profile]);
+  }, [profile, page]);
 
   const fetchBorrowers = async () => {
     if (!profile?.organization_id) {
@@ -82,12 +85,14 @@ export default function Borrowers() {
       return;
     }
     setLoading(true);
-    const { data } = await supabase
+    const { data, count } = await supabase
       .from("borrowers")
-      .select("*")
+      .select("*", { count: "exact" })
       .eq("organization_id", profile.organization_id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
     setBorrowers(data || []);
+    setTotalCount(count || 0);
     setLoading(false);
   };
 
@@ -187,12 +192,6 @@ export default function Borrowers() {
             <p className="text-sm text-muted-foreground">Manage borrower relationships and onboarding</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => {
-              // Generate invite link for a new borrower
-              toast.info("Use 'Add Borrower' to create a borrower record, then send them an invitation from their detail page.");
-            }}>
-              <Send className="mr-2 h-4 w-4" /> Invite Borrower
-            </Button>
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> Add Borrower
             </Button>
@@ -281,6 +280,20 @@ export default function Borrowers() {
             )}
           </CardContent>
         </Card>
+
+        {totalCount > PAGE_SIZE && (
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount}</span>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+                Previous
+              </Button>
+              <Button variant="outline" size="sm" disabled={(page + 1) * PAGE_SIZE >= totalCount} onClick={() => setPage((p) => p + 1)}>
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add Borrower Dialog - now uses the rich company form */}

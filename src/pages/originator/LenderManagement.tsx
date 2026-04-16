@@ -133,7 +133,8 @@ export default function LenderManagement() {
       
       return (kycSubmissions || []).filter(k => !linkedUserIds.has(k.user_id));
     },
-    enabled: !!orgId && activeTab === "requests"
+    // FIN-L4: Always enabled (removed activeTab guard) so badge count shows immediately
+    enabled: !!orgId
   });
 
   const getLiveRate = (type: string) => {
@@ -186,16 +187,38 @@ export default function LenderManagement() {
       if (insertError) throw insertError;
 
       if (applyToExisting) {
-        // Cascade logic for 3 products would be more complex, but for now we update all assigned limits 
-        // with the base rate type and specific product margins based on their facility type
-        // This is a simplification for the recovery
-        toast.info("Cascading rates to active contracts...");
+        // FIN-L3: Cascade new rates to all approved funder_limits for this funder
+        // Map product types to the correct margin column
+        const productMarginMap: Record<string, number> = {
+          receivables_purchase: Number(formData.margin_receivable_purchase),
+          reverse_factoring: Number(formData.margin_reverse_factoring),
+          payables_finance: Number(formData.margin_payable_finance),
+        };
+        const { data: activeLimits } = await (supabase as any)
+          .from('funder_limits')
+          .select('id, product_type')
+          .eq('organization_id', orgId)
+          .eq('funder_user_id', funderDialog.id)
+          .eq('status', 'approved');
+        if (activeLimits && activeLimits.length > 0) {
+          for (const limit of activeLimits) {
+            const newMargin = productMarginMap[limit.product_type] ?? Number(formData.margin_receivable_purchase);
+            await (supabase as any)
+              .from('funder_limits')
+              .update({ margin_pct: newMargin, base_rate_type: formData.base_rate_type })
+              .eq('id', limit.id);
+          }
+          toast.info(`Rates cascaded to ${activeLimits.length} active funding limit(s).`);
+        } else {
+          toast.info('No approved funder limits found to cascade rates to.');
+        }
       }
 
       toast.success("Strategic Product Matrix and Terms successfully recorded.");
 
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from('audit_logs').insert({
+        // FIN-L2: profile.id is the correct field (not profile.user_id)
         user_id: user?.id,
         user_email: user?.email,
         action: 'msa_rate_updated',

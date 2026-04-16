@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { DisbursementAdvicesContent } from "./DisbursementAdvices";
 
 export default function Disbursements() {
-  const { profile } = useAuth();
+  const { profile, user, isBroker } = useAuth();
   const [memos, setMemos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -41,9 +41,11 @@ export default function Disbursements() {
   const [disbForm, setDisbForm] = useState({
     advance_rate: "80",
     originator_fee: "0",
+    broker_fee: "0",
     funder_fee: "0",
     funder_user_id: "",
   });
+  const [creatingMemo, setCreatingMemo] = useState(false); // FIN-I5: block double submit
 
   useEffect(() => {
     if (profile?.organization_id) fetchMemos();
@@ -85,6 +87,12 @@ export default function Disbursements() {
         p_amount: memo.disbursement_amount,
         p_currency: currency,
       });
+      // FIN-I3: null means the RPC is missing or failed — treat as a validation error, not a pass
+      if (!validation) {
+        toast.error("Disbursement validation could not be performed. The validate_disbursement RPC is missing or returned no result. Please contact your administrator.");
+        setApproving(false);
+        return;
+      }
       if (validation && !validation.allowed) {
         toast.error(`Validation blocked: ${validation.reason}`);
         setApproving(false);
@@ -165,9 +173,10 @@ export default function Disbursements() {
       if (fac && inv) {
         // GAP-14/29: Fetch product-level fee config and apply if available
         const applyRates = async () => {
+          // FIN-B1: Fetch broker_fee_pct alongside originator fee and discount rate
           const { data: feeConfigs } = await supabase
             .from("product_fee_configs")
-            .select("originator_fee_pct, platform_fee_pct, default_discount_rate")
+            .select("originator_fee_pct, platform_fee_pct, default_discount_rate, broker_fee_pct")
             .eq("organization_id", profile!.organization_id!)
             .eq("product_type", inv.product_type || "receivables_purchase")
             .limit(1);
@@ -178,12 +187,14 @@ export default function Disbursements() {
           // Use fee_config rates if available, otherwise fall back to facility rates
           const origFeePct = feeConf?.originator_fee_pct ?? (fac.originator_margin_pct || 0);
           const funderFeePct = feeConf?.default_discount_rate ?? (fac.funder_discounting_rate || 0);
+          const brokerFeePct = feeConf?.broker_fee_pct ?? 0;
 
           setDisbForm(f => ({
             ...f,
             advance_rate: (fac.final_advance_rate || 90).toString(),
             originator_fee: ((invAmount * (Number(origFeePct) / 100)) / 12).toFixed(2),
             funder_fee: ((invAmount * (Number(funderFeePct) / 100)) / 12).toFixed(2),
+            broker_fee: ((invAmount * (Number(brokerFeePct) / 100)) / 12).toFixed(2),
           }));
 
           if (feeConf) {
@@ -225,7 +236,8 @@ export default function Disbursements() {
     const retainedAmount = invoiceValue - advanceAmount;
     const origFee = Number(disbForm.originator_fee) || 0;
     const funderFee = Number(disbForm.funder_fee) || 0;
-    const totalFee = origFee + funderFee;
+    const brokerFee = Number(disbForm.broker_fee) || 0;  // FIN-B1
+    const totalFee = origFee + funderFee + brokerFee;
     const maxDisbursement = advanceAmount - totalFee;
     // Gap E: use originator-entered override if provided, else use max
     const disbursementAmount = disbursementAmountOverride
@@ -304,6 +316,7 @@ export default function Disbursements() {
       disbursement_amount: disbursementAmount,
       borrower_requested_amount: borrowerRequested,
       funder_limit_id: selectedFunderLimit || null,
+      broker_user_id: isBroker && user ? user.id : null,
       status: "pending",
       created_by: profile!.user_id,
     });
@@ -317,6 +330,7 @@ export default function Disbursements() {
         details: { invoice_id: inv.id, facility_request_id: selectedFacility, amount: disbursementAmount, currency: inv.currency },
       });
     }
+    setCreatingMemo(false); // FIN-I5
     setCreateDialog(false);
     setSelectedInvoice("");
     setSelectedFacility("");
@@ -552,9 +566,33 @@ export default function Disbursements() {
                 )}
                 {detailMemo.status === "disbursed" && (
                   <Button variant="outline" className="w-full" onClick={() => {
-                    toast.success("Generating Payment Advice PDF...");
-                    // Window.print triggers the browser print dialog which satisfies PDF generation visually
-                    window.print();
+                    // FIN-I2: Open a print-ready popup with just the memo content
+                    const printContent = `
+                      <html><head><title>Payment Advice ${detailMemo.memo_number || ''}</title>
+                      <style>body{font-family:sans-serif;padding:32px;max-width:640px;margin:auto}
+                      h2{border-bottom:2px solid #000;padding-bottom:8px}
+                      table{width:100%;border-collapse:collapse;margin-top:16px}
+                      td,th{padding:8px 12px;border:1px solid #ccc;text-align:left}
+                      th{background:#f4f4f4;font-size:12px;text-transform:uppercase}
+                      .total{font-weight:bold;background:#f9f9f9}
+                      </style></head><body>
+                      <h2>Payment Advice</h2>
+                      <p><b>Memo #:</b> ${detailMemo.memo_number || '—'}</p>
+                      <p><b>Borrower:</b> ${detailMemo.borrowers?.company_name || '—'}</p>
+                      <p><b>Invoice #:</b> ${detailMemo.invoice_number || '—'}</p>
+                      <p><b>Payment Date:</b> ${detailMemo.payment_date ? new Date(detailMemo.payment_date).toLocaleDateString() : '—'}</p>
+                      <p><b>Reference:</b> ${detailMemo.payment_reference || '—'}</p>
+                      <table>
+                        <tr><th>Item</th><th>Amount</th></tr>
+                        <tr><td>Invoice Value</td><td>${Number(detailMemo.invoice_value||0).toLocaleString()}</td></tr>
+                        <tr><td>Advance (${detailMemo.advance_rate||0}%)</td><td>${Number(detailMemo.advance_amount||0).toLocaleString()}</td></tr>
+                        <tr><td>Total Fees</td><td>${Number(detailMemo.total_fee||0).toLocaleString()}</td></tr>
+                        <tr class="total"><td>Net Disbursement</td><td>${Number(detailMemo.disbursement_amount||0).toLocaleString()}</td></tr>
+                      </table>
+                      </body></html>`;
+                    const w = window.open('', '_blank', 'width=700,height=600');
+                    if (w) { w.document.write(printContent); w.document.close(); w.print(); }
+                    else toast.error('Pop-up blocked — please allow pop-ups for this site');
                   }}>
                     <Receipt className="mr-2 h-4 w-4" /> Download Payment Advice
                   </Button>
@@ -724,7 +762,11 @@ export default function Disbursements() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialog(false)}>Cancel</Button>
-            <Button onClick={handleCreateDisbursement}>Create Memo</Button>
+            {/* FIN-I5: Disabled during submission to prevent duplicate memos */}
+            <Button onClick={async () => { setCreatingMemo(true); await handleCreateDisbursement(); }} disabled={creatingMemo}>
+              {creatingMemo && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Memo
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

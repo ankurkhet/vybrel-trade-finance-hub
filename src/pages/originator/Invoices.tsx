@@ -30,6 +30,9 @@ export default function Invoices() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [productFilter, setProductFilter] = useState("all");
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 25;
   const [reviewInvoice, setReviewInvoice] = useState<any>(null);
   const [updating, setUpdating] = useState(false);
   const [fraudChecks, setFraudChecks] = useState<Record<string, any>>({});
@@ -40,7 +43,7 @@ export default function Invoices() {
     } else if (profile) {
       setLoading(false);
     }
-  }, [profile]);
+  }, [profile, page]);
 
   const fetchInvoices = async () => {
     if (!profile?.organization_id) {
@@ -48,11 +51,13 @@ export default function Invoices() {
       return;
     }
     setLoading(true);
-    const { data } = await supabase
+    const { data, count } = await supabase
       .from("invoices")
-      .select("*, borrowers(company_name), invoice_acceptances(*)")
+      .select("*, borrowers(company_name), invoice_acceptances(*)", { count: "exact" })
       .eq("organization_id", profile.organization_id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    setTotalCount(count || 0);
 
     setInvoices(data || []);
 
@@ -351,6 +356,20 @@ export default function Invoices() {
             )}
           </CardContent>
         </Card>
+
+        {totalCount > PAGE_SIZE && (
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount}</span>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+                Previous
+              </Button>
+              <Button variant="outline" size="sm" disabled={(page + 1) * PAGE_SIZE >= totalCount} onClick={() => setPage((p) => p + 1)}>
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Detail Dialog */}

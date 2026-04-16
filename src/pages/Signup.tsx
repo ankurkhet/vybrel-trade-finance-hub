@@ -66,6 +66,7 @@ export default function Signup() {
   const [step, setStep] = useState<"plan" | "register">("plan");
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [plansLoaded, setPlansLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [ndaAccepted, setNdaAccepted] = useState(false);
@@ -86,6 +87,7 @@ export default function Signup() {
       .order("sort_order")
       .then(({ data }) => {
         if (data) setPlans(data as unknown as Plan[]);
+        setPlansLoaded(true);
       });
   }, []);
 
@@ -115,12 +117,20 @@ export default function Signup() {
       return;
     }
     setLoading(true);
-    const { error } = await signUp(formData.email, formData.password, formData.fullName);
+    const { error } = await signUp(formData.email, formData.password, formData.fullName, {
+      company_name: formData.companyName,
+      plan_id: selectedPlan || undefined,
+    });
     if (error) {
       setLoading(false);
       toast.error(error.message);
       return;
     }
+    // Store company_name/plan_id for org auto-setup on first sign-in (fallback if metadata read fails)
+    localStorage.setItem("pending_org_setup", JSON.stringify({
+      company_name: formData.companyName,
+      plan_id: selectedPlan,
+    }));
     // Record NDA acceptance — we capture metadata; user_id will be linked post-confirmation
     // Store in local storage so the post-confirmation hook can persist it
     localStorage.setItem("pending_nda_acceptance", JSON.stringify({
@@ -222,6 +232,11 @@ export default function Signup() {
                   </Button>
                 </div>
               ))}
+            </div>
+          ) : plansLoaded ? (
+            <div className="mt-14 py-16 text-center">
+              <p className="text-muted-foreground">No plans are currently available.</p>
+              <p className="text-sm text-muted-foreground mt-2">Contact us at hello@vybrel.com to get started.</p>
             </div>
           ) : (
             <div className="mt-14 py-12 text-center text-muted-foreground">
@@ -333,6 +348,23 @@ export default function Signup() {
                     minLength={12}
                     className="border-border bg-background text-foreground placeholder:text-muted-foreground"
                   />
+                  {formData.password.length > 0 && (
+                    <div className="mt-1.5 flex items-center gap-1">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div
+                          key={i}
+                          className={`h-1 flex-1 rounded-full ${
+                            formData.password.length >= i * 3
+                              ? i <= 1 ? "bg-red-400" : i <= 2 ? "bg-yellow-400" : i <= 3 ? "bg-blue-400" : "bg-green-400"
+                              : "bg-muted"
+                          }`}
+                        />
+                      ))}
+                      <span className="text-xs text-muted-foreground ml-1">
+                        {formData.password.length < 6 ? "Weak" : formData.password.length < 9 ? "Fair" : formData.password.length < 12 ? "Good" : "Strong"}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label className="text-foreground/85">Confirm Password</Label>
@@ -374,8 +406,9 @@ export default function Signup() {
                   Create Account
                 </Button>
                 <p className="text-center text-xs text-muted-foreground">
-                  By registering, you also agree to our <Link to="/terms" className="text-primary hover:underline">Terms</Link> and{" "}
-                  <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
+                  By registering, you also agree to our{" "}
+                  <a href="mailto:legal@vybrel.com?subject=Terms" className="text-primary hover:underline">Terms</a> and{" "}
+                  <a href="mailto:legal@vybrel.com?subject=Privacy" className="text-primary hover:underline">Privacy Policy</a>.
                 </p>
               </CardFooter>
             </form>

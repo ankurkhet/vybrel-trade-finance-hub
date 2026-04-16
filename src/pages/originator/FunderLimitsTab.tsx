@@ -55,14 +55,14 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
   };
 
   const fetchFunders = async () => {
-    // Replaced RPC with safe direct query mapped against profiles
+    // FIN-L5: Fetch all funder-role users — do NOT filter by organizationId,
+    // funders belong to their own orgs or have no org assignment.
     const { data: roleRecords } = await supabase.from('user_roles').select('user_id').eq('role', 'funder');
     const funderUserIds = roleRecords?.map((r: any) => r.user_id) || [];
     
     const { data } = await supabase
       .from('profiles')
       .select('id, full_name, email')
-      .eq('organization_id', organizationId)
       .in('id', funderUserIds.length ? funderUserIds : ['00000000-0000-0000-0000-000000000000']);
       
     if (data) setFunders(data);
@@ -93,15 +93,19 @@ export function FunderLimitsTab({ borrowerId, organizationId }: { borrowerId: st
       .limit(1);
       
     if (rels && rels.length > 0) {
+       // FIN-L1: Use actual column names (not master_* which don't exist)
        const active = rels[0];
        setMsaTerms(active);
+       // The funder_relationships table stores per-product margins; use receivable_purchase as the default
+       const baseRateType = active.base_rate_type || 'Fixed Rate';
+       const marginPct = active.margin_receivable_purchase ? String(active.margin_receivable_purchase) : "";
        setFormData(f => ({
          ...f,
-         base_rate_type: active.master_base_rate_type || 'Fixed Rate',
-         base_rate_value: active.master_base_rate_value ? String(active.master_base_rate_value) : "",
-         margin_pct: active.master_margin_pct ? String(active.master_margin_pct) : ""
+         base_rate_type: baseRateType,
+         base_rate_value: "", // Base index value comes from live reference_rates table, not stored here
+         margin_pct: marginPct,
        }));
-       toast.info(`Rates pre-populated from Master Agreement (${active.master_base_rate_type} + ${active.master_margin_pct}%)`);
+       toast.info(`Rates pre-populated from MSA (${baseRateType} + ${active.margin_receivable_purchase || 0}% margin)`);
     } else {
        setMsaTerms(null);
     }

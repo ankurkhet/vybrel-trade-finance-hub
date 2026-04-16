@@ -13,7 +13,7 @@ interface AuthContextType {
   roles: AppRole[];
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName: string, meta?: { company_name?: string; plan_id?: string }) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   hasRole: (role: AppRole) => boolean;
   isAdmin: boolean;
@@ -80,6 +80,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // profiles.id = auth.users.id on this project
       const { data: profileData } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+
+      // CRIT-03: Auto-create org on first sign-in if profile has no org yet
+      if (profileData && !profileData.organization_id) {
+        const companyName =
+          currentSession?.user?.user_metadata?.company_name ||
+          (() => {
+            try { return JSON.parse(localStorage.getItem("pending_org_setup") || "{}").company_name; } catch { return null; }
+          })();
+
+        if (companyName) {
+          const { data: setupResult } = await supabase.functions.invoke("setup-originator-org", {
+            body: { user_id: userId, company_name: companyName },
+          });
+          if (setupResult?.organization_id) {
+            profileData.organization_id = setupResult.organization_id;
+            localStorage.removeItem("pending_org_setup");
+          }
+        }
+      }
+
       if (profileData) setProfile(profileData);
 
       if (jwtRoles && jwtRoles.length > 0) {
@@ -112,12 +132,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, meta?: { company_name?: string; plan_id?: string }) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: { full_name: fullName, company_name: meta?.company_name, plan_id: meta?.plan_id },
         emailRedirectTo: window.location.origin,
       },
     });
